@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sổ Chi Tiêu</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b6b36">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f5f3ec; --card:#fff; --ink:#1a1a1a; --mute:#555; --line:#b9b4a6;
+  --green:#0b6b36; --green-d:#08532a; --blue:#0a4fb3; --red:#b3261e; --amber:#fff4cc;
+  --stripe:#f0ede2; --head:#e4dfcd;
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:18px/1.35 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%;overscroll-behavior:none}
+body.noscroll{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-top:var(--safe-t)}
+#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 16px}
+#dock{flex:none;background:var(--card);border-top:2px solid var(--line);padding:8px 12px 8px}
+#tabs{flex:none;display:flex;background:var(--card);border-top:2px solid var(--line);padding-bottom:var(--safe-b)}
+#tabs button{flex:1;border:0;background:none;padding:8px 2px 7px;font-size:15px;font-weight:700;color:var(--mute);min-height:60px}
+#tabs button .ic{display:block;font-size:26px;line-height:1.1}
+#tabs button.on{color:var(--green);background:#e7f3ea}
+
+h1{font-size:24px;margin:2px 0 10px} h2{font-size:24px;margin:0 0 6px}
+.sub{color:var(--mute);margin-bottom:10px;font-size:17px}
+.hint{font-size:17px;color:var(--mute);margin:6px 0 12px}
+
+/* buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:60px;border-radius:14px;
+  border:2px solid var(--green);background:var(--card);color:var(--green);font-weight:800;font-size:20px;padding:8px 12px;cursor:pointer}
+.btn:active{filter:brightness(.92)}
+.btn.primary{background:var(--green);color:#fff}
+.btn.blue{border-color:var(--blue);color:var(--blue)}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.ghost{border-color:var(--line);color:var(--ink);font-weight:700}
+.btn.small{width:auto;min-width:84px;min-height:56px;font-size:18px}
+.btn+.btn,.btn+.row,.row+.btn{margin-top:10px}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.actions .btn{flex-direction:column;gap:2px;min-height:68px;font-size:16px;padding:6px 4px}
+.actions .btn b{font-size:26px;line-height:1}
+.row{display:flex;gap:8px;align-items:stretch}
+.row>input{flex:1;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* forms */
+label{display:block;font-weight:800;margin:12px 0 5px;font-size:18px}
+input[type=text],input[type=search],input:not([type]),input[type=number],textarea,select{
+  width:100%;min-height:56px;border:2px solid #777;border-radius:12px;padding:8px 12px;font-size:22px;background:#fff}
+input:focus,textarea:focus{outline:3px solid #7fb3ff;border-color:var(--blue)}
+textarea{min-height:110px;resize:vertical;font-size:20px}
+input[type=checkbox]{width:30px;height:30px;accent-color:var(--green)}
+
+/* date bar */
+.datebar{display:grid;grid-template-columns:64px 1fr 64px;gap:8px;margin-bottom:8px}
+.datebar button,.datebar .dbtn{min-height:60px;border-radius:14px;border:2px solid var(--line);background:var(--card);font-weight:800;font-size:30px;line-height:1}
+.dbtn{position:relative;font-size:19px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.2}
+.dbtn small{font-weight:600;color:var(--mute);font-size:15px}
+.dbtn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;font-size:20px}
+.today-chip{margin:0 0 8px}
+
+/* excel-like table */
+.xl{border:2px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.tr{display:grid;grid-template-columns:30px 1fr 58px 78px 88px;align-items:stretch;border-top:1px solid var(--line);min-height:56px;cursor:pointer}
+.tr:nth-child(even){background:var(--stripe)}
+.tr.th{background:var(--head);font-weight:800;font-size:14px;border-top:0;cursor:default;min-height:44px;position:sticky;top:-12px;z-index:2}
+.tr>div{padding:6px 5px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;min-width:0;word-break:break-word}
+.tr>div:first-child{border-left:0;align-items:center;font-weight:700;padding:6px 0}
+.tr .num{align-items:flex-end;text-align:right;font-variant-numeric:tabular-nums;font-size:16px}
+.tr .amt{font-weight:800}
+.tr .name b{font-size:17px}
+.tr small{display:block;color:var(--mute);font-size:13px;font-weight:600;line-height:1.2}
+.tr:active:not(.th){background:#d9ecdd}
+.empty{padding:28px 16px;text-align:center;color:var(--mute);font-size:19px}
+
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.total span{font-size:18px;font-weight:700}
+.total b{font-size:30px;color:var(--green);font-variant-numeric:tabular-nums}
+
+/* summary */
+.seg{display:grid;grid-template-columns:repeat(5,1fr);border:2px solid var(--green);border-radius:14px;overflow:hidden;margin-bottom:10px}
+.seg button{border:0;background:var(--card);min-height:54px;font-weight:800;font-size:17px;color:var(--green);border-left:2px solid var(--green)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--green);color:#fff}
+.pnav{display:grid;grid-template-columns:60px 1fr 60px;gap:8px;margin-bottom:10px;align-items:stretch}
+.pnav button{min-height:56px;border:2px solid var(--line);border-radius:14px;background:var(--card);font-size:28px;font-weight:800}
+.pnav .lab{display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800;font-size:18px;padding:4px}
+.bigtotal{background:var(--green);color:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px}
+.bigtotal small{display:block;font-size:17px;opacity:.9}
+.bigtotal b{font-size:38px;display:block;line-height:1.15;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stats div{background:var(--card);border:2px solid var(--line);border-radius:12px;padding:8px;text-align:center}
+.stats b{display:block;font-size:22px} .stats span{font-size:14px;color:var(--mute);font-weight:700}
+.sec{font-size:20px;font-weight:800;margin:14px 0 6px}
+.bar{display:block;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;position:relative;overflow:hidden;min-height:60px}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:#d6ebdc;z-index:0}
+.bar>*{position:relative;z-index:1}
+.bar .l{display:flex;justify-content:space-between;gap:8px;font-weight:700}
+.bar .l b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar small{color:var(--mute);font-weight:600;font-size:14px}
+
+/* sheet */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;max-height:94vh;max-height:94dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  border-radius:22px 22px 0 0;padding:16px 14px calc(18px + var(--safe-b))}
+.cand{border:2px solid var(--line);border-radius:14px;padding:10px;margin-bottom:10px;background:#fff}
+.cand.off{opacity:.45}
+.cand .chk{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-weight:800}
+.cand input[type=text],.cand input:not([type]){font-size:20px;min-height:52px}
+.cand .grid3{display:grid;grid-template-columns:.8fr .9fr 1.5fr;gap:6px;margin-top:6px}
+.cand .ct{text-align:right;font-weight:800;margin-top:6px;color:var(--green);font-size:19px}
+.status{background:var(--amber);border-radius:12px;padding:10px 12px;font-weight:700;margin-bottom:10px;min-height:46px}
+.status.live{background:#ffd9d6;color:var(--red)}
+progress{width:100%;height:22px}
+.prev{width:100%;max-height:34vh;object-fit:contain;border-radius:10px;border:2px solid var(--line);margin-bottom:10px;background:#eee}
+.file{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);font-weight:700;word-break:break-all}
+
+#toast{position:fixed;left:50%;top:calc(14px + var(--safe-t));transform:translateX(-50%);background:#222;color:#fff;
+  padding:12px 18px;border-radius:14px;font-weight:700;z-index:99;max-width:90vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:.96}
+#offscreen{position:fixed;left:-12000px;top:0;width:794px}
+
+/* report page (rendered to PDF / image) */
+.rpage{width:794px;height:1123px;background:#fff;color:#000;position:relative;padding:40px 40px 0;overflow:hidden;
+  font:15px/1.3 "Helvetica Neue",Arial,sans-serif}
+.rpage h3{margin:0 0 2px;font-size:26px;text-align:center;letter-spacing:.5px}
+.rpage .per{text-align:center;font-size:17px;margin-bottom:4px}
+.rpage .big{text-align:center;font-size:19px;font-weight:700;margin:2px 0 14px}
+.rpage table{width:100%;border-collapse:collapse;table-layout:fixed}
+.rpage th,.rpage td{border:1px solid #444;padding:5px 6px;vertical-align:top;word-break:break-word}
+.rpage th{background:#e4dfcd;font-size:14px}
+.rpage td.n{text-align:right;white-space:nowrap}
+.rpage td.c{text-align:center}
+.rpage tr.day td{background:#cfe6d6;font-weight:700}
+.rpage tr.sub td{background:#f1efe6;font-weight:700}
+.rpage tr.grand td{background:#0b6b36;color:#fff;font-weight:800;font-size:17px}
+.rpage .foot{position:absolute;left:40px;right:40px;bottom:22px;display:flex;justify-content:space-between;font-size:12px;color:#555}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <div id="dock"></div>
+  <nav id="tabs">
+    <button data-tab="entry"><span class="ic">📒</span>Nhập liệu</button>
+    <button data-tab="sum"><span class="ic">📊</span>Tổng kết</button>
+    <button data-tab="exp"><span class="ic">📤</span>Xuất file</button>
+  </nav>
+</div>
+<div id="sheet-root"></div>
+<div id="toast"></div>
+<div id="offscreen"></div>
+<input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
+<input type="file" id="restore-input" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+/* ============ Lưu trữ ============ */
+const STORE_KEY = 'chitieu.v1';
+let db = loadDb();
+function loadDb() {
+  try { const d = JSON.parse(localStorage.getItem(STORE_KEY)); if (d && d.days) { d.meta = d.meta || {}; return d; } } catch (e) {}
+  return { days: {}, meta: { title: '' } };
+}
+function saveDb() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
+  catch (e) { toast('Không lưu được: bộ nhớ máy đầy!'); }
+}
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+
+/* ============ Tiện ích ============ */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = n => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const fmtQty = q => String(+(+q).toFixed(3)).replace('.', ',');
+const money = n => fmt(n) + ' đ';
+const parseMoney = v => +String(v).replace(/\D/g, '') || 0;
+const parseQty = v => +String(v).replace(',', '.') || 0;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const keyOf = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const DOW = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+const fmtDate = d => pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+const longDate = d => DOW[d.getDay()] + ', ' + fmtDate(d);
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  return Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7);
+}
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2600);
+}
+const loaded = {};
+function loadScript(url) {
+  return loaded[url] || (loaded[url] = new Promise((ok, fail) => {
+    const s = document.createElement('script'); s.src = url; s.onload = ok;
+    s.onerror = () => { delete loaded[url]; fail(new Error('Không tải được thư viện. Hãy kiểm tra mạng.')); };
+    document.head.appendChild(s);
+  }));
+}
+const LIB = {
+  xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  h2c: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+  pdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  ocr: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js'
+};
+
+/* ============ Kỳ thời gian ============ */
+const TYPES = [['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['quarter', 'Quý'], ['year', 'Năm']];
+function rangeOf(type, a) {
+  let s, e, label;
+  if (type === 'day') { s = e = a; label = longDate(a); }
+  else if (type === 'week') {
+    s = addDays(a, -((a.getDay() + 6) % 7)); e = addDays(s, 6);
+    label = 'Tuần ' + isoWeek(s) + ' (' + pad(s.getDate()) + '/' + pad(s.getMonth() + 1) + ' – ' + fmtDate(e) + ')';
+  } else if (type === 'month') {
+    s = new Date(a.getFullYear(), a.getMonth(), 1); e = new Date(a.getFullYear(), a.getMonth() + 1, 0);
+    label = 'Tháng ' + (a.getMonth() + 1) + '/' + a.getFullYear();
+  } else if (type === 'quarter') {
+    const q = Math.floor(a.getMonth() / 3);
+    s = new Date(a.getFullYear(), q * 3, 1); e = new Date(a.getFullYear(), q * 3 + 3, 0);
+    label = 'Quý ' + (q + 1) + '/' + a.getFullYear();
+  } else {
+    s = new Date(a.getFullYear(), 0, 1); e = new Date(a.getFullYear(), 11, 31); label = 'Năm ' + a.getFullYear();
+  }
+  return { type, start: s, end: e, label, sk: keyOf(s), ek: keyOf(e) };
+}
+function shiftAnchor(type, a, dir) {
+  const y = a.getFullYear(), m = a.getMonth();
+  if (type === 'day') return addDays(a, dir);
+  if (type === 'week') return addDays(a, 7 * dir);
+  if (type === 'month') return new Date(y, m + dir, 1);
+  if (type === 'quarter') return new Date(y, m + 3 * dir, 1);
+  return new Date(y + dir, 0, 1);
+}
+function collect(rg) {
+  return Object.keys(db.days).filter(k => k >= rg.sk && k <= rg.ek && db.days[k].length).sort()
+    .map(k => ({ key: k, rows: db.days[k] }));
+}
+const sumRows = rows => rows.reduce((t, r) => t + (r.total || 0), 0);
+
+/* ============ Trạng thái & điều hướng ============ */
+const state = { tab: 'entry', date: new Date(), type: 'month', anchor: new Date() };
+function go(tab) {
+  state.tab = tab;
+  $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  render();
+  $('#view').scrollTop = 0;
+}
+$$('#tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
+function render() {
+  const dock = $('#dock');
+  dock.style.display = state.tab === 'entry' ? '' : 'none';
+  ({ entry: viewEntry, sum: viewSummary, exp: viewExport })[state.tab]();
+}
+
+/* ============ Màn hình 1: Nhập liệu ============ */
+function viewEntry() {
+  const k = keyOf(state.date), rows = db.days[k] || [], isToday = k === keyOf(new Date());
+  const body = rows.length ? rows.map((r, i) => `
+    <div class="tr" data-id="${r.id}">
+      <div>${i + 1}</div>
+      <div class="name"><b>${esc(r.name)}</b>${r.note ? `<small>${esc(r.note)}</small>` : ''}</div>
+      <div class="num">${fmtQty(r.qty)}${r.unit ? `<small>${esc(r.unit)}</small>` : ''}</div>
+      <div class="num">${fmt(r.price)}</div>
+      <div class="num amt">${fmt(r.total)}</div>
+    </div>`).join('') : `<div class="empty">Chưa có khoản chi nào trong ngày này.<br>Bấm nút bên dưới để thêm.</div>`;
+  $('#view').innerHTML = `
+    <div class="datebar">
+      <button id="d-prev" aria-label="Hôm trước">‹</button>
+      <div class="dbtn">${DOW[state.date.getDay()]}<small>${fmtDate(state.date)} · bấm để đổi ngày</small>
+        <input type="date" id="d-pick" value="${k}"></div>
+      <button id="d-next" aria-label="Hôm sau">›</button>
+    </div>
+    ${isToday ? '' : '<button class="btn ghost today-chip" id="d-today">Về hôm nay</button>'}
+    <div class="xl">
+      <div class="tr th"><div>STT</div><div>Tên hàng</div><div class="num">SL</div><div class="num">Đơn giá</div><div class="num">Thành tiền</div></div>
+      ${body}
+    </div>`;
+  $('#dock').innerHTML = `
+    <div class="total"><span>Tổng ngày này</span><b>${money(sumRows(rows))}</b></div>
+    <div class="actions">
+      <button class="btn primary" id="a-add"><b>＋</b>Nhập tay</button>
+      <button class="btn blue" id="a-voice"><b>🎤</b>Nói</button>
+      <button class="btn blue" id="a-photo"><b>📷</b>Chụp ảnh</button>
+    </div>`;
+  const setDate = d => { state.date = d; viewEntry(); };
+  $('#d-prev').onclick = () => setDate(addDays(state.date, -1));
+  $('#d-next').onclick = () => setDate(addDays(state.date, 1));
+  $('#d-pick').onchange = e => { if (e.target.value) setDate(fromKey(e.target.value)); };
+  const t = $('#d-today'); if (t) t.onclick = () => setDate(new Date());
+  $$('.tr[data-id]').forEach(el => el.onclick = () => rowSheet(el.dataset.id));
+  $('#a-add').onclick = () => rowSheet(null);
+  $('#a-voice').onclick = () => voiceSheet();
+  $('#a-photo').onclick = () => $('#photo-input').click();
+}
+
+/* ---- Hộp thoại ---- */
+function openSheet(html) {
+  const root = $('#sheet-root');
+  root.innerHTML = '<div class="overlay"><div class="sheet" role="dialog" aria-modal="true">' + html + '</div></div>';
+  document.body.classList.add('noscroll');
+  return $('.sheet', root);
+}
+function closeSheet() {
+  stopListening();
+  $('#sheet-root').innerHTML = '';
+  document.body.classList.remove('noscroll');
+}
+const sheetOpen = () => !!$('#sheet-root .sheet');
+
+function knownItems() {
+  const m = {};
+  Object.keys(db.days).sort().forEach(k => db.days[k].forEach(r => { m[r.name] = { unit: r.unit, price: r.price }; }));
+  return m;
+}
+const UNIT_LIST = ['kg', 'g', 'lạng', 'lít', 'bó', 'quả', 'con', 'cái', 'hộp', 'thùng', 'chai', 'gói', 'túi', 'bao', 'chục', 'mét', 'cuộn', 'bộ', 'tấn'];
+
+function rowSheet(id, pre) {
+  const k = keyOf(state.date), rows = db.days[k] || [];
+  const r = id ? rows.find(x => x.id === id) : null;
+  const v = r || pre || { name: '', qty: 1, unit: '', price: 0, total: 0, note: '' };
+  const known = knownItems();
+  const sh = openSheet(`
+    <h2>${r ? 'Sửa món hàng' : 'Thêm món hàng'}</h2>
+    <div class="sub">${longDate(state.date)}</div>
+    <label for="f-name">Tên món hàng</label>
+    <div class="row"><input id="f-name" list="names" autocomplete="off" value="${esc(v.name)}" placeholder="Ví dụ: Thịt ba chỉ">
+      <button class="btn small blue" id="f-mic" aria-label="Đọc tên">🎤</button></div>
+    <datalist id="names">${Object.keys(known).slice(-300).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="grid2">
+      <div><label for="f-qty">Số lượng</label><input id="f-qty" inputmode="decimal" value="${v.qty ? fmtQty(v.qty) : ''}"></div>
+      <div><label for="f-unit">Đơn vị</label><input id="f-unit" list="units" value="${esc(v.unit || '')}" placeholder="kg, bó, thùng…"></div>
+    </div>
+    <datalist id="units">${UNIT_LIST.map(u => `<option value="${u}">`).join('')}</datalist>
+    <label for="f-price">Đơn giá (đồng)</label>
+    <div class="row"><input id="f-price" inputmode="numeric" value="${v.price ? fmt(v.price) : ''}">
+      <button class="btn small ghost" id="f-000" aria-label="Thêm 000">+000</button></div>
+    <label for="f-total">Thành tiền (đồng)</label>
+    <input id="f-total" inputmode="numeric" value="${v.total ? fmt(v.total) : ''}">
+    <label for="f-note">Ghi chú</label>
+    <input id="f-note" value="${esc(v.note || '')}" placeholder="Không bắt buộc">
+    <div style="height:14px"></div>
+    <button class="btn primary" id="f-save">✔ Lưu</button>
+    ${r ? '' : '<button class="btn" id="f-more">Lưu và thêm món tiếp</button>'}
+    ${r ? '<button class="btn danger" id="f-del">🗑 Xóa món này</button>' : ''}
+    <button class="btn ghost" id="f-cancel">Đóng, không lưu</button>`);
+  const q = $('#f-qty', sh), p = $('#f-price', sh), t = $('#f-total', sh), n = $('#f-name', sh);
+  const recalcTotal = () => { const tot = Math.round(parseQty(q.value) * parseMoney(p.value)); t.value = tot ? fmt(tot) : ''; };
+  const fmtLive = el => { const d = parseMoney(el.value); el.value = d ? fmt(d) : ''; };
+  q.oninput = recalcTotal;
+  p.oninput = () => { fmtLive(p); recalcTotal(); };
+  t.oninput = () => { fmtLive(t); const qq = parseQty(q.value); if (qq > 0) { const pr = Math.round(parseMoney(t.value) / qq); p.value = pr ? fmt(pr) : ''; } };
+  $('#f-000', sh).onclick = () => { p.value = fmt(parseMoney(p.value) * 1000); recalcTotal(); p.focus(); };
+  n.onchange = () => {
+    const kn = known[n.value.trim()];
+    if (kn && !parseMoney(p.value)) { p.value = kn.price ? fmt(kn.price) : ''; if (!$('#f-unit', sh).value) $('#f-unit', sh).value = kn.unit || ''; recalcTotal(); }
+  };
+  $('#f-mic', sh).onclick = () => {
+    if (!SR) return toast('Hãy bấm biểu tượng micro trên bàn phím iPhone để đọc tên');
+    toast('Đang nghe… hãy nói tên món');
+    listenOnce(txt => { n.value = txt.charAt(0).toUpperCase() + txt.slice(1); n.onchange(); });
+  };
+  const commit = () => {
+    const name = n.value.trim();
+    if (!name) { toast('Hãy nhập tên món hàng'); n.focus(); return false; }
+    const qty = parseQty(q.value) || 1, price = parseMoney(p.value);
+    const total = parseMoney(t.value) || Math.round(qty * price);
+    const item = { id: r ? r.id : uid(), name, qty, unit: $('#f-unit', sh).value.trim(), price: price || (qty ? Math.round(total / qty) : 0), total, note: $('#f-note', sh).value.trim() };
+    const list = db.days[k] || (db.days[k] = []);
+    if (r) list[list.findIndex(x => x.id === r.id)] = item; else list.push(item);
+    saveDb(); return true;
+  };
+  $('#f-save', sh).onclick = () => { if (commit()) { closeSheet(); render(); toast('Đã lưu'); } };
+  const more = $('#f-more', sh);
+  if (more) more.onclick = () => { if (commit()) { render(); toast('Đã lưu. Nhập món tiếp'); rowSheet(null); } };
+  const del = $('#f-del', sh);
+  if (del) del.onclick = () => {
+    if (!confirm('Xóa món "' + r.name + '"?')) return;
+    db.days[k] = rows.filter(x => x.id !== r.id); if (!db.days[k].length) delete db.days[k];
+    saveDb(); closeSheet(); render(); toast('Đã xóa');
+  };
+  $('#f-cancel', sh).onclick = closeSheet;
+  if (!r && !pre) n.focus();
+}
+
+/* ============ Giọng nói ============ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function stopListening() { if (rec) { try { rec.onend = null; rec.stop(); } catch (e) {} rec = null; } }
+function micError(code) {
+  if (code === 'not-allowed' || code === 'service-not-allowed') return 'Chưa được phép dùng micro. Vào Cài đặt > Safari > Micro để cho phép, hoặc dùng micro trên bàn phím iPhone.';
+  if (code === 'no-speech') return 'Không nghe thấy tiếng. Hãy thử nói lại gần hơn.';
+  return 'Micro gặp lỗi (' + code + '). Bạn có thể dùng micro trên bàn phím iPhone.';
+}
+function listenOnce(cb) {
+  stopListening();
+  rec = new SR(); rec.lang = 'vi-VN'; rec.continuous = false; rec.interimResults = false;
+  rec.onresult = e => cb(e.results[0][0].transcript.trim());
+  rec.onerror = e => toast(micError(e.error));
+  try { rec.start(); } catch (e) {}
+}
+function voiceSheet() {
+  const sh = openSheet(`
+    <h2>🎤 Nói để nhập</h2>
+    <p class="hint">Nói từng món, ví dụ: <b>“Thịt ba chỉ, 2 ký, giá 120 nghìn”</b>.<br>
+      Xong một món, nói <b>“tiếp theo”</b> rồi nói món khác. Hoặc nói <b>“hết 240 nghìn”</b> nếu biết tổng tiền.</p>
+    <div class="status" id="v-status"></div>
+    <textarea id="v-text" placeholder="Lời bạn nói sẽ hiện ở đây. Có thể chạm vào để sửa."></textarea>
+    <div style="height:10px"></div>
+    <button class="btn blue" id="v-toggle">🎤 Bắt đầu nói</button>
+    <button class="btn primary" id="v-go">✔ Xem các món đã nghe</button>
+    <button class="btn ghost" id="v-cancel">Đóng</button>`);
+  const status = $('#v-status', sh), text = $('#v-text', sh), tog = $('#v-toggle', sh);
+  const setStatus = (msg, live) => { status.textContent = msg; status.classList.toggle('live', !!live); };
+  let base = '';
+  const stop = () => { stopListening(); tog.textContent = '🎤 Nói tiếp'; setStatus('Đã dừng. Bấm “Xem các món đã nghe” hoặc nói tiếp.'); };
+  function start() {
+    stopListening(); base = text.value.trim();
+    rec = new SR(); rec.lang = 'vi-VN'; rec.continuous = true; rec.interimResults = true;
+    let fin = base;
+    rec.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const tx = e.results[i][0].transcript;
+        if (e.results[i].isFinal) fin += (fin ? ' ' : '') + tx.trim(); else interim += tx;
+      }
+      text.value = fin + (interim ? ' ' + interim : '');
+    };
+    rec.onerror = e => { setStatus(micError(e.error)); tog.textContent = '🎤 Bắt đầu nói'; };
+    rec.onend = () => { rec = null; tog.textContent = '🎤 Nói tiếp'; setStatus('Đã dừng. Bấm “Xem các món đã nghe” hoặc nói tiếp.'); };
+    try { rec.start(); tog.textContent = '⏹ Dừng'; setStatus('Đang nghe… hãy nói', true); }
+    catch (e) { setStatus('Không bật được micro.'); }
+  }
+  if (SR) {
+    tog.onclick = () => (rec ? stop() : start());
+    start();
+  } else {
+    tog.style.display = 'none';
+    setStatus('Trình duyệt này chưa hỗ trợ ghi âm trong app. Hãy chạm vào ô bên dưới rồi bấm biểu tượng 🎤 trên bàn phím iPhone để đọc.');
+  }
+  $('#v-go', sh).onclick = () => {
+    stopListening();
+    const items = parseSpoken(text.value);
+    if (!items.length) return setStatus('Chưa hiểu được món nào. Hãy nói lại rõ hơn hoặc sửa chữ trong ô.');
+    reviewSheet(items, 'Kiểm tra lại các món đã nghe');
+  };
+  $('#v-cancel', sh).onclick = closeSheet;
+}
+
+/* ---- Phân tích câu nói tiếng Việt ---- */
+const UNITS = { 'ký': 'kg', 'kí': 'kg', 'kg': 'kg', 'cân': 'kg', 'lạng': 'lạng', 'gam': 'g', 'g': 'g', 'lít': 'lít', 'l': 'lít',
+  'chai': 'chai', 'lon': 'lon', 'hộp': 'hộp', 'thùng': 'thùng', 'bó': 'bó', 'bịch': 'bịch', 'túi': 'túi', 'gói': 'gói', 'quả': 'quả',
+  'trái': 'trái', 'củ': 'củ', 'con': 'con', 'cái': 'cái', 'chiếc': 'chiếc', 'cuộn': 'cuộn', 'bao': 'bao', 'tấn': 'tấn', 'tạ': 'tạ',
+  'yến': 'yến', 'mét': 'mét', 'm': 'm', 'chục': 'chục', 'vỉ': 'vỉ', 'hũ': 'hũ', 'ổ': 'ổ', 'miếng': 'miếng', 'bộ': 'bộ', 'cặp': 'cặp', 'đôi': 'đôi' };
+const UNIT_ALT = Object.keys(UNITS).sort((a, b) => b.length - a.length).join('|');
+const NUM = '(\\d+(?:\\.\\d+)?)';
+const WORD_D = { 'không': 0, 'một': 1, 'mốt': 1, 'hai': 2, 'ba': 3, 'bốn': 4, 'tư': 4, 'năm': 5, 'lăm': 5, 'sáu': 6, 'bảy': 7, 'bẩy': 7, 'tám': 8, 'chín': 9 };
+const WORD_M = new Set(['mười', 'mươi', 'trăm', 'nghìn', 'ngàn', 'triệu', 'linh', 'lẻ', 'rưỡi']);
+const NOT_NUM_AFTER = new Set(['chỉ', 'rọi', 'roi', 'tê']);
+
+function evalWordRun(tk) {
+  let grand = 0, group = 0, pend = null, scale = 0;
+  for (const t of tk) {
+    if (t in WORD_D) pend = WORD_D[t];
+    else if (t === 'mười') { group += 10; pend = null; }
+    else if (t === 'mươi') { group += (pend == null ? 1 : pend) * 10; pend = null; }
+    else if (t === 'trăm') { group += (pend == null ? 1 : pend) * 100; pend = null; scale = 100; }
+    else if (t === 'nghìn' || t === 'ngàn') { group += pend || 0; pend = null; grand += (group || 1) * 1e3; group = 0; scale = 1e3; }
+    else if (t === 'triệu') { group += pend || 0; pend = null; grand += (group || 1) * 1e6; group = 0; scale = 1e6; }
+    else if (t === 'rưỡi') { grand += scale / 2; scale = 0; }
+  }
+  if (pend != null && group === 0 && scale >= 1e3) grand += pend * scale / 10; // “một triệu hai”
+  else grand += group + (pend || 0);
+  return grand;
+}
+function wordsToDigits(s) {
+  const tk = s.split(/\s+/), out = [];
+  for (let i = 0; i < tk.length;) {
+    const isNum = j => tk[j] && (tk[j] in WORD_D || WORD_M.has(tk[j])) && !(tk[j] in WORD_D && NOT_NUM_AFTER.has(tk[j + 1])) && !(tk[j] === 'một' && tk[j + 1] in UNITS);
+    if (!isNum(i)) { out.push(tk[i++]); continue; }
+    const run = [tk[i]]; let j = i + 1;
+    while (isNum(j) && !(tk[j] in WORD_D && tk[j - 1] in WORD_D)) run.push(tk[j++]);
+    const onlyHalf = run.length === 1 && run[0] === 'rưỡi';
+    const onlyFiller = run.every(w => w === 'linh' || w === 'lẻ');
+    if (onlyHalf || onlyFiller || (run[0] === 'tư' && run.length === 1)) { out.push(...run); } else out.push(String(evalWordRun(run)));
+    i = j;
+  }
+  return out.join(' ');
+}
+function parseSpoken(raw) {
+  let s = String(raw || '').normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!s) return [];
+  // số có dấu chấm/phẩy: 120.000 → 120000 ; 1,5 → 1.5
+  s = s.replace(/\d+(?:[.,]\d+)*/g, m => (/^\d{1,3}([.,]\d{3})+$/.test(m) ? m.replace(/[.,]/g, '') : m.replace(',', '.')));
+  const segs = s.split(/[,;]|\.(?=\s|$)|(?:^|\s)(?:tiếp theo|tiếp|rồi|sau đó|và|với)(?=\s|$)/);
+  const items = [];
+  for (let seg of segs) {
+    seg = seg.trim(); if (!seg) continue;
+    // 120 nghìn / 3 trăm nghìn / 2 triệu rưỡi / 5k
+    seg = seg.replace(new RegExp(NUM + '\\s*(trăm\\s*)?(nghìn|ngàn|triệu|tr|k)(\\s*rưỡi)?(?![\\p{L}])', 'giu'),
+      (m, n, h, u, half) => { const mult = /^(triệu|tr)$/.test(u) ? 1e6 : 1e3; return String(+n * (h ? 100 : 1) * mult + (half ? mult / 2 : 0)); });
+    seg = seg.replace(new RegExp('(^|[^\\p{L}\\d.])' + NUM + '\\s*trăm(?![\\p{L}])', 'giu'), (m, p, n) => p + (+n * 100));
+    seg = wordsToDigits(seg);
+    seg = seg.replace(new RegExp(NUM + '\\s*(' + UNIT_ALT + ')\\s*rưỡi(?![\\p{L}])', 'giu'), (m, n, u) => (+n + 0.5) + ' ' + u);
+    seg = seg.replace(/(^|[^\p{L}\d])(đồng|đ|vnd|vnđ)(?![\p{L}])/giu, '$1').replace(/\s+/g, ' ').trim();
+
+    let qty = null, unit = '', price = null, total = null, m;
+    const cut = re => { m = seg.match(re); if (m) seg = seg.replace(m[0], ' '); return m; };
+    if (cut(new RegExp('(^|[^\\p{L}\\d])(?:hết|tổng cộng|tổng|thành tiền|tất cả|cộng)\\s*(?:là\\s*)?' + NUM, 'iu'))) total = +m[2];
+    if (cut(new RegExp('(^|[^\\p{L}\\d])(?:đơn giá|giá|mỗi\\s+\\p{L}+)\\s*(?:là\\s*)?' + NUM, 'iu'))) price = +m[2];
+    else if (cut(new RegExp(NUM + '\\s*(?:một|mỗi|trên|/)\\s*(?:' + UNIT_ALT + ')(?![\\p{L}])', 'iu'))) price = +m[1];
+    let oneUnit = '';
+    seg = seg.replace(new RegExp('(^|[^\\p{L}\\d])(?:một|mỗi|trên)\\s+(' + UNIT_ALT + ')(?![\\p{L}])', 'giu'), (x, pre, u) => { oneUnit = oneUnit || UNITS[u.toLowerCase()]; return pre + ' '; });
+    const um = seg.match(new RegExp(NUM + '\\s*(' + UNIT_ALT + ')(?![\\p{L}])', 'iu'));
+    if (um) { qty = +um[1]; unit = UNITS[um[2]]; seg = seg.replace(um[0], ' '); }
+    if (qty == null && oneUnit && price == null && total == null) { qty = 1; unit = oneUnit; }
+    let left = (seg.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+    if (qty == null && price == null && total == null) {
+      if (left.length === 1) { if (left[0] >= 1000) total = left[0]; else qty = left[0]; }
+      else if (left.length === 2) { qty = Math.min(...left); price = Math.max(...left); }
+      else if (left.length >= 3) { [qty, price, total] = left; }
+    } else {
+      if (qty == null) { const i = left.findIndex(x => x < 1000); if (i >= 0) { qty = left[i]; left.splice(i, 1); } }
+      if (price == null && total == null && left.length) price = left[left.length - 1];
+    }
+    let name = seg.replace(/\d+(?:\.\d+)?/g, ' ').replace(/(^|\s)(mua|thêm|cho tôi|cho|là|tôi|hết|giá|mỗi|trên|một|nữa)(?=\s|$)/giu, ' ').replace(/\s+/g, ' ').trim();
+    if (!name && qty == null && price == null && total == null) continue;
+    qty = qty || 1;
+    if (total != null && price == null) price = total / qty;
+    if (price != null && total == null) total = Math.round(qty * price);
+    name = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Món hàng';
+    items.push({ name, qty, unit, price: price || 0, total: Math.round(total || 0), note: '' });
+  }
+  return items;
+}
+
+/* ============ Chụp ảnh hóa đơn (OCR) ============ */
+$('#photo-input').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) photoFlow(f); });
+function loadImage(file) {
+  return new Promise((ok, fail) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => ok({ img, url }); img.onerror = () => fail(new Error('Không mở được ảnh'));
+    img.src = url;
+  });
+}
+async function photoFlow(file) {
+  const sh = openSheet(`<h2>📷 Đọc chữ từ ảnh</h2>
+    <img class="prev" id="p-prev" alt="Ảnh đã chụp">
+    <div class="status" id="p-status">Đang chuẩn bị…</div><progress id="p-bar" max="100" value="0"></progress>
+    <div style="height:10px"></div><button class="btn ghost" id="p-cancel">Hủy</button>`);
+  let cancelled = false;
+  $('#p-cancel', sh).onclick = () => { cancelled = true; closeSheet(); };
+  const status = $('#p-status', sh), bar = $('#p-bar', sh);
+  try {
+    const { img, url } = await loadImage(file);
+    $('#p-prev', sh).src = url;
+    const sc = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(img.naturalWidth * sc); cv.height = Math.round(img.naturalHeight * sc);
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    status.textContent = 'Đang tải bộ đọc chữ (lần đầu cần mạng, có thể mất 30 giây)…';
+    await loadScript(LIB.ocr);
+    const res = await Tesseract.recognize(cv, 'vie', { logger: m => {
+      if (cancelled) return;
+      if (m.status === 'recognizing text') { status.textContent = 'Đang đọc chữ trong ảnh…'; bar.value = Math.round(m.progress * 100); }
+      else if (m.progress != null && /load|init/.test(m.status)) { bar.value = Math.round(m.progress * 100); }
+    } });
+    if (cancelled) return;
+    const text = res.data.text || '';
+    const items = parseReceipt(text);
+    if (items.length) return reviewSheet(items, 'Đã đọc được từ ảnh. Hãy kiểm tra kỹ');
+    const sh2 = openSheet(`<h2>Chưa tách được món hàng</h2>
+      <p class="hint">Ảnh nên rõ nét, chụp thẳng, đủ sáng. Chữ viết tay có thể đọc sai. Chữ máy đọc được:</p>
+      <textarea id="p-txt">${esc(text)}</textarea><div style="height:10px"></div>
+      <button class="btn primary" id="p-parse">Thử tách lại từ chữ này</button>
+      <button class="btn ghost" id="p-close">Đóng</button>`);
+    $('#p-parse', sh2).onclick = () => { const it = parseReceipt($('#p-txt', sh2).value); if (it.length) reviewSheet(it, 'Kiểm tra lại các món'); else toast('Vẫn chưa tách được. Hãy nhập tay.'); };
+    $('#p-close', sh2).onclick = closeSheet;
+  } catch (err) {
+    if (cancelled) return;
+    status.textContent = 'Lỗi: ' + err.message; bar.style.display = 'none';
+  }
+}
+function parseReceipt(text) {
+  const skip = /(tổng|cộng|thanh toán|tiền mặt|thuế|vat|hóa đơn|địa chỉ|điện thoại|cảm ơn|tel|mst|ngày|giờ|khách|thu ngân|stt|đơn giá|số lượng|thành tiền)/i;
+  const items = [];
+  String(text || '').split(/\n+/).forEach(line => {
+    line = line.trim(); if (line.length < 4 || skip.test(line)) return;
+    const nums = (line.match(/\d+(?:[.,]\d{3})+|\d+(?:[.,]\d+)?/g) || []).map(x => (/^\d{1,3}([.,]\d{3})+$/.test(x) ? +x.replace(/[.,]/g, '') : +x.replace(',', '.')));
+    const name = line.replace(/\d+(?:[.,]\d+)*/g, ' ').replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    if (name.length < 2 || !nums.length) return;
+    let qty = 1, price, total;
+    if (nums.length === 1) { total = nums[0]; price = total; if (total < 100) return; }
+    else if (nums.length === 2) { const [a, b] = nums; qty = a < 100 ? a : 1; total = b; price = a < 100 ? Math.round(b / (a || 1)) : a; }
+    else { const L = nums.slice(-3); [qty, price, total] = L; if (qty >= 1000) { qty = 1; } }
+    if (!(total > 0)) return;
+    items.push({ name: name.charAt(0).toUpperCase() + name.slice(1), qty, unit: '', price, total: Math.round(total), note: '' });
+  });
+  return items;
+}
+
+/* ---- Màn hình kiểm tra trước khi thêm ---- */
+function reviewSheet(items, title) {
+  const sh = openSheet(`<h2>${esc(title)}</h2>
+    <div class="sub">Sẽ thêm vào ngày ${fmtDate(state.date)}. Chạm vào ô để sửa.</div>
+    <div id="cands">${items.map((it, i) => `
+      <div class="cand" data-i="${i}">
+        <label class="chk"><input type="checkbox" checked> Thêm món này</label>
+        <input class="c-name" value="${esc(it.name)}" aria-label="Tên món">
+        <div class="grid3">
+          <input class="c-qty" inputmode="decimal" value="${fmtQty(it.qty)}" aria-label="Số lượng">
+          <input class="c-unit" value="${esc(it.unit)}" placeholder="đv" aria-label="Đơn vị">
+          <input class="c-price" inputmode="numeric" value="${it.price ? fmt(it.price) : ''}" placeholder="Đơn giá" aria-label="Đơn giá">
+        </div>
+        <div class="ct">= <span class="c-tot">${fmt(it.total)}</span> đ</div>
+      </div>`).join('')}</div>
+    <button class="btn primary" id="r-ok">✔ Thêm vào bảng</button>
+    <button class="btn ghost" id="r-cancel">Hủy</button>`);
+  $$('.cand', sh).forEach(c => {
+    const q = $('.c-qty', c), p = $('.c-price', c), t = $('.c-tot', c);
+    const upd = () => { t.textContent = fmt(parseQty(q.value) * parseMoney(p.value)); };
+    q.oninput = upd;
+    p.oninput = () => { const d = parseMoney(p.value); p.value = d ? fmt(d) : ''; upd(); };
+    $('input[type=checkbox]', c).onchange = e => c.classList.toggle('off', !e.target.checked);
+  });
+  $('#r-ok', sh).onclick = () => {
+    const k = keyOf(state.date), list = db.days[k] || (db.days[k] = []); let added = 0;
+    $$('.cand', sh).forEach((c, i) => {
+      if (!$('input[type=checkbox]', c).checked) return;
+      const name = $('.c-name', c).value.trim(); if (!name) return;
+      const qty = parseQty($('.c-qty', c).value) || 1, price = parseMoney($('.c-price', c).value);
+      const orig = items[i], untouched = price === Math.round(orig.price) && qty === orig.qty;
+      list.push({ id: uid(), name, qty, unit: $('.c-unit', c).value.trim(), price, total: untouched ? orig.total : Math.round(qty * price), note: '' });
+      added++;
+    });
+    if (!list.length) delete db.days[k];
+    saveDb(); closeSheet(); render(); toast('Đã thêm ' + added + ' món');
+  };
+  $('#r-cancel', sh).onclick = closeSheet;
+}
+
+/* ============ Màn hình 2: Tổng kết ============ */
+function periodPicker() {
+  const rg = rangeOf(state.type, state.anchor);
+  return `<div class="seg">${TYPES.map(([t, n]) => `<button data-type="${t}" class="${t === state.type ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div class="pnav"><button id="p-prev" aria-label="Kỳ trước">‹</button><div class="lab">${esc(rg.label)}</div><button id="p-next" aria-label="Kỳ sau">›</button></div>`;
+}
+function bindPicker(redraw) {
+  $$('.seg button').forEach(b => b.onclick = () => { state.type = b.dataset.type; redraw(); });
+  $('#p-prev').onclick = () => { state.anchor = shiftAnchor(state.type, state.anchor, -1); redraw(); };
+  $('#p-next').onclick = () => { state.anchor = shiftAnchor(state.type, state.anchor, 1); redraw(); };
+}
+function viewSummary() {
+  const rg = rangeOf(state.type, state.anchor), data = collect(rg);
+  const all = data.flatMap(d => d.rows), total = sumRows(all);
+  let groups;
+  if (state.type === 'day') groups = null;
+  else if (state.type === 'week' || state.type === 'month') groups = data.map(d => ({ label: DOW[fromKey(d.key).getDay()] + ' ' + fmtDate(fromKey(d.key)), sub: d.rows.length + ' khoản', val: sumRows(d.rows), date: d.key }));
+  else {
+    const by = {};
+    data.forEach(d => { const mk = d.key.slice(0, 7); (by[mk] = by[mk] || { n: 0, val: 0 }); by[mk].n += d.rows.length; by[mk].val += sumRows(d.rows); });
+    groups = Object.keys(by).sort().map(mk => ({ label: 'Tháng ' + (+mk.slice(5)) + '/' + mk.slice(0, 4), sub: by[mk].n + ' khoản', val: by[mk].val, month: mk }));
+  }
+  const top = {};
+  all.forEach(r => { const n = r.name.toLowerCase(); (top[n] = top[n] || { name: r.name, val: 0, n: 0 }); top[n].val += r.total; top[n].n++; });
+  const topList = Object.values(top).sort((a, b) => b.val - a.val).slice(0, 8);
+  const bars = (list, withKey) => { const mx = Math.max(1, ...list.map(x => x.val)); return list.map((x, i) => `
+    <button class="bar" ${withKey ? `data-i="${i}"` : 'disabled'}><i style="width:${Math.round(x.val / mx * 100)}%"></i>
+      <span class="l"><span>${esc(x.label || x.name)}</span><b>${fmt(x.val)}</b></span><small>${esc(x.sub || (x.n + ' lần mua'))}</small></button>`).join(''); };
+  const days = data.length;
+  $('#view').innerHTML = `<h1>Tổng kết chi tiêu</h1>${periodPicker()}
+    <div class="bigtotal"><small>Tổng chi · ${esc(rg.label)}</small><b>${money(total)}</b></div>
+    <div class="stats"><div><b>${all.length}</b><span>khoản chi</span></div><div><b>${days}</b><span>ngày có chi</span></div><div><b>${fmt(days ? total / days : 0)}</b><span>TB mỗi ngày</span></div></div>
+    ${!all.length ? '<div class="empty">Chưa có dữ liệu trong khoảng thời gian này.</div>' : ''}
+    ${groups ? `<div class="sec">${state.type === 'week' || state.type === 'month' ? 'Theo từng ngày (chạm để mở)' : 'Theo từng tháng'}</div>${bars(groups, true)}` : ''}
+    ${all.length && state.type === 'day' ? `<div class="sec">Các khoản chi trong ngày</div>${bars(all.map(r => ({ label: r.name, sub: fmtQty(r.qty) + ' ' + (r.unit || '') + ' × ' + fmt(r.price), val: r.total })), false)}` : ''}
+    ${all.length && state.type !== 'day' ? `<div class="sec">Món chi nhiều nhất</div>${bars(topList, false)}` : ''}`;
+  bindPicker(viewSummary);
+  $$('.bar[data-i]').forEach(b => b.onclick = () => {
+    const g = groups[+b.dataset.i];
+    if (g.date) { state.date = fromKey(g.date); go('entry'); }
+    else if (g.month) { state.type = 'month'; state.anchor = new Date(+g.month.slice(0, 4), +g.month.slice(5) - 1, 1); viewSummary(); $('#view').scrollTop = 0; }
+  });
+}
+
+/* ============ Màn hình 3: Xuất file ============ */
+function viewExport() {
+  const rg = rangeOf(state.type, state.anchor), data = collect(rg), all = data.flatMap(d => d.rows);
+  $('#view').innerHTML = `<h1>Xuất file</h1>
+    <div class="hint" style="margin-top:0">Chọn khoảng thời gian cần xuất:</div>${periodPicker()}
+    <div class="bigtotal"><small>${all.length} khoản chi · ${esc(rg.label)}</small><b>${money(sumRows(all))}</b></div>
+    <label for="x-title">Tiêu đề in trên báo cáo</label>
+    <input id="x-title" value="${esc(db.meta.title || '')}" placeholder="Ví dụ: Chi phí kho Bình Dương">
+    <div style="height:12px"></div>
+    <button class="btn primary" id="x-xlsx">📗 Xuất file Excel (.xlsx)</button>
+    <button class="btn blue" id="x-pdf">📕 Xuất file PDF</button>
+    <button class="btn blue" id="x-img">🖼 Xuất thành ảnh (PNG)</button>
+    <div class="sec">Sao lưu dữ liệu</div>
+    <p class="hint" style="margin-top:0">Dữ liệu lưu ngay trên điện thoại này. Nên sao lưu thường xuyên, nhất là trước khi đổi máy hoặc xóa dữ liệu Safari.</p>
+    <button class="btn ghost" id="x-backup">💾 Sao lưu (tạo file .json)</button>
+    <button class="btn ghost" id="x-restore">♻ Khôi phục từ file sao lưu</button>
+    <div style="height:20px"></div>`;
+  bindPicker(viewExport);
+  $('#x-title').oninput = e => { db.meta.title = e.target.value; saveDb(); };
+  $('#x-xlsx').onclick = () => runExport(exportExcel);
+  $('#x-pdf').onclick = () => runExport(exportPdf);
+  $('#x-img').onclick = () => runExport(exportImages);
+  $('#x-backup').onclick = () => showFiles([{ blob: new Blob([JSON.stringify(db)], { type: 'application/json' }), name: 'SoChiTieu-saoluu-' + keyOf(new Date()) + '.json' }]);
+  $('#x-restore').onclick = () => $('#restore-input').click();
+}
+$('#restore-input').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d || typeof d.days !== 'object') throw 0;
+    const n = Object.keys(d.days).length;
+    if (!confirm('Thay toàn bộ dữ liệu hiện tại bằng file sao lưu (' + n + ' ngày có dữ liệu)?')) return;
+    db = { days: d.days, meta: d.meta || {} }; saveDb(); render(); toast('Đã khôi phục dữ liệu');
+  } catch (err) { toast('File sao lưu không hợp lệ'); }
+});
+
+async function runExport(fn) {
+  const rg = rangeOf(state.type, state.anchor), data = collect(rg);
+  if (!data.length) return toast('Khoảng thời gian này chưa có dữ liệu');
+  const sh = openSheet(`<h2>Đang tạo file…</h2><div class="status" id="b-status">Vui lòng chờ</div><progress id="b-bar" max="100"></progress>`);
+  const prog = (msg, v) => { const s = $('#b-status'); if (s) s.textContent = msg; const b = $('#b-bar'); if (b && v != null) b.value = v; };
+  try { const files = await fn(rg, data, prog); showFiles(files); }
+  catch (err) { sh.innerHTML = `<h2>Không tạo được file</h2><div class="status">${esc(err.message || err)}</div><button class="btn ghost" id="b-close">Đóng</button>`; $('#b-close').onclick = closeSheet; }
+}
+const reportTitle = () => (db.meta.title || '').trim() || 'BẢNG KÊ CHI TIÊU';
+const baseName = rg => 'ChiTieu_' + slug(rg.label.replace(/\(.*\)/, '')) + (rg.type === 'week' ? '_' + rg.sk : '');
+
+async function exportExcel(rg, data, prog) {
+  prog('Đang tải bộ tạo Excel…', 10); await loadScript(LIB.xlsx); prog('Đang tạo Excel…', 60);
+  const aoa = [[reportTitle()], [rg.label], [], ['Ngày', 'STT', 'Tên hàng', 'Số lượng', 'ĐVT', 'Đơn giá', 'Thành tiền', 'Ghi chú']];
+  data.forEach(d => d.rows.forEach((r, i) => aoa.push([fmtDate(fromKey(d.key)), i + 1, r.name, r.qty, r.unit || '', r.price, r.total, r.note || ''])));
+  const last = aoa.length, total = sumRows(data.flatMap(d => d.rows));
+  aoa.push(['TỔNG CỘNG', '', '', '', '', '', total, '']);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['G' + (last + 1)] = { t: 'n', v: total, f: 'SUM(G5:G' + last + ')', z: '#,##0' };
+  for (let r = 5; r <= last; r++) {
+    if (ws['D' + r]) ws['D' + r].z = '#,##0.###';
+    ['F', 'G'].forEach(c => { if (ws[c + r]) ws[c + r].z = '#,##0'; });
+  }
+  ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 32 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 28 }];
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
+  ws['!freeze'] = { xSplit: 0, ySplit: 4 };
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Chi tiết');
+  if (rg.type !== 'day') {
+    const monthly = rg.type === 'quarter' || rg.type === 'year', by = {};
+    data.forEach(d => { const k = monthly ? d.key.slice(0, 7) : d.key; by[k] = by[k] || { n: 0, v: 0 }; by[k].n += d.rows.length; by[k].v += sumRows(d.rows); });
+    const rows = [[monthly ? 'Tháng' : 'Ngày', 'Số khoản', 'Tổng chi']];
+    Object.keys(by).sort().forEach(k => rows.push([monthly ? 'Tháng ' + (+k.slice(5)) + '/' + k.slice(0, 4) : fmtDate(fromKey(k)), by[k].n, by[k].v]));
+    rows.push(['TỔNG CỘNG', rows.slice(1).reduce((t, r) => t + r[1], 0), total]);
+    const ws2 = XLSX.utils.aoa_to_sheet(rows);
+    for (let r = 2; r <= rows.length; r++) if (ws2['C' + r]) ws2['C' + r].z = '#,##0';
+    ws2['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Tổng hợp');
+  }
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  return [{ blob: new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), name: baseName(rg) + '.xlsx' }];
+}
+
+/* ---- Trang báo cáo (dùng cho PDF và ảnh) ---- */
+function buildPages(rg, data) {
+  const host = $('#offscreen'); host.innerHTML = '';
+  const total = sumRows(data.flatMap(d => d.rows)), multi = rg.type !== 'day';
+  const pages = [];
+  const thead = '<thead><tr><th style="width:44px">STT</th><th>Tên hàng</th><th style="width:70px">SL</th><th style="width:96px">Đơn giá</th><th style="width:108px">Thành tiền</th><th style="width:150px">Ghi chú</th></tr></thead>';
+  function newPage() {
+    const p = document.createElement('div'); p.className = 'rpage';
+    p.innerHTML = (pages.length ? '' : `<h3>${esc(reportTitle().toUpperCase())}</h3><div class="per">${esc(rg.label)}</div><div class="big">Tổng chi: ${money(total)}</div>`) +
+      `<table>${thead}<tbody></tbody></table><div class="foot"><span>Sổ Chi Tiêu · in ngày ${fmtDate(new Date())}</span><span class="pn"></span></div>`;
+    host.appendChild(p); pages.push(p); return p;
+  }
+  const fits = p => { const t = $('table', p); return t.getBoundingClientRect().bottom - p.getBoundingClientRect().top <= 1123 - 62; };
+  let cur = newPage();
+  function addGroup(htmls) {
+    const tb = $('tbody', cur);
+    tb.insertAdjacentHTML('beforeend', htmls.join(''));
+    if (fits(cur)) return;
+    for (let i = 0; i < htmls.length; i++) tb.lastElementChild.remove();
+    cur = newPage(); $('tbody', cur).insertAdjacentHTML('beforeend', htmls.join(''));
+  }
+  data.forEach(d => {
+    d.rows.forEach((r, i) => {
+      const tr = `<tr><td class="c">${i + 1}</td><td>${esc(r.name)}</td><td class="n">${fmtQty(r.qty)}${r.unit ? ' ' + esc(r.unit) : ''}</td><td class="n">${fmt(r.price)}</td><td class="n">${fmt(r.total)}</td><td>${esc(r.note || '')}</td></tr>`;
+      addGroup(multi && i === 0 ? [`<tr class="day"><td colspan="6">${longDate(fromKey(d.key))}</td></tr>`, tr] : [tr]);
+    });
+    if (multi) addGroup([`<tr class="sub"><td colspan="4" class="n">Cộng ngày ${pad(fromKey(d.key).getDate())}/${pad(fromKey(d.key).getMonth() + 1)}</td><td class="n">${fmt(sumRows(d.rows))}</td><td></td></tr>`]);
+  });
+  addGroup([`<tr class="grand"><td colspan="4" class="n">TỔNG CỘNG</td><td class="n">${fmt(total)}</td><td></td></tr>`]);
+  pages.forEach((p, i) => { $('.pn', p).textContent = 'Trang ' + (i + 1) + '/' + pages.length; });
+  return pages;
+}
+async function eachPageCanvas(rg, data, prog, fn) {
+  prog('Đang tải bộ tạo ảnh…', 5); await loadScript(LIB.h2c);
+  const pages = buildPages(rg, data);
+  try {
+    for (let i = 0; i < pages.length; i++) {
+      prog('Đang vẽ trang ' + (i + 1) + '/' + pages.length + '…', 10 + 85 * i / pages.length);
+      const cv = await html2canvas(pages[i], { scale: 2, backgroundColor: '#ffffff', logging: false });
+      await fn(cv, i, pages.length);
+    }
+  } finally { $('#offscreen').innerHTML = ''; }
+}
+async function exportPdf(rg, data, prog) {
+  await loadScript(LIB.pdf);
+  const pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', compress: true });
+  await eachPageCanvas(rg, data, prog, (cv, i) => {
+    if (i) pdf.addPage();
+    pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595.28, 841.89);
+  });
+  return [{ blob: pdf.output('blob'), name: baseName(rg) + '.pdf' }];
+}
+async function exportImages(rg, data, prog) {
+  const files = [];
+  await eachPageCanvas(rg, data, prog, async (cv, i, n) => {
+    const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+    files.push({ blob, name: baseName(rg) + (n > 1 ? '_trang' + (i + 1) : '') + '.png' });
+  });
+  return files;
+}
+
+/* ---- Gửi / lưu file ---- */
+function showFiles(files) {
+  const mk = f => new File([f.blob], f.name, { type: f.blob.type });
+  const real = files.map(mk);
+  const canShare = !!(navigator.canShare && navigator.canShare({ files: real }));
+  const urls = files.map(f => URL.createObjectURL(f.blob));
+  const sh = openSheet(`<h2>✅ File đã sẵn sàng</h2>
+    <p class="hint">${canShare ? 'Bấm “Gửi / Lưu” rồi chọn <b>Lưu vào Tệp</b>, Zalo, Mail… ' : 'Bấm “Tải về” để lưu file.'}</p>
+    ${files.map(f => `<div class="file"><span>${esc(f.name)}</span><span>${Math.max(1, Math.round(f.blob.size / 1024))} KB</span></div>`).join('')}
+    <div style="height:12px"></div>
+    ${canShare ? '<button class="btn primary" id="s-share">📤 Gửi / Lưu</button>' : ''}
+    <button class="btn ${canShare ? '' : 'primary'}" id="s-dl">⬇ Tải về máy</button>
+    <button class="btn ghost" id="s-close">Đóng</button>`);
+  const sb = $('#s-share', sh);
+  if (sb) sb.onclick = async () => { try { await navigator.share({ files: real, title: files[0].name }); } catch (e) { if (e.name !== 'AbortError') toast('Không mở được bảng chia sẻ, hãy bấm Tải về'); } };
+  $('#s-dl', sh).onclick = () => files.forEach((f, i) => { const a = document.createElement('a'); a.href = urls[i]; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); });
+  $('#s-close', sh).onclick = () => { closeSheet(); setTimeout(() => urls.forEach(u => URL.revokeObjectURL(u)), 60000); };
+}
+
+/* ============ Khởi động ============ */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+window.__app = { parseSpoken, parseReceipt, db: () => db, state };
+go('entry');
+</script>
+</body>
+</html>
