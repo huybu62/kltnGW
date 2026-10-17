@@ -28,10 +28,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 body.noscroll{overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-top:var(--safe-t)}
-#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 16px}
+#view{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:12px 12px 16px}
 #dock{flex:none;background:var(--card);border-top:2px solid var(--line);padding:8px 12px 8px}
 #tabs{flex:none;display:flex;background:var(--card);border-top:2px solid var(--line);padding-bottom:var(--safe-b)}
-#tabs button{flex:1;border:0;background:none;padding:8px 2px 7px;font-size:15px;font-weight:700;color:var(--mute);min-height:60px}
+#tabs button{flex:1;border:0;background:none;padding:8px 2px 7px;font-size:14px;font-weight:700;color:var(--mute);min-height:60px}
 #tabs button .ic{display:block;font-size:26px;line-height:1.1}
 #tabs button.on{color:var(--green);background:#e7f3ea}
 
@@ -54,11 +54,24 @@ h1{font-size:24px;margin:2px 0 10px} h2{font-size:24px;margin:0 0 6px}
 .actions .btn b{font-size:26px;line-height:1}
 .row{display:flex;gap:8px;align-items:stretch}
 .row>input{flex:1;min-width:0}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.grid2>div{min-width:0}
+input[type=date]{min-width:0;max-width:100%}
+.row>select{flex:1;min-width:0}
+.row+.row{margin-top:8px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+.chip{flex:none;min-height:48px;border-radius:24px;border:2px solid var(--line);background:var(--card);padding:0 16px;font-weight:800;font-size:17px;cursor:pointer}
+.chip.on{background:var(--green);border-color:var(--green);color:#fff}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:14px;font-weight:800;margin-left:6px}
+.badge.red{background:#ffd9d6;color:var(--red)} .badge.amber{background:#ffe9a8;color:#7a5200} .badge.gray{background:#e5e5e5;color:#444}
+.why{display:block;color:var(--mute);font-size:15px;margin:2px 0 6px;font-weight:600}
+details{border:2px solid var(--line);border-radius:14px;padding:4px 12px 12px;margin-bottom:8px}
+summary{font-weight:800;font-size:19px;min-height:52px;display:flex;align-items:center;cursor:pointer}
+.chk2{display:flex;align-items:center;gap:10px;font-weight:800}
 
 /* forms */
 label{display:block;font-weight:800;margin:12px 0 5px;font-size:18px}
-input[type=text],input[type=search],input:not([type]),input[type=number],textarea,select{
+input[type=text],input[type=search],input[type=date],input:not([type]),input[type=number],textarea,select{
   width:100%;min-height:56px;border:2px solid #777;border-radius:12px;padding:8px 12px;font-size:22px;background:#fff}
 input:focus,textarea:focus{outline:3px solid #7fb3ff;border-color:var(--blue)}
 textarea{min-height:110px;resize:vertical;font-size:20px}
@@ -74,12 +87,12 @@ input[type=checkbox]{width:30px;height:30px;accent-color:var(--green)}
 
 /* excel-like table */
 .xl{border:2px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
-.tr{display:grid;grid-template-columns:30px 1fr 58px 78px 88px;align-items:stretch;border-top:1px solid var(--line);min-height:56px;cursor:pointer}
+.tr{display:grid;grid-template-columns:30px minmax(0,1fr) 52px 74px 94px;align-items:stretch;border-top:1px solid var(--line);min-height:56px;cursor:pointer}
 .tr:nth-child(even){background:var(--stripe)}
 .tr.th{background:var(--head);font-weight:800;font-size:14px;border-top:0;cursor:default;min-height:44px;position:sticky;top:-12px;z-index:2}
 .tr>div{padding:6px 5px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;min-width:0;word-break:break-word}
 .tr>div:first-child{border-left:0;align-items:center;font-weight:700;padding:6px 0}
-.tr .num{align-items:flex-end;text-align:right;font-variant-numeric:tabular-nums;font-size:16px}
+.tr .num{align-items:flex-end;text-align:right;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap}
 .tr .amt{font-weight:800}
 .tr .name b{font-size:17px}
 .tr small{display:block;color:var(--mute);font-size:13px;font-weight:600;line-height:1.2}
@@ -118,7 +131,7 @@ input[type=checkbox]{width:30px;height:30px;accent-color:var(--green)}
   border-radius:22px 22px 0 0;padding:16px 14px calc(18px + var(--safe-b))}
 .cand{border:2px solid var(--line);border-radius:14px;padding:10px;margin-bottom:10px;background:#fff}
 .cand.off{opacity:.45}
-.cand .chk{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-weight:800}
+.cand .chk{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:0 0 6px;font-weight:800}
 .cand input[type=text],.cand input:not([type]){font-size:20px;min-height:52px}
 .cand .grid3{display:grid;grid-template-columns:.8fr .9fr 1.5fr;gap:6px;margin-top:6px}
 .cand .ct{text-align:right;font-weight:800;margin-top:6px;color:var(--green);font-size:19px}
@@ -157,6 +170,7 @@ progress{width:100%;height:22px}
   <nav id="tabs">
     <button data-tab="entry"><span class="ic">📒</span>Nhập liệu</button>
     <button data-tab="sum"><span class="ic">📊</span>Tổng kết</button>
+    <button data-tab="ord"><span class="ic">🛒</span>Đặt hàng</button>
     <button data-tab="exp"><span class="ic">📤</span>Xuất file</button>
   </nav>
 </div>
@@ -170,10 +184,17 @@ progress{width:100%;height:22px}
 'use strict';
 /* ============ Lưu trữ ============ */
 const STORE_KEY = 'chitieu.v1';
+const DEFAULT_CATS = [{ id: 'cho', name: 'Đi chợ' }, { id: 'kho', name: 'Kho / Công trình' }, { id: 'vp', name: 'Văn phòng' }, { id: 'khac', name: 'Khác' }];
 let db = loadDb();
+function normDb(d) {
+  d.days = d.days || {}; d.meta = d.meta || {}; d.orders = Array.isArray(d.orders) ? d.orders : [];
+  if (!Array.isArray(d.meta.cats)) d.meta.cats = DEFAULT_CATS.map(c => ({ ...c }));
+  if (!Array.isArray(d.meta.hidden)) d.meta.hidden = [];
+  return d;
+}
 function loadDb() {
-  try { const d = JSON.parse(localStorage.getItem(STORE_KEY)); if (d && d.days) { d.meta = d.meta || {}; return d; } } catch (e) {}
-  return { days: {}, meta: { title: '' } };
+  try { const d = JSON.parse(localStorage.getItem(STORE_KEY)); if (d && d.days) return normDb(d); } catch (e) {}
+  return normDb({ days: {}, meta: { title: '' } });
 }
 function saveDb() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
@@ -252,14 +273,15 @@ function shiftAnchor(type, a, dir) {
   if (type === 'quarter') return new Date(y, m + 3 * dir, 1);
   return new Date(y + dir, 0, 1);
 }
-function collect(rg) {
-  return Object.keys(db.days).filter(k => k >= rg.sk && k <= rg.ek && db.days[k].length).sort()
-    .map(k => ({ key: k, rows: db.days[k] }));
+function collect(rg, cat = state.cat) {
+  return Object.keys(db.days).filter(k => k >= rg.sk && k <= rg.ek).sort()
+    .map(k => ({ key: k, rows: cat === 'all' ? db.days[k] : db.days[k].filter(r => (r.cat || '') === cat) }))
+    .filter(d => d.rows.length);
 }
 const sumRows = rows => rows.reduce((t, r) => t + (r.total || 0), 0);
 
 /* ============ Trạng thái & điều hướng ============ */
-const state = { tab: 'entry', date: new Date(), type: 'month', anchor: new Date() };
+const state = { tab: 'entry', date: new Date(), type: 'month', anchor: new Date(), cat: 'all', orderId: null };
 function go(tab) {
   state.tab = tab;
   $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
@@ -270,7 +292,7 @@ $$('#tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.t
 function render() {
   const dock = $('#dock');
   dock.style.display = state.tab === 'entry' ? '' : 'none';
-  ({ entry: viewEntry, sum: viewSummary, exp: viewExport })[state.tab]();
+  ({ entry: viewEntry, sum: viewSummary, ord: viewOrders, exp: viewExport })[state.tab]();
 }
 
 /* ============ Màn hình 1: Nhập liệu ============ */
@@ -279,7 +301,7 @@ function viewEntry() {
   const body = rows.length ? rows.map((r, i) => `
     <div class="tr" data-id="${r.id}">
       <div>${i + 1}</div>
-      <div class="name"><b>${esc(r.name)}</b>${r.note ? `<small>${esc(r.note)}</small>` : ''}</div>
+      <div class="name"><b>${esc(r.name)}</b>${catTag(r.cat)}${r.note ? `<small>${esc(r.note)}</small>` : ''}</div>
       <div class="num">${fmtQty(r.qty)}${r.unit ? `<small>${esc(r.unit)}</small>` : ''}</div>
       <div class="num">${fmt(r.price)}</div>
       <div class="num amt">${fmt(r.total)}</div>
@@ -328,21 +350,82 @@ function closeSheet() {
 }
 const sheetOpen = () => !!$('#sheet-root .sheet');
 
+/* ---- Danh mục ---- */
+const CAT_COLORS = ['#0b6b36', '#0a4fb3', '#b35a00', '#7b1fa2', '#00838f', '#c2185b', '#5d4037', '#455a64'];
+const cats = () => db.meta.cats;
+const catName = id => { const c = cats().find(x => x.id === id); return c ? c.name : ''; };
+const catColor = id => { const i = cats().findIndex(x => x.id === id); return i < 0 ? '#777' : CAT_COLORS[i % CAT_COLORS.length]; };
+const catTag = id => (catName(id) ? `<small style="color:${catColor(id)}">● ${esc(catName(id))}</small>` : '');
+const catOptions = sel => '<option value="">— Chưa chọn —</option>' + cats().map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+
+function catSheet(after) {
+  const draw = () => {
+    const sh = openSheet(`<h2>⚙ Danh mục</h2>
+      <p class="hint">Tự đặt tên theo cách bạn quản lý, ví dụ: Đi chợ, Kho A, Công trình B, Nhà máy 2…</p>
+      ${cats().map(c => `<div class="row catrow"><input data-id="${c.id}" value="${esc(c.name)}" aria-label="Tên danh mục"><button class="btn small danger" data-del="${c.id}" aria-label="Xóa danh mục">🗑</button></div>`).join('')}
+      <label for="c-new">Thêm danh mục mới</label>
+      <div class="row"><input id="c-new" placeholder="Nhập tên…"><button class="btn small primary" id="c-add">＋ Thêm</button></div>
+      <div style="height:12px"></div><button class="btn primary" id="c-done">✔ Xong</button>`);
+    $$('input[data-id]', sh).forEach(i => i.onchange = () => {
+      const c = cats().find(x => x.id === i.dataset.id), v = i.value.trim();
+      if (v) { c.name = v; saveDb(); } else i.value = c.name;
+    });
+    $$('[data-del]', sh).forEach(b => b.onclick = () => {
+      const c = cats().find(x => x.id === b.dataset.del);
+      if (!confirm('Xóa danh mục "' + c.name + '"? Các khoản đã ghi sẽ chuyển thành "Chưa phân loại".')) return;
+      db.meta.cats = cats().filter(x => x.id !== c.id);
+      Object.values(db.days).forEach(rows => rows.forEach(r => { if (r.cat === c.id) r.cat = ''; }));
+      db.orders.forEach(o => o.lines.forEach(l => { if (l.cat === c.id) l.cat = ''; }));
+      if (state.cat === c.id) state.cat = 'all';
+      if (db.meta.lastCat === c.id) db.meta.lastCat = '';
+      saveDb(); draw();
+    });
+    $('#c-add', sh).onclick = () => {
+      const v = $('#c-new', sh).value.trim();
+      if (!v) return toast('Hãy nhập tên danh mục');
+      if (cats().some(c => c.name.toLowerCase() === v.toLowerCase())) return toast('Danh mục này đã có');
+      cats().push({ id: uid(), name: v }); saveDb(); draw();
+    };
+    $('#c-done', sh).onclick = () => { closeSheet(); if (after) after(); };
+  };
+  draw();
+}
+
 function knownItems() {
   const m = {};
-  Object.keys(db.days).sort().forEach(k => db.days[k].forEach(r => { m[r.name] = { unit: r.unit, price: r.price }; }));
+  Object.keys(db.days).sort().forEach(k => db.days[k].forEach(r => { m[r.name] = { unit: r.unit, price: r.price, cat: r.cat || '' }; }));
   return m;
+}
+// Điền đơn vị, giá, danh mục từ lần mua trước cho những món còn thiếu
+function fillFromHistory(items) {
+  const lk = {}, kn = knownItems();
+  Object.keys(kn).forEach(n => { lk[n.toLowerCase()] = kn[n]; });
+  const names = Object.keys(lk).reverse();
+  return items.map(it => {
+    const nm = it.name.toLowerCase();
+    const near = nm.length >= 3 && names.find(n => n.includes(nm) || nm.includes(n));
+    const h = lk[nm] || (near && lk[near]);
+    if (!h) return it;
+    const price = it.price || h.price || 0;
+    return { ...it, unit: it.unit || h.unit || '', price, total: it.price ? it.total : Math.round(it.qty * price), cat: it.cat || h.cat || '' };
+  });
 }
 const UNIT_LIST = ['kg', 'g', 'lạng', 'lít', 'bó', 'quả', 'con', 'cái', 'hộp', 'thùng', 'chai', 'gói', 'túi', 'bao', 'chục', 'mét', 'cuộn', 'bộ', 'tấn'];
 
-function rowSheet(id, pre) {
-  const k = keyOf(state.date), rows = db.days[k] || [];
+// Nơi lưu danh sách dòng: sổ chi tiêu của một ngày, hoặc một đơn đặt hàng
+function dayTarget() {
+  const k = keyOf(state.date);
+  return { label: longDate(state.date), get: () => db.days[k] || [], set: a => { if (a.length) db.days[k] = a; else delete db.days[k]; }, done: () => render() };
+}
+function rowSheet(id, pre, target) {
+  target = target || dayTarget();
+  const rows = target.get();
   const r = id ? rows.find(x => x.id === id) : null;
   const v = r || pre || { name: '', qty: 1, unit: '', price: 0, total: 0, note: '' };
   const known = knownItems();
   const sh = openSheet(`
     <h2>${r ? 'Sửa món hàng' : 'Thêm món hàng'}</h2>
-    <div class="sub">${longDate(state.date)}</div>
+    <div class="sub">${esc(target.label)}</div>
     <label for="f-name">Tên món hàng</label>
     <div class="row"><input id="f-name" list="names" autocomplete="off" value="${esc(v.name)}" placeholder="Ví dụ: Thịt ba chỉ">
       <button class="btn small blue" id="f-mic" aria-label="Đọc tên">🎤</button></div>
@@ -357,6 +440,9 @@ function rowSheet(id, pre) {
       <button class="btn small ghost" id="f-000" aria-label="Thêm 000">+000</button></div>
     <label for="f-total">Thành tiền (đồng)</label>
     <input id="f-total" inputmode="numeric" value="${v.total ? fmt(v.total) : ''}">
+    <label for="f-cat">Danh mục</label>
+    <div class="row"><select id="f-cat">${catOptions(r ? r.cat : (pre && pre.cat) || db.meta.lastCat || '')}</select>
+      <button class="btn small ghost" id="f-catadd">＋ Mới</button></div>
     <label for="f-note">Ghi chú</label>
     <input id="f-note" value="${esc(v.note || '')}" placeholder="Không bắt buộc">
     <div style="height:14px"></div>
@@ -373,7 +459,18 @@ function rowSheet(id, pre) {
   $('#f-000', sh).onclick = () => { p.value = fmt(parseMoney(p.value) * 1000); recalcTotal(); p.focus(); };
   n.onchange = () => {
     const kn = known[n.value.trim()];
-    if (kn && !parseMoney(p.value)) { p.value = kn.price ? fmt(kn.price) : ''; if (!$('#f-unit', sh).value) $('#f-unit', sh).value = kn.unit || ''; recalcTotal(); }
+    if (kn && !parseMoney(p.value)) {
+      p.value = kn.price ? fmt(kn.price) : '';
+      if (!$('#f-unit', sh).value) $('#f-unit', sh).value = kn.unit || '';
+      if (!$('#f-cat', sh).value && kn.cat) $('#f-cat', sh).value = kn.cat;
+      recalcTotal();
+    }
+  };
+  $('#f-catadd', sh).onclick = () => {
+    const nm = (prompt('Tên danh mục mới:') || '').trim(); if (!nm) return;
+    let c = cats().find(x => x.name.toLowerCase() === nm.toLowerCase());
+    if (!c) { c = { id: uid(), name: nm }; cats().push(c); saveDb(); }
+    $('#f-cat', sh).innerHTML = catOptions(c.id);
   };
   $('#f-mic', sh).onclick = () => {
     if (!SR) return toast('Hãy bấm biểu tượng micro trên bàn phím iPhone để đọc tên');
@@ -385,19 +482,19 @@ function rowSheet(id, pre) {
     if (!name) { toast('Hãy nhập tên món hàng'); n.focus(); return false; }
     const qty = parseQty(q.value) || 1, price = parseMoney(p.value);
     const total = parseMoney(t.value) || Math.round(qty * price);
-    const item = { id: r ? r.id : uid(), name, qty, unit: $('#f-unit', sh).value.trim(), price: price || (qty ? Math.round(total / qty) : 0), total, note: $('#f-note', sh).value.trim() };
-    const list = db.days[k] || (db.days[k] = []);
+    const cat = $('#f-cat', sh).value;
+    const item = { id: r ? r.id : uid(), name, qty, unit: $('#f-unit', sh).value.trim(), price: price || (qty ? Math.round(total / qty) : 0), total, cat, note: $('#f-note', sh).value.trim() };
+    const list = rows.slice();
     if (r) list[list.findIndex(x => x.id === r.id)] = item; else list.push(item);
-    saveDb(); return true;
+    target.set(list); db.meta.lastCat = cat; saveDb(); return true;
   };
-  $('#f-save', sh).onclick = () => { if (commit()) { closeSheet(); render(); toast('Đã lưu'); } };
+  $('#f-save', sh).onclick = () => { if (commit()) { closeSheet(); target.done(); toast('Đã lưu'); } };
   const more = $('#f-more', sh);
-  if (more) more.onclick = () => { if (commit()) { render(); toast('Đã lưu. Nhập món tiếp'); rowSheet(null); } };
+  if (more) more.onclick = () => { if (commit()) { target.done(); toast('Đã lưu. Nhập món tiếp'); rowSheet(null, null, target); } };
   const del = $('#f-del', sh);
   if (del) del.onclick = () => {
     if (!confirm('Xóa món "' + r.name + '"?')) return;
-    db.days[k] = rows.filter(x => x.id !== r.id); if (!db.days[k].length) delete db.days[k];
-    saveDb(); closeSheet(); render(); toast('Đã xóa');
+    target.set(rows.filter(x => x.id !== r.id)); saveDb(); closeSheet(); target.done(); toast('Đã xóa');
   };
   $('#f-cancel', sh).onclick = closeSheet;
   if (!r && !pre) n.focus();
@@ -419,11 +516,11 @@ function listenOnce(cb) {
   rec.onerror = e => toast(micError(e.error));
   try { rec.start(); } catch (e) {}
 }
-function voiceSheet() {
+function voiceSheet(opts = {}) {
   const sh = openSheet(`
-    <h2>🎤 Nói để nhập</h2>
-    <p class="hint">Nói từng món, ví dụ: <b>“Thịt ba chỉ, 2 ký, giá 120 nghìn”</b>.<br>
-      Xong một món, nói <b>“tiếp theo”</b> rồi nói món khác. Hoặc nói <b>“hết 240 nghìn”</b> nếu biết tổng tiền.</p>
+    <h2>${opts.title || '🎤 Nói để nhập'}</h2>
+    ${opts.hint || `<p class="hint">Nói từng món, ví dụ: <b>“Thịt ba chỉ, 2 ký, giá 120 nghìn”</b>.<br>
+      Xong một món, nói <b>“tiếp theo”</b> rồi nói món khác. Hoặc nói <b>“hết 240 nghìn”</b> nếu biết tổng tiền.</p>`}
     <div class="status" id="v-status"></div>
     <textarea id="v-text" placeholder="Lời bạn nói sẽ hiện ở đây. Có thể chạm vào để sửa."></textarea>
     <div style="height:10px"></div>
@@ -462,7 +559,7 @@ function voiceSheet() {
     stopListening();
     const items = parseSpoken(text.value);
     if (!items.length) return setStatus('Chưa hiểu được món nào. Hãy nói lại rõ hơn hoặc sửa chữ trong ô.');
-    reviewSheet(items, 'Kiểm tra lại các món đã nghe');
+    reviewSheet(opts.prefill ? opts.prefill(items) : items, opts.reviewTitle || 'Kiểm tra lại các món đã nghe', opts.review);
   };
   $('#v-cancel', sh).onclick = closeSheet;
 }
@@ -517,8 +614,8 @@ function parseSpoken(raw) {
   for (let seg of segs) {
     seg = seg.trim(); if (!seg) continue;
     // 120 nghìn / 3 trăm nghìn / 2 triệu rưỡi / 5k
-    seg = seg.replace(new RegExp(NUM + '\\s*(trăm\\s*)?(nghìn|ngàn|triệu|tr|k)(\\s*rưỡi)?(?![\\p{L}])', 'giu'),
-      (m, n, h, u, half) => { const mult = /^(triệu|tr)$/.test(u) ? 1e6 : 1e3; return String(+n * (h ? 100 : 1) * mult + (half ? mult / 2 : 0)); });
+    seg = seg.replace(new RegExp(NUM + '\\s*(trăm\\s*)?(nghìn|ngàn|triệu|tr|k)(\\s*rưỡi)?(?![\\p{L}])(?:\\s+(\\d)(?=\\s*(?:đồng|đ)?\\s*$))?', 'giu'),
+      (m, n, h, u, half, tail) => { const mult = /^(triệu|tr)$/.test(u) ? 1e6 : 1e3; return String(+n * (h ? 100 : 1) * mult + (half ? mult / 2 : 0) + (tail && !half ? +tail * mult / 10 : 0)); });
     seg = seg.replace(new RegExp('(^|[^\\p{L}\\d.])' + NUM + '\\s*trăm(?![\\p{L}])', 'giu'), (m, p, n) => p + (+n * 100));
     seg = wordsToDigits(seg);
     seg = seg.replace(new RegExp(NUM + '\\s*(' + UNIT_ALT + ')\\s*rưỡi(?![\\p{L}])', 'giu'), (m, n, u) => (+n + 0.5) + ' ' + u);
@@ -543,7 +640,7 @@ function parseSpoken(raw) {
       if (qty == null) { const i = left.findIndex(x => x < 1000); if (i >= 0) { qty = left[i]; left.splice(i, 1); } }
       if (price == null && total == null && left.length) price = left[left.length - 1];
     }
-    let name = seg.replace(/\d+(?:\.\d+)?/g, ' ').replace(/(^|\s)(mua|thêm|cho tôi|cho|là|tôi|hết|giá|mỗi|trên|một|nữa)(?=\s|$)/giu, ' ').replace(/\s+/g, ' ').trim();
+    let name = seg.replace(/\d+(?:\.\d+)?/g, ' ').replace(/(^|\s)(mua|thêm|đặt hàng|đặt|lấy|cần|cho tôi|cho|là|tôi|hết|giá|mỗi|trên|một|nữa)(?=\s|$)/giu, ' ').replace(/\s+/g, ' ').trim();
     if (!name && qty == null && price == null && total == null) continue;
     qty = qty || 1;
     if (total != null && price == null) price = total / qty;
@@ -620,10 +717,15 @@ function parseReceipt(text) {
 }
 
 /* ---- Màn hình kiểm tra trước khi thêm ---- */
-function reviewSheet(items, title) {
+// opt.onConfirm(items): dùng cho đơn đặt hàng; mặc định thêm vào sổ chi tiêu của ngày đang chọn
+function reviewSheet(items, title, opt) {
+  opt = opt || {};
+  const keepCat = items.some(it => it.cat);
+  const common = items.length && items.every(it => it.cat && it.cat === items[0].cat) ? items[0].cat : (db.meta.lastCat || '');
   const sh = openSheet(`<h2>${esc(title)}</h2>
-    <div class="sub">Sẽ thêm vào ngày ${fmtDate(state.date)}. Chạm vào ô để sửa.</div>
-    <div id="cands">${items.map((it, i) => `
+    <div class="sub">${opt.onConfirm ? 'Chạm vào ô để sửa.' : 'Sẽ thêm vào ngày ' + fmtDate(state.date) + '. Chạm vào ô để sửa.'}</div>
+    <label for="r-cat">Danh mục</label><select id="r-cat">${keepCat ? '<option value="__keep" selected>Giữ như lần mua trước</option>' : ''}${catOptions(keepCat ? '__keep' : common)}</select>
+    <div id="cands" style="margin-top:12px">${items.map((it, i) => `
       <div class="cand" data-i="${i}">
         <label class="chk"><input type="checkbox" checked> Thêm món này</label>
         <input class="c-name" value="${esc(it.name)}" aria-label="Tên món">
@@ -634,7 +736,7 @@ function reviewSheet(items, title) {
         </div>
         <div class="ct">= <span class="c-tot">${fmt(it.total)}</span> đ</div>
       </div>`).join('')}</div>
-    <button class="btn primary" id="r-ok">✔ Thêm vào bảng</button>
+    <button class="btn primary" id="r-ok">${opt.confirmText || '✔ Thêm vào bảng'}</button>
     <button class="btn ghost" id="r-cancel">Hủy</button>`);
   $$('.cand', sh).forEach(c => {
     const q = $('.c-qty', c), p = $('.c-price', c), t = $('.c-tot', c);
@@ -644,31 +746,46 @@ function reviewSheet(items, title) {
     $('input[type=checkbox]', c).onchange = e => c.classList.toggle('off', !e.target.checked);
   });
   $('#r-ok', sh).onclick = () => {
-    const k = keyOf(state.date), list = db.days[k] || (db.days[k] = []); let added = 0;
+    const catSel = $('#r-cat', sh).value, out = [];
     $$('.cand', sh).forEach((c, i) => {
       if (!$('input[type=checkbox]', c).checked) return;
       const name = $('.c-name', c).value.trim(); if (!name) return;
       const qty = parseQty($('.c-qty', c).value) || 1, price = parseMoney($('.c-price', c).value);
       const orig = items[i], untouched = price === Math.round(orig.price) && qty === orig.qty;
-      list.push({ id: uid(), name, qty, unit: $('.c-unit', c).value.trim(), price, total: untouched ? orig.total : Math.round(qty * price), note: '' });
-      added++;
+      out.push({ name, qty, unit: $('.c-unit', c).value.trim(), price, total: untouched ? orig.total : Math.round(qty * price), cat: catSel === '__keep' ? (orig.cat || '') : catSel, note: '' });
     });
-    if (!list.length) delete db.days[k];
-    saveDb(); closeSheet(); render(); toast('Đã thêm ' + added + ' món');
+    if (!out.length) return toast('Chưa chọn món nào');
+    if (catSel !== '__keep') db.meta.lastCat = catSel;
+    saveDb();
+    if (opt.onConfirm) { closeSheet(); opt.onConfirm(out); return; }
+    const k = keyOf(state.date), list = db.days[k] || (db.days[k] = []);
+    out.forEach(it => list.push({ id: uid(), ...it }));
+    saveDb(); closeSheet(); render(); toast('Đã thêm ' + out.length + ' món');
   };
   $('#r-cancel', sh).onclick = closeSheet;
 }
 
 /* ============ Màn hình 2: Tổng kết ============ */
+const catLabel = c => (c === 'all' ? 'Tất cả danh mục' : (catName(c) || 'Chưa phân loại'));
+const periodTitle = rg => rg.label + (state.cat !== 'all' ? ' · Danh mục: ' + catLabel(state.cat) : '');
 function periodPicker() {
   const rg = rangeOf(state.type, state.anchor);
   return `<div class="seg">${TYPES.map(([t, n]) => `<button data-type="${t}" class="${t === state.type ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="pnav"><button id="p-prev" aria-label="Kỳ trước">‹</button><div class="lab">${esc(rg.label)}</div><button id="p-next" aria-label="Kỳ sau">›</button></div>`;
 }
+function catBar() {
+  const used = new Set();
+  Object.values(db.days).forEach(rows => rows.forEach(r => used.add(r.cat || '')));
+  const items = [['all', 'Tất cả'], ...cats().map(c => [c.id, c.name])];
+  if (used.has('')) items.push(['', 'Chưa phân loại']);
+  return `<div class="chips">${items.map(([id, n]) => `<button class="chip ${id === state.cat ? 'on' : ''}" data-cat="${id}">${esc(n)}</button>`).join('')}<button class="chip" id="c-manage">⚙ Danh mục</button></div>`;
+}
 function bindPicker(redraw) {
   $$('.seg button').forEach(b => b.onclick = () => { state.type = b.dataset.type; redraw(); });
   $('#p-prev').onclick = () => { state.anchor = shiftAnchor(state.type, state.anchor, -1); redraw(); };
   $('#p-next').onclick = () => { state.anchor = shiftAnchor(state.type, state.anchor, 1); redraw(); };
+  $$('.chip[data-cat]').forEach(b => b.onclick = () => { state.cat = b.dataset.cat; redraw(); });
+  const mg = $('#c-manage'); if (mg) mg.onclick = () => catSheet(redraw);
 }
 function viewSummary() {
   const rg = rangeOf(state.type, state.anchor), data = collect(rg);
@@ -684,18 +801,27 @@ function viewSummary() {
   const top = {};
   all.forEach(r => { const n = r.name.toLowerCase(); (top[n] = top[n] || { name: r.name, val: 0, n: 0 }); top[n].val += r.total; top[n].n++; });
   const topList = Object.values(top).sort((a, b) => b.val - a.val).slice(0, 8);
+  const byCat = {};
+  all.forEach(r => { const c = r.cat || ''; (byCat[c] = byCat[c] || { n: 0, val: 0 }); byCat[c].n++; byCat[c].val += r.total; });
+  const catList = Object.keys(byCat).map(c => ({ cat: c, label: catName(c) || 'Chưa phân loại', n: byCat[c].n, val: byCat[c].val })).sort((a, b) => b.val - a.val);
   const bars = (list, withKey) => { const mx = Math.max(1, ...list.map(x => x.val)); return list.map((x, i) => `
     <button class="bar" ${withKey ? `data-i="${i}"` : 'disabled'}><i style="width:${Math.round(x.val / mx * 100)}%"></i>
       <span class="l"><span>${esc(x.label || x.name)}</span><b>${fmt(x.val)}</b></span><small>${esc(x.sub || (x.n + ' lần mua'))}</small></button>`).join(''); };
+  const catBars = () => { const mx = Math.max(1, ...catList.map(x => x.val)); return catList.map(x => `
+    <button class="bar" data-catbar="${x.cat}"><i style="width:${Math.round(x.val / mx * 100)}%;background:${catColor(x.cat)}33"></i>
+      <span class="l"><span style="color:${catColor(x.cat)}">● ${esc(x.label)}</span><b>${fmt(x.val)}</b></span>
+      <small>${x.n} khoản · ${total ? Math.round(x.val / total * 100) : 0}%</small></button>`).join(''); };
   const days = data.length;
-  $('#view').innerHTML = `<h1>Tổng kết chi tiêu</h1>${periodPicker()}
-    <div class="bigtotal"><small>Tổng chi · ${esc(rg.label)}</small><b>${money(total)}</b></div>
+  $('#view').innerHTML = `<h1>Tổng kết chi tiêu</h1>${periodPicker()}${catBar()}
+    <div class="bigtotal"><small>Tổng chi · ${esc(periodTitle(rg))}</small><b>${money(total)}</b></div>
     <div class="stats"><div><b>${all.length}</b><span>khoản chi</span></div><div><b>${days}</b><span>ngày có chi</span></div><div><b>${fmt(days ? total / days : 0)}</b><span>TB mỗi ngày</span></div></div>
     ${!all.length ? '<div class="empty">Chưa có dữ liệu trong khoảng thời gian này.</div>' : ''}
+    ${all.length && state.cat === 'all' ? `<div class="sec">Theo danh mục (chạm để lọc)</div>${catBars()}` : ''}
     ${groups ? `<div class="sec">${state.type === 'week' || state.type === 'month' ? 'Theo từng ngày (chạm để mở)' : 'Theo từng tháng'}</div>${bars(groups, true)}` : ''}
     ${all.length && state.type === 'day' ? `<div class="sec">Các khoản chi trong ngày</div>${bars(all.map(r => ({ label: r.name, sub: fmtQty(r.qty) + ' ' + (r.unit || '') + ' × ' + fmt(r.price), val: r.total })), false)}` : ''}
     ${all.length && state.type !== 'day' ? `<div class="sec">Món chi nhiều nhất</div>${bars(topList, false)}` : ''}`;
   bindPicker(viewSummary);
+  $$('[data-catbar]').forEach(b => b.onclick = () => { state.cat = b.dataset.catbar; viewSummary(); $('#view').scrollTop = 0; });
   $$('.bar[data-i]').forEach(b => b.onclick = () => {
     const g = groups[+b.dataset.i];
     if (g.date) { state.date = fromKey(g.date); go('entry'); }
@@ -703,12 +829,12 @@ function viewSummary() {
   });
 }
 
-/* ============ Màn hình 3: Xuất file ============ */
+/* ============ Màn hình 4: Xuất file ============ */
 function viewExport() {
   const rg = rangeOf(state.type, state.anchor), data = collect(rg), all = data.flatMap(d => d.rows);
   $('#view').innerHTML = `<h1>Xuất file</h1>
-    <div class="hint" style="margin-top:0">Chọn khoảng thời gian cần xuất:</div>${periodPicker()}
-    <div class="bigtotal"><small>${all.length} khoản chi · ${esc(rg.label)}</small><b>${money(sumRows(all))}</b></div>
+    <div class="hint" style="margin-top:0">Chọn khoảng thời gian và danh mục cần xuất:</div>${periodPicker()}${catBar()}
+    <div class="bigtotal"><small>${all.length} khoản chi · ${esc(periodTitle(rg))}</small><b>${money(sumRows(all))}</b></div>
     <label for="x-title">Tiêu đề in trên báo cáo</label>
     <input id="x-title" value="${esc(db.meta.title || '')}" placeholder="Ví dụ: Chi phí kho Bình Dương">
     <div style="height:12px"></div>
@@ -716,7 +842,7 @@ function viewExport() {
     <button class="btn blue" id="x-pdf">📕 Xuất file PDF</button>
     <button class="btn blue" id="x-img">🖼 Xuất thành ảnh (PNG)</button>
     <div class="sec">Sao lưu dữ liệu</div>
-    <p class="hint" style="margin-top:0">Dữ liệu lưu ngay trên điện thoại này. Nên sao lưu thường xuyên, nhất là trước khi đổi máy hoặc xóa dữ liệu Safari.</p>
+    <p class="hint" style="margin-top:0">Dữ liệu (sổ chi tiêu, danh mục, đơn đặt hàng) lưu ngay trên điện thoại này. Nên sao lưu thường xuyên, nhất là trước khi đổi máy hoặc xóa dữ liệu Safari.</p>
     <button class="btn ghost" id="x-backup">💾 Sao lưu (tạo file .json)</button>
     <button class="btn ghost" id="x-restore">♻ Khôi phục từ file sao lưu</button>
     <div style="height:20px"></div>`;
@@ -735,36 +861,39 @@ $('#restore-input').addEventListener('change', async e => {
     if (!d || typeof d.days !== 'object') throw 0;
     const n = Object.keys(d.days).length;
     if (!confirm('Thay toàn bộ dữ liệu hiện tại bằng file sao lưu (' + n + ' ngày có dữ liệu)?')) return;
-    db = { days: d.days, meta: d.meta || {} }; saveDb(); render(); toast('Đã khôi phục dữ liệu');
+    db = normDb({ days: d.days, meta: d.meta || {}, orders: d.orders || [] }); saveDb(); render(); toast('Đã khôi phục dữ liệu');
   } catch (err) { toast('File sao lưu không hợp lệ'); }
 });
 
-async function runExport(fn) {
-  const rg = rangeOf(state.type, state.anchor), data = collect(rg);
-  if (!data.length) return toast('Khoảng thời gian này chưa có dữ liệu');
+async function runJob(fn) {
   const sh = openSheet(`<h2>Đang tạo file…</h2><div class="status" id="b-status">Vui lòng chờ</div><progress id="b-bar" max="100"></progress>`);
   const prog = (msg, v) => { const s = $('#b-status'); if (s) s.textContent = msg; const b = $('#b-bar'); if (b && v != null) b.value = v; };
-  try { const files = await fn(rg, data, prog); showFiles(files); }
+  try { showFiles(await fn(prog)); }
   catch (err) { sh.innerHTML = `<h2>Không tạo được file</h2><div class="status">${esc(err.message || err)}</div><button class="btn ghost" id="b-close">Đóng</button>`; $('#b-close').onclick = closeSheet; }
 }
+function runExport(fn) {
+  const rg = rangeOf(state.type, state.anchor), data = collect(rg);
+  if (!data.length) return toast('Khoảng thời gian này chưa có dữ liệu');
+  return runJob(prog => fn(rg, data, prog));
+}
 const reportTitle = () => (db.meta.title || '').trim() || 'BẢNG KÊ CHI TIÊU';
-const baseName = rg => 'ChiTieu_' + slug(rg.label.replace(/\(.*\)/, '')) + (rg.type === 'week' ? '_' + rg.sk : '');
+const baseName = rg => 'ChiTieu_' + slug(rg.label.replace(/\(.*\)/, '')) + (rg.type === 'week' ? '_' + rg.sk : '') + (state.cat !== 'all' ? '_' + slug(catLabel(state.cat)) : '');
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 async function exportExcel(rg, data, prog) {
   prog('Đang tải bộ tạo Excel…', 10); await loadScript(LIB.xlsx); prog('Đang tạo Excel…', 60);
-  const aoa = [[reportTitle()], [rg.label], [], ['Ngày', 'STT', 'Tên hàng', 'Số lượng', 'ĐVT', 'Đơn giá', 'Thành tiền', 'Ghi chú']];
-  data.forEach(d => d.rows.forEach((r, i) => aoa.push([fmtDate(fromKey(d.key)), i + 1, r.name, r.qty, r.unit || '', r.price, r.total, r.note || ''])));
-  const last = aoa.length, total = sumRows(data.flatMap(d => d.rows));
-  aoa.push(['TỔNG CỘNG', '', '', '', '', '', total, '']);
+  const aoa = [[reportTitle()], [periodTitle(rg)], [], ['Ngày', 'STT', 'Tên hàng', 'Số lượng', 'ĐVT', 'Đơn giá', 'Thành tiền', 'Danh mục', 'Ghi chú']];
+  data.forEach(d => d.rows.forEach((r, i) => aoa.push([fmtDate(fromKey(d.key)), i + 1, r.name, r.qty, r.unit || '', r.price, r.total, catName(r.cat), r.note || ''])));
+  const last = aoa.length, all = data.flatMap(d => d.rows), total = sumRows(all);
+  aoa.push(['TỔNG CỘNG', '', '', '', '', '', total, '', '']);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['G' + (last + 1)] = { t: 'n', v: total, f: 'SUM(G5:G' + last + ')', z: '#,##0' };
   for (let r = 5; r <= last; r++) {
     if (ws['D' + r]) ws['D' + r].z = '#,##0.###';
     ['F', 'G'].forEach(c => { if (ws[c + r]) ws[c + r].z = '#,##0'; });
   }
-  ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 32 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 28 }];
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
-  ws['!freeze'] = { xSplit: 0, ySplit: 4 };
+  ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 32 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 28 }];
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Chi tiết');
   if (rg.type !== 'day') {
     const monthly = rg.type === 'quarter' || rg.type === 'year', by = {};
@@ -777,19 +906,32 @@ async function exportExcel(rg, data, prog) {
     ws2['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws2, 'Tổng hợp');
   }
+  if (state.cat === 'all') {
+    const bc = {};
+    all.forEach(r => { const c = catName(r.cat) || 'Chưa phân loại'; bc[c] = bc[c] || { n: 0, v: 0 }; bc[c].n++; bc[c].v += r.total; });
+    const rows = [['Danh mục', 'Số khoản', 'Tổng chi']];
+    Object.keys(bc).sort((a, b) => bc[b].v - bc[a].v).forEach(c => rows.push([c, bc[c].n, bc[c].v]));
+    rows.push(['TỔNG CỘNG', all.length, total]);
+    const ws3 = XLSX.utils.aoa_to_sheet(rows);
+    for (let r = 2; r <= rows.length; r++) if (ws3['C' + r]) ws3['C' + r].z = '#,##0';
+    ws3['!cols'] = [{ wch: 24 }, { wch: 12 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Theo danh mục');
+  }
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  return [{ blob: new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), name: baseName(rg) + '.xlsx' }];
+  return [{ blob: new Blob([out], { type: XLSX_MIME }), name: baseName(rg) + '.xlsx' }];
 }
 
-/* ---- Trang báo cáo (dùng cho PDF và ảnh) ---- */
-function buildPages(rg, data) {
+/* ---- Trang báo cáo (dùng chung cho PDF và ảnh) ---- */
+const LEDGER_COLS = [{ h: 'STT', w: 44 }, { h: 'Tên hàng' }, { h: 'SL', w: 70 }, { h: 'Đơn giá', w: 96 }, { h: 'Thành tiền', w: 108 }, { h: 'Ghi chú', w: 150 }];
+const nameCell = r => esc(r.name) + (catName(r.cat) ? `<br><span style="color:#555;font-size:12px">${esc(catName(r.cat))}</span>` : '');
+const lineRow = (r, i) => `<tr><td class="c">${i + 1}</td><td>${nameCell(r)}</td><td class="n">${fmtQty(r.qty)}${r.unit ? ' ' + esc(r.unit) : ''}</td><td class="n">${r.price ? fmt(r.price) : ''}</td><td class="n">${r.total ? fmt(r.total) : ''}</td><td>${esc(r.note || '')}</td></tr>`;
+function buildDocPages(doc) {
   const host = $('#offscreen'); host.innerHTML = '';
-  const total = sumRows(data.flatMap(d => d.rows)), multi = rg.type !== 'day';
   const pages = [];
-  const thead = '<thead><tr><th style="width:44px">STT</th><th>Tên hàng</th><th style="width:70px">SL</th><th style="width:96px">Đơn giá</th><th style="width:108px">Thành tiền</th><th style="width:150px">Ghi chú</th></tr></thead>';
+  const thead = '<thead><tr>' + doc.cols.map(c => `<th${c.w ? ` style="width:${c.w}px"` : ''}>${c.h}</th>`).join('') + '</tr></thead>';
   function newPage() {
     const p = document.createElement('div'); p.className = 'rpage';
-    p.innerHTML = (pages.length ? '' : `<h3>${esc(reportTitle().toUpperCase())}</h3><div class="per">${esc(rg.label)}</div><div class="big">Tổng chi: ${money(total)}</div>`) +
+    p.innerHTML = (pages.length ? '' : `<h3>${esc(doc.title)}</h3><div class="per">${esc(doc.per)}</div>${doc.per2 ? `<div class="per">${esc(doc.per2)}</div>` : ''}<div class="big">${esc(doc.big)}</div>`) +
       `<table>${thead}<tbody></tbody></table><div class="foot"><span>Sổ Chi Tiêu · in ngày ${fmtDate(new Date())}</span><span class="pn"></span></div>`;
     host.appendChild(p); pages.push(p); return p;
   }
@@ -802,20 +944,24 @@ function buildPages(rg, data) {
     for (let i = 0; i < htmls.length; i++) tb.lastElementChild.remove();
     cur = newPage(); $('tbody', cur).insertAdjacentHTML('beforeend', htmls.join(''));
   }
-  data.forEach(d => {
-    d.rows.forEach((r, i) => {
-      const tr = `<tr><td class="c">${i + 1}</td><td>${esc(r.name)}</td><td class="n">${fmtQty(r.qty)}${r.unit ? ' ' + esc(r.unit) : ''}</td><td class="n">${fmt(r.price)}</td><td class="n">${fmt(r.total)}</td><td>${esc(r.note || '')}</td></tr>`;
-      addGroup(multi && i === 0 ? [`<tr class="day"><td colspan="6">${longDate(fromKey(d.key))}</td></tr>`, tr] : [tr]);
-    });
-    if (multi) addGroup([`<tr class="sub"><td colspan="4" class="n">Cộng ngày ${pad(fromKey(d.key).getDate())}/${pad(fromKey(d.key).getMonth() + 1)}</td><td class="n">${fmt(sumRows(d.rows))}</td><td></td></tr>`]);
-  });
-  addGroup([`<tr class="grand"><td colspan="4" class="n">TỔNG CỘNG</td><td class="n">${fmt(total)}</td><td></td></tr>`]);
+  doc.groups.forEach(addGroup);
+  addGroup([doc.grand]);
   pages.forEach((p, i) => { $('.pn', p).textContent = 'Trang ' + (i + 1) + '/' + pages.length; });
   return pages;
 }
-async function eachPageCanvas(rg, data, prog, fn) {
+function buildPages(rg, data) {
+  const total = sumRows(data.flatMap(d => d.rows)), multi = rg.type !== 'day', groups = [];
+  data.forEach(d => {
+    const dt = fromKey(d.key);
+    d.rows.forEach((r, i) => groups.push(multi && i === 0 ? [`<tr class="day"><td colspan="6">${longDate(dt)}</td></tr>`, lineRow(r, i)] : [lineRow(r, i)]));
+    if (multi) groups.push([`<tr class="sub"><td colspan="4" class="n">Cộng ngày ${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}</td><td class="n">${fmt(sumRows(d.rows))}</td><td></td></tr>`]);
+  });
+  return buildDocPages({ title: reportTitle().toUpperCase(), per: periodTitle(rg), big: 'Tổng chi: ' + money(total), cols: LEDGER_COLS, groups,
+    grand: `<tr class="grand"><td colspan="4" class="n">TỔNG CỘNG</td><td class="n">${fmt(total)}</td><td></td></tr>` });
+}
+async function pagesToCanvases(makePages, prog, fn) {
   prog('Đang tải bộ tạo ảnh…', 5); await loadScript(LIB.h2c);
-  const pages = buildPages(rg, data);
+  const pages = makePages();
   try {
     for (let i = 0; i < pages.length; i++) {
       prog('Đang vẽ trang ' + (i + 1) + '/' + pages.length + '…', 10 + 85 * i / pages.length);
@@ -824,28 +970,29 @@ async function eachPageCanvas(rg, data, prog, fn) {
     }
   } finally { $('#offscreen').innerHTML = ''; }
 }
-async function exportPdf(rg, data, prog) {
+async function pdfOf(makePages, name, prog) {
   await loadScript(LIB.pdf);
   const pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', compress: true });
-  await eachPageCanvas(rg, data, prog, (cv, i) => {
+  await pagesToCanvases(makePages, prog, (cv, i) => {
     if (i) pdf.addPage();
     pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 595.28, 841.89);
   });
-  return [{ blob: pdf.output('blob'), name: baseName(rg) + '.pdf' }];
+  return [{ blob: pdf.output('blob'), name: name + '.pdf' }];
 }
-async function exportImages(rg, data, prog) {
+async function imagesOf(makePages, name, prog) {
   const files = [];
-  await eachPageCanvas(rg, data, prog, async (cv, i, n) => {
+  await pagesToCanvases(makePages, prog, async (cv, i, n) => {
     const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
-    files.push({ blob, name: baseName(rg) + (n > 1 ? '_trang' + (i + 1) : '') + '.png' });
+    files.push({ blob, name: name + (n > 1 ? '_trang' + (i + 1) : '') + '.png' });
   });
   return files;
 }
+const exportPdf = (rg, data, prog) => pdfOf(() => buildPages(rg, data), baseName(rg), prog);
+const exportImages = (rg, data, prog) => imagesOf(() => buildPages(rg, data), baseName(rg), prog);
 
 /* ---- Gửi / lưu file ---- */
 function showFiles(files) {
-  const mk = f => new File([f.blob], f.name, { type: f.blob.type });
-  const real = files.map(mk);
+  const real = files.map(f => new File([f.blob], f.name, { type: f.blob.type }));
   const canShare = !!(navigator.canShare && navigator.canShare({ files: real }));
   const urls = files.map(f => URL.createObjectURL(f.blob));
   const sh = openSheet(`<h2>✅ File đã sẵn sàng</h2>
@@ -861,11 +1008,228 @@ function showFiles(files) {
   $('#s-close', sh).onclick = () => { closeSheet(); setTimeout(() => urls.forEach(u => URL.revokeObjectURL(u)), 60000); };
 }
 
+/* ============ Màn hình 3: Đặt hàng ============ */
+const orderTotal = o => o.lines.reduce((t, l) => t + (l.total || 0), 0);
+const curOrder = () => db.orders.find(o => o.id === state.orderId);
+const lineFrom = it => ({ id: uid(), name: it.name, qty: it.qty || 1, unit: it.unit || '', price: it.price || 0, total: it.total || Math.round((it.qty || 1) * (it.price || 0)), cat: it.cat || '', note: it.note || '' });
+function newOrder(items) {
+  const o = { id: uid(), title: 'Đơn đặt hàng ' + fmtDate(new Date()), supplier: '', date: keyOf(new Date()), due: '', status: 'open', lines: items.map(lineFrom) };
+  db.orders.unshift(o); saveDb(); return o;
+}
+function openOrder(o) { state.orderId = o.id; viewOrders(); $('#view').scrollTop = 0; }
+function appendLines(o, items) { items.forEach(it => o.lines.push(lineFrom(it))); saveDb(); }
+const orderTarget = o => ({ label: 'Đơn: ' + o.title, get: () => o.lines, set: a => { o.lines = a; saveDb(); }, done: () => viewOrderEdit() });
+const orderVoiceOpts = done => ({
+  title: '🎤 Nói để tạo đơn hàng',
+  hint: '<p class="hint">Nói các món cần đặt, ví dụ: <b>“Đặt 50 bao xi măng, 20 cái ống nước phi 27, 10 thùng dầu ăn”</b>.<br>Nếu không nói giá, app lấy giá và đơn vị của lần mua trước.</p>',
+  reviewTitle: 'Kiểm tra lại đơn đặt hàng',
+  prefill: fillFromHistory,
+  review: { confirmText: '✔ Đưa vào đơn', onConfirm: done }
+});
+
+function viewOrders() {
+  if (state.orderId && curOrder()) return viewOrderEdit();
+  state.orderId = null; viewOrderList();
+}
+function viewOrderList() {
+  $('#view').innerHTML = `<h1>Đơn đặt hàng</h1>
+    <p class="hint" style="margin-top:0">Tạo đơn để gửi nhà cung cấp: tự đề xuất theo lịch sử mua hàng, hoặc nói bằng giọng.</p>
+    <button class="btn primary" id="o-sugg">✨ Đề xuất đơn từ dữ liệu cũ</button>
+    <button class="btn blue" id="o-voice">🎤 Nói để tạo đơn</button>
+    <button class="btn" id="o-new">＋ Tạo đơn trống</button>
+    <div class="sec">Các đơn đã tạo</div>
+    ${db.orders.length ? db.orders.map(o => `<button class="bar" data-oid="${o.id}"><span class="l"><span>${esc(o.title)}</span><b>${fmt(orderTotal(o))}</b></span>
+      <small>${fmtDate(fromKey(o.date))}${o.supplier ? ' · ' + esc(o.supplier) : ''} · ${o.lines.length} món · ${o.status === 'received' ? '✅ Đã nhận hàng' : '⏳ Đang chờ'}</small></button>`).join('') : '<div class="empty">Chưa có đơn nào.</div>'}
+    <div style="height:8px"></div><button class="btn ghost" id="o-cats">⚙ Quản lý danh mục</button>`;
+  $('#o-sugg').onclick = () => suggestSheet({ confirmText: '✔ Tạo đơn từ các món đã chọn', onPick: items => openOrder(newOrder(items)) });
+  $('#o-voice').onclick = () => voiceSheet(orderVoiceOpts(items => openOrder(newOrder(items))));
+  $('#o-new').onclick = () => openOrder(newOrder([]));
+  $('#o-cats').onclick = () => catSheet();
+  $$('[data-oid]').forEach(b => b.onclick = () => openOrder(db.orders.find(o => o.id === b.dataset.oid)));
+}
+function viewOrderEdit() {
+  const o = curOrder(); if (!o) return viewOrders();
+  const rows = o.lines.map((l, i) => `
+    <div class="tr" data-id="${l.id}">
+      <div>${i + 1}</div>
+      <div class="name"><b>${esc(l.name)}</b>${catTag(l.cat)}${l.note ? `<small>${esc(l.note)}</small>` : ''}</div>
+      <div class="num">${fmtQty(l.qty)}${l.unit ? `<small>${esc(l.unit)}</small>` : ''}</div>
+      <div class="num">${l.price ? fmt(l.price) : '—'}</div>
+      <div class="num amt">${l.total ? fmt(l.total) : '—'}</div>
+    </div>`).join('');
+  $('#view').innerHTML = `
+    <button class="btn ghost" id="o-back">‹ Danh sách đơn</button>
+    <label for="o-title">Tên đơn</label><input id="o-title" value="${esc(o.title)}">
+    <label for="o-sup">Nhà cung cấp / nơi đặt hàng</label><input id="o-sup" value="${esc(o.supplier)}" placeholder="Ví dụ: Cửa hàng vật liệu Hòa Phát">
+    <div class="grid2"><div><label for="o-date">Ngày đặt</label><input type="date" id="o-date" value="${o.date}"></div>
+      <div><label for="o-due">Cần giao ngày</label><input type="date" id="o-due" value="${o.due || ''}"></div></div>
+    <div class="sec">Các món cần đặt</div>
+    <div class="xl"><div class="tr th"><div>STT</div><div>Tên hàng</div><div class="num">SL</div><div class="num">Đơn giá</div><div class="num">Thành tiền</div></div>
+      ${rows || '<div class="empty">Chưa có món nào. Thêm bằng các nút bên dưới.</div>'}</div>
+    <div class="total" style="margin:10px 0"><span>Tạm tính</span><b>${money(orderTotal(o))}</b></div>
+    <div class="actions">
+      <button class="btn primary" id="o-add"><b>＋</b>Nhập tay</button>
+      <button class="btn blue" id="o-vo"><b>🎤</b>Nói thêm</button>
+      <button class="btn blue" id="o-sg"><b>✨</b>Đề xuất</button>
+    </div>
+    <div class="sec">Gửi và xuất đơn</div>
+    <button class="btn blue" id="o-text">📋 Gửi nội dung đơn (Zalo, tin nhắn)</button>
+    <button class="btn primary" id="o-xlsx">📗 Xuất Excel</button>
+    <button class="btn blue" id="o-pdf">📕 Xuất PDF</button>
+    <button class="btn blue" id="o-img">🖼 Xuất ảnh</button>
+    <div class="sec">Sau khi nhận hàng</div>
+    <button class="btn" id="o-recv">✅ ${o.status === 'received' ? 'Đã nhận hàng. Ghi vào sổ lần nữa' : 'Đã nhận hàng, ghi vào sổ chi tiêu'}</button>
+    <button class="btn danger" id="o-del">🗑 Xóa đơn này</button>
+    <div style="height:20px"></div>`;
+  const save = (k, ev) => $('#o-' + k).addEventListener(ev, e => { o[{ title: 'title', sup: 'supplier', date: 'date', due: 'due' }[k]] = e.target.value || (k === 'date' ? o.date : ''); saveDb(); });
+  save('title', 'input'); save('sup', 'input'); save('date', 'change'); save('due', 'change');
+  $('#o-back').onclick = () => { state.orderId = null; viewOrders(); };
+  $$('.tr[data-id]').forEach(el => el.onclick = () => rowSheet(el.dataset.id, null, orderTarget(o)));
+  $('#o-add').onclick = () => rowSheet(null, null, orderTarget(o));
+  $('#o-vo').onclick = () => voiceSheet(orderVoiceOpts(items => { appendLines(o, items); viewOrderEdit(); toast('Đã thêm ' + items.length + ' món vào đơn'); }));
+  $('#o-sg').onclick = () => suggestSheet({ confirmText: '✔ Thêm vào đơn', onPick: items => { appendLines(o, items); viewOrderEdit(); toast('Đã thêm ' + items.length + ' món vào đơn'); } });
+  $('#o-text').onclick = () => shareOrderText(o);
+  const need = fn => () => (o.lines.length ? fn() : toast('Đơn chưa có món nào'));
+  $('#o-xlsx').onclick = need(() => runJob(prog => orderExcel(o, prog)));
+  $('#o-pdf').onclick = need(() => runJob(prog => pdfOf(() => orderPages(o), orderFileName(o), prog)));
+  $('#o-img').onclick = need(() => runJob(prog => imagesOf(() => orderPages(o), orderFileName(o), prog)));
+  $('#o-recv').onclick = need(() => receiveSheet(o));
+  $('#o-del').onclick = () => { if (confirm('Xóa đơn "' + o.title + '"?')) { db.orders = db.orders.filter(x => x.id !== o.id); saveDb(); state.orderId = null; viewOrders(); } };
+}
+const orderFileName = o => 'DonDatHang_' + slug(o.title || 'don') + '_' + o.date;
+const orderSub = o => (o.supplier ? 'Gửi: ' + o.supplier + '  ·  ' : '') + 'Ngày đặt: ' + fmtDate(fromKey(o.date)) + (o.due ? '  ·  Cần giao: ' + fmtDate(fromKey(o.due)) : '');
+function orderPages(o) {
+  return buildDocPages({ title: 'ĐƠN ĐẶT HÀNG', per: o.title, per2: orderSub(o), big: 'Tạm tính: ' + money(orderTotal(o)),
+    cols: LEDGER_COLS.map(c => (c.h === 'Đơn giá' ? { h: 'Giá dự kiến', w: 96 } : c)), groups: o.lines.map((l, i) => [lineRow(l, i)]),
+    grand: `<tr class="grand"><td colspan="4" class="n">TẠM TÍNH</td><td class="n">${fmt(orderTotal(o))}</td><td></td></tr>` });
+}
+async function orderExcel(o, prog) {
+  prog('Đang tải bộ tạo Excel…', 10); await loadScript(LIB.xlsx);
+  const aoa = [['ĐƠN ĐẶT HÀNG: ' + o.title], ['Nhà cung cấp: ' + (o.supplier || '')], ['Ngày đặt: ' + fmtDate(fromKey(o.date)) + (o.due ? '   Cần giao: ' + fmtDate(fromKey(o.due)) : '')], [],
+    ['STT', 'Tên hàng', 'Số lượng', 'ĐVT', 'Giá dự kiến', 'Thành tiền', 'Danh mục', 'Ghi chú']];
+  o.lines.forEach((l, i) => aoa.push([i + 1, l.name, l.qty, l.unit || '', l.price || '', l.total || '', catName(l.cat), l.note || '']));
+  const last = aoa.length, total = orderTotal(o);
+  aoa.push(['TẠM TÍNH', '', '', '', '', total, '', '']);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['F' + (last + 1)] = { t: 'n', v: total, f: 'SUM(F6:F' + last + ')', z: '#,##0' };
+  for (let r = 6; r <= last; r++) { if (ws['C' + r]) ws['C' + r].z = '#,##0.###'; ['E', 'F'].forEach(c => { if (ws[c + r]) ws[c + r].z = '#,##0'; }); }
+  ws['!cols'] = [{ wch: 6 }, { wch: 34 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 28 }];
+  ws['!merges'] = [0, 1, 2].map(r => ({ s: { r, c: 0 }, e: { r, c: 7 } }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Đơn đặt hàng');
+  return [{ blob: new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: XLSX_MIME }), name: orderFileName(o) + '.xlsx' }];
+}
+function orderText(o) {
+  const L = ['ĐƠN ĐẶT HÀNG: ' + o.title];
+  if (o.supplier) L.push('Gửi: ' + o.supplier);
+  L.push('Ngày đặt: ' + fmtDate(fromKey(o.date)) + (o.due ? ' · Cần giao: ' + fmtDate(fromKey(o.due)) : ''), '');
+  o.lines.forEach((l, i) => L.push((i + 1) + '. ' + l.name + ' - ' + fmtQty(l.qty) + (l.unit ? ' ' + l.unit : '') + (l.price ? ' (~' + fmt(l.price) + ' đ)' : '') + (l.note ? ' - ' + l.note : '')));
+  if (orderTotal(o)) L.push('', 'Tạm tính: ' + money(orderTotal(o)));
+  return L.join('\n');
+}
+async function shareOrderText(o) {
+  const text = orderText(o);
+  if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(text); toast('Đã sao chép. Hãy dán vào Zalo hoặc tin nhắn.'); }
+  catch (e) { prompt('Sao chép nội dung đơn:', text); }
+}
+function receiveSheet(o) {
+  const sh = openSheet(`<h2>✅ Đã nhận hàng</h2>
+    <p class="hint">Các món trong đơn (${o.lines.length} món, ${money(orderTotal(o))}) sẽ được ghi vào sổ chi tiêu của ngày bạn chọn.</p>
+    <label for="rv-date">Ngày nhận hàng</label><input type="date" id="rv-date" value="${keyOf(new Date())}">
+    <div style="height:14px"></div><button class="btn primary" id="rv-ok">✔ Ghi vào sổ</button><button class="btn ghost" id="rv-cancel">Hủy</button>`);
+  $('#rv-cancel', sh).onclick = closeSheet;
+  $('#rv-ok', sh).onclick = () => {
+    const k = $('#rv-date', sh).value || keyOf(new Date()), list = db.days[k] || (db.days[k] = []);
+    o.lines.forEach(l => list.push({ ...l, id: uid() }));
+    o.status = 'received'; saveDb(); closeSheet(); viewOrderEdit(); toast('Đã ghi ' + o.lines.length + ' món vào sổ ngày ' + fmtDate(fromKey(k)));
+  };
+}
+
+/* ---- Đề xuất đặt hàng từ dữ liệu cũ ---- */
+const SUGG_DEF = { days: 90, sens: 0.8, min: 2, mult: 1, showAll: false, cat: 'all' };
+const suggSettings = () => ({ ...SUGG_DEF, ...(db.meta.sugg || {}) });
+function buildSuggestions(o) {
+  const t0 = new Date(); const today = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate());
+  const fk = keyOf(addDays(today, -o.days)), hidden = new Set(db.meta.hidden), m = {};
+  Object.keys(db.days).filter(k => k >= fk).sort().forEach(k => db.days[k].forEach(r => {
+    if (o.cat !== 'all' && (r.cat || '') !== o.cat) return;
+    const id = r.name.trim().toLowerCase(); if (!id || hidden.has(id)) return;
+    const e = m[id] || (m[id] = { id, dates: [], qty: [] });
+    if (!e.dates.includes(k)) e.dates.push(k);
+    e.qty.push(r.qty); e.name = r.name; e.unit = r.unit || e.unit || ''; e.price = r.price; e.cat = r.cat || e.cat || '';
+  }));
+  const out = [];
+  Object.values(m).forEach(e => {
+    const n = e.dates.length; if (n < o.min) return;
+    const dts = e.dates.map(fromKey), gaps = [];
+    for (let i = 1; i < n; i++) gaps.push(Math.round((dts[i] - dts[i - 1]) / 864e5));
+    const cycle = gaps.length ? Math.max(1, gaps.reduce((a, b) => a + b, 0) / gaps.length) : null;
+    const since = Math.round((today - dts[n - 1]) / 864e5), ratio = cycle ? since / cycle : 0;
+    if (!(ratio >= o.sens) && !o.showAll) return;
+    const avg = e.qty.reduce((a, b) => a + b, 0) / e.qty.length * o.mult;
+    const qty = avg >= 10 ? Math.round(avg) : (Math.round(avg * 10) / 10 || 1);
+    let status = 'Chưa đến hạn', cls = 'gray';
+    if (!cycle) { status = 'Mới mua 1 lần'; } else if (ratio >= 1) { status = 'Đã quá hạn'; cls = 'red'; } else if (ratio >= o.sens) { status = 'Sắp đến hạn'; cls = 'amber'; }
+    const lastTxt = since === 0 ? 'hôm nay' : since + ' ngày trước';
+    out.push({ id: e.id, name: e.name, unit: e.unit, price: e.price || 0, cat: e.cat, qty, ratio, status, cls,
+      why: cycle ? `Mua ${n} lần, khoảng ${Math.round(cycle)} ngày một lần. Lần cuối ${lastTxt}.` : `Mới mua 1 lần (${lastTxt}).` });
+  });
+  return out.sort((a, b) => b.ratio - a.ratio);
+}
+function suggestSheet(opt) {
+  let settingsOpen = false;
+  const draw = () => {
+    const o = suggSettings(), list = buildSuggestions(o), nHidden = db.meta.hidden.length;
+    const sel = (id, opts, val) => `<select id="${id}">${opts.map(([v, n]) => `<option value="${v}" ${String(v) === String(val) ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+    const sh = openSheet(`<h2>✨ Đề xuất đặt hàng</h2>
+      <p class="hint">App xem bạn hay mua món nào, bao lâu một lần, rồi gợi ý những món sắp đến lúc mua lại.</p>
+      <details ${settingsOpen ? 'open' : ''} id="g-set"><summary>⚙ Tùy chỉnh cách đề xuất</summary>
+        <label for="g-days">Xem dữ liệu trong</label>${sel('g-days', [[30, '30 ngày gần đây'], [60, '60 ngày'], [90, '90 ngày'], [180, '6 tháng'], [365, '1 năm']], o.days)}
+        <label for="g-sens">Khi nào thì gợi ý</label>${sel('g-sens', [[0.6, 'Sớm (60% chu kỳ)'], [0.8, 'Vừa (80% chu kỳ)'], [1, 'Đúng hạn (100%)']], o.sens)}
+        <label for="g-min">Món phải mua ít nhất</label>${sel('g-min', [[1, '1 lần'], [2, '2 lần'], [3, '3 lần'], [4, '4 lần']], o.min)}
+        <label for="g-mult">Số lượng đề xuất</label>${sel('g-mult', [[0.5, 'Một nửa trung bình'], [0.8, '80% trung bình'], [1, 'Bằng trung bình mọi lần'], [1.2, 'Dư thêm 20%'], [1.5, 'Dư thêm 50%'], [2, 'Gấp đôi']], o.mult)}
+        <label for="g-cat">Chỉ xét danh mục</label>${sel('g-cat', [['all', 'Tất cả danh mục'], ...cats().map(c => [c.id, c.name])], o.cat)}
+        <label class="chk2"><input type="checkbox" id="g-all" ${o.showAll ? 'checked' : ''}> Hiện cả món chưa đến hạn</label>
+        ${nHidden ? `<button class="btn ghost" id="g-unhide" style="margin-top:8px">Hiện lại ${nHidden} món đã ẩn</button>` : ''}
+      </details>
+      <div class="sec">${list.length} món được gợi ý</div>
+      ${list.length ? list.map((e, i) => `<div class="cand" data-i="${i}">
+        <label class="chk"><input type="checkbox" ${e.ratio >= o.sens ? 'checked' : ''}><span>${esc(e.name)}</span><span class="badge ${e.cls}">${e.status}</span></label>
+        <small class="why">${e.why}</small>
+        <div class="grid3"><input class="c-qty" inputmode="decimal" value="${fmtQty(e.qty)}" aria-label="Số lượng"><input class="c-unit" value="${esc(e.unit)}" placeholder="đv" aria-label="Đơn vị"><div class="ct" style="margin:0;align-self:center">≈ ${e.price ? fmt(e.price) + ' đ' : 'chưa có giá'}</div></div>
+        <button class="btn ghost" data-hide="${esc(e.id)}" style="margin-top:8px;min-height:46px;font-size:16px">Không đề xuất món này nữa</button></div>`).join('')
+        : '<div class="empty">Chưa có món nào đến hạn.<br>Hãy thử chọn “Sớm” ở mục Tùy chỉnh, hoặc bật “Hiện cả món chưa đến hạn”. App cần thấy bạn mua cùng một món vài lần mới tính được chu kỳ.</div>'}
+      <div style="height:8px"></div>
+      ${list.length ? `<button class="btn primary" id="g-ok">${opt.confirmText || '✔ Tiếp tục'}</button>` : ''}
+      <button class="btn ghost" id="g-cancel">Đóng</button>`);
+    $('#g-set', sh).ontoggle = e => { settingsOpen = e.target.open; };
+    const setOpt = (id, key, conv) => { $('#' + id, sh).onchange = e => { db.meta.sugg = { ...suggSettings(), [key]: conv(e.target) }; saveDb(); settingsOpen = true; draw(); }; };
+    setOpt('g-days', 'days', t => +t.value); setOpt('g-sens', 'sens', t => +t.value); setOpt('g-min', 'min', t => +t.value);
+    setOpt('g-mult', 'mult', t => +t.value); setOpt('g-cat', 'cat', t => t.value); setOpt('g-all', 'showAll', t => t.checked);
+    const un = $('#g-unhide', sh); if (un) un.onclick = () => { db.meta.hidden = []; saveDb(); settingsOpen = true; draw(); };
+    $$('[data-hide]', sh).forEach(b => b.onclick = () => { db.meta.hidden.push(b.dataset.hide); saveDb(); draw(); toast('Đã ẩn món này'); });
+    $$('.cand', sh).forEach(c => $('input[type=checkbox]', c).onchange = e => c.classList.toggle('off', !e.target.checked));
+    const ok = $('#g-ok', sh);
+    if (ok) ok.onclick = () => {
+      const items = [];
+      $$('.cand', sh).forEach(c => {
+        if (!$('input[type=checkbox]', c).checked) return;
+        const e = list[+c.dataset.i], qty = parseQty($('.c-qty', c).value) || 1;
+        items.push({ name: e.name, qty, unit: $('.c-unit', c).value.trim(), price: e.price, total: Math.round(qty * e.price), cat: e.cat, note: '' });
+      });
+      if (!items.length) return toast('Chưa chọn món nào');
+      closeSheet(); opt.onPick(items);
+    };
+    $('#g-cancel', sh).onclick = closeSheet;
+  };
+  draw();
+}
+
 /* ============ Khởi động ============ */
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
-window.__app = { parseSpoken, parseReceipt, db: () => db, state };
+window.__app = { parseSpoken, parseReceipt, buildSuggestions, db: () => db, state };
 go('entry');
 </script>
 </body>

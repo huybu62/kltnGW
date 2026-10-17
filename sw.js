@@ -1,5 +1,5 @@
 // Cho phép mở app khi không có mạng: lưu sẵn các file của app và thư viện đã từng tải.
-const CACHE = 'sochitieu-v1';
+const CACHE = 'sochitieu-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
