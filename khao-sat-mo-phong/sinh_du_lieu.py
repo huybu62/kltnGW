@@ -14,6 +14,7 @@ Chạy:  python3 sinh_du_lieu.py
 Kết quả nằm trong thư mục output/.
 """
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -182,6 +183,15 @@ def gan_loc_dat():
         COT_GAN_LOC[2]: "Có",
         COT_GAN_LOC[3]: "Có",
     }
+
+
+def nam_sinh_hop_le(gia_tri):
+    """Năm sinh (số) hoặc khoảng ("Từ năm 2001 đến năm 2004") nằm trọn trong NAM_SINH_HOP_LE."""
+    chu = str(gia_tri).casefold()
+    nam = [int(x) for x in re.findall(r"(?:19|20)\d\d", chu)]
+    if not nam or any(k in chu for k in ("trước", "sau", "trở", "dưới", "trên")):
+        return False
+    return all(NAM_SINH_HOP_LE[0] <= x <= NAM_SINH_HOP_LE[1] for x in nam)
 
 
 def la_rang_cua(v):

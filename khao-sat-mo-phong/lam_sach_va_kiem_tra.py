@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from sinh_du_lieu import COT_GAN_LOC, COT_LIKERT, COT_NHAN_KHAU, MA_LIKERT, NAM_SINH_HOP_LE, THANG_DO, la_rang_cua
+from sinh_du_lieu import COT_GAN_LOC, COT_LIKERT, COT_NHAN_KHAU, MA_LIKERT, THANG_DO, la_rang_cua, nam_sinh_hop_le
 
 OUT = Path(__file__).parent / "output"
 
@@ -27,8 +27,7 @@ def lam_sach(df):
         ly_do[moi] = ten
 
     danh_dau(df[COT_GAN_LOC[0]] != "Có", "Không ở TP.HCM")
-    nam = pd.to_numeric(df[COT_GAN_LOC[1]], errors="coerce")
-    danh_dau(~nam.between(*NAM_SINH_HOP_LE), "Ngoài độ tuổi Gen Z (18+)")
+    danh_dau(~df[COT_GAN_LOC[1]].map(nam_sinh_hop_le), "Ngoài độ tuổi Gen Z (18+)")
     danh_dau(df[COT_GAN_LOC[2]] != "Có", "Không dùng mỹ phẩm 6 tháng qua")
     danh_dau(df[COT_GAN_LOC[3]] != "Có", "Không thấy quảng cáo mỹ phẩm xanh")
 
@@ -48,7 +47,7 @@ def du_lieu_smartpls(hop_le):
     out.columns = MA_LIKERT
     # Biến nhân khẩu học mã hóa số (dùng cho thống kê mô tả / phân tích đa nhóm)
     out.insert(0, "GioiTinh", hop_le[COT_NHAN_KHAU[0]].map({"Nam": 1, "Nữ": 2, "Khác": 3}).fillna(3).astype(int))
-    out.insert(1, "NamSinh", pd.to_numeric(hop_le[COT_GAN_LOC[1]]).astype(int))
+    out.insert(1, "NamSinh", hop_le[COT_GAN_LOC[1]].values)
     out.insert(0, "ID", range(1, len(out) + 1))
     return out
 

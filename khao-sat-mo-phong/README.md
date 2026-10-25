@@ -9,7 +9,7 @@
 |---|---|
 | `sinh_du_lieu.py` | Sinh 350 phiếu (283 hợp lệ + 67 lỗi) theo mô hình H1–H10 |
 | `lam_sach_va_kiem_tra.py` | Lọc phiếu, xuất file SmartPLS, tính Alpha/CR/AVE và dấu các hệ số đường dẫn. **Dùng được cho dữ liệu thật** tải từ Google Sheets |
-| `gui_vao_form.py` | (Tùy chọn) Gửi vài phiếu vào **bản sao** của form để kiểm tra |
+| `gui_form_requests.py` | Sinh ngẫu nhiên 350 phiếu (283 hợp lệ) và gửi POST bằng `requests` vào form. Tự đọc đáp án, các phần và rẽ nhánh của form. **Chỉ dùng với bản sao của form** |
 | `output/MO_PHONG_350_phieu_tho.csv` | 350 phiếu thô, đúng cột như sheet "Câu trả lời biểu mẫu 1" |
 | `output/MO_PHONG_dap_an_loai_phieu.csv` | Đáp án: phiếu nào hợp lệ / lỗi gì |
 | `output/MO_PHONG_smartpls_hop_le.csv` | 283 phiếu hợp lệ, cột `NTX1..YD5` → nạp thẳng vào SmartPLS |
@@ -44,6 +44,18 @@ python3 sinh_du_lieu.py            # tạo 350 phiếu
 python3 lam_sach_va_kiem_tra.py    # lọc còn 283 phiếu + kiểm tra
 # Dữ liệu thật: python3 lam_sach_va_kiem_tra.py duong_dan_file_tai_tu_google_sheets.csv
 ```
+
+## Gửi vào Google Form (bản sao)
+
+```bash
+pip install requests
+python3 gui_form_requests.py              # chạy thử: in cấu trúc form + phiếu mẫu, chưa gửi
+python3 gui_form_requests.py --gui 5      # gửi thử 5 phiếu, mở form xem đã nhận đúng chưa
+python3 gui_form_requests.py --gui 350    # gửi đủ 350 phiếu (mặc định nghỉ 3–9 giây/phiếu, ~35 phút)
+```
+
+Đổi `PREFILL_LINK` trong script thành link điền sẵn của **bản sao** form. Mỗi phiếu gửi đi được ghi
+vào `output/MO_PHONG_nhat_ky_gui_form.csv`. Thử xong thì xóa: tab *Câu trả lời* > ⋮ > *Xóa tất cả câu trả lời*.
 
 ## SmartPLS 4
 
