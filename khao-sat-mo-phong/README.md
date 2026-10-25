@@ -54,7 +54,7 @@ python3 gui_form_requests.py --gui 5      # gửi thử 5 phiếu, mở form xem
 python3 gui_form_requests.py --gui 350    # gửi đủ 350 phiếu (mặc định nghỉ 3–9 giây/phiếu, ~35 phút)
 ```
 
-Đổi `PREFILL_LINK` trong script thành link điền sẵn của **bản sao** form. Mỗi phiếu gửi đi được ghi
+Dùng bản sao form bằng cách thêm `--link 'link_điền_sẵn_của_bản_sao'` (trong dấu nháy đơn) vào các lệnh trên, không cần sửa file. Mỗi phiếu gửi đi được ghi
 vào `output/MO_PHONG_nhat_ky_gui_form.csv`. Thử xong thì xóa: tab *Câu trả lời* > ⋮ > *Xóa tất cả câu trả lời*.
 
 ## SmartPLS 4

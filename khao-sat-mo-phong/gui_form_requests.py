@@ -14,6 +14,10 @@ rẽ nhánh của câu gạn lọc — nên không phải sửa tay đáp án.
     python3 gui_form_requests.py --gui 5         # gửi 5 phiếu đầu để kiểm tra
     python3 gui_form_requests.py --gui 350       # gửi toàn bộ
     python3 gui_form_requests.py --gui 350 --nghi 2 6   # nghỉ ngẫu nhiên 2–6 giây giữa 2 phiếu
+
+Dùng form khác (bản sao) mà không cần sửa file — đặt link trong dấu nháy đơn:
+    python3 gui_form_requests.py --link 'https://docs.google.com/forms/d/e/.../viewform?usp=pp_url&entry...'
+    python3 gui_form_requests.py --link '...' --gui 5
 """
 
 import argparse
@@ -43,10 +47,21 @@ PREFILL_LINK = (
     "&entry.322404482=5&entry.1377517284=5&entry.565876754=5&entry.1731892884=5&entry.49214851=5"
     "&entry.974109067=5&entry.1485922235=5&entry.1505162474=5&entry.1323511615=5&entry.1605707174=5"
 )
-FORM_ID = re.search(r"/forms/d/e/([\w-]+)/", PREFILL_LINK).group(1)
-ENTRIES = list(dict.fromkeys(re.findall(r"entry\.(\d+)", PREFILL_LINK)))
-VIEW_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/viewform"
-POST_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
+
+
+def dat_link(link):
+    """Đọc mã form và các entry từ link điền sẵn."""
+    global FORM_ID, ENTRIES, VIEW_URL, POST_URL
+    m = re.search(r"/forms/d/e/([\w-]+)/", link)
+    if not m:
+        sys.exit("Link không đúng dạng link điền sẵn (phải có /forms/d/e/.../viewform?...entry.).")
+    FORM_ID = m.group(1)
+    ENTRIES = list(dict.fromkeys(re.findall(r"entry\.(\d+)", link)))
+    VIEW_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/viewform"
+    POST_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
+
+
+dat_link(PREFILL_LINK)
 LOG = Path(__file__).parent / "output" / "MO_PHONG_nhat_ky_gui_form.csv"
 
 # Vị trí câu trong ENTRIES (0 = Câu 1)
@@ -211,7 +226,11 @@ def main():
     ap.add_argument("--gui", type=int, default=0, help="số phiếu gửi thật (mặc định 0 = chạy thử)")
     ap.add_argument("--nghi", type=float, nargs=2, default=[3, 9], metavar=("MIN", "MAX"))
     ap.add_argument("--seed", type=int, default=2026)
+    ap.add_argument("--link", help="link điền sẵn của form (đặt trong dấu nháy đơn '...')")
     args = ap.parse_args()
+    if args.link:
+        dat_link(args.link)
+    print(f"Form: {FORM_ID}")
     random.seed(args.seed)
 
     s = requests.Session()
