@@ -239,7 +239,7 @@ def main():
 
     thieu = [e for e in ENTRIES if e not in cau_hoi]
     if len(ENTRIES) != 34 or thieu:
-        sys.exit(f"Link điền sẵn không khớp form (thiếu entry: {thieu}).")
+        sys.exit(f"Link điền sẵn có {len(ENTRIES)}/34 câu hoặc không khớp form (entry lạ: {thieu}). Điền đủ cả 34 câu rồi lấy lại link.")
 
     print(f"Form có {len(cau_hoi)} câu, {len(cac_phan)} phần.")
     for i in [GAN_LOC_TPHCM, NAM_SINH, MY_PHAM, QUANG_CAO, GIOI_TINH, NGHE, HOC_VAN, NEN_TANG, SO_LAN]:
