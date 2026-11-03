@@ -8,6 +8,7 @@ name: ScreenBridge
 options:
   bundleIdPrefix: app.screenbridge
   createIntermediateGroups: true
+  xcodeVersion: "26.1"   # stops Xcode's "Update to recommended settings" prompt
   deploymentTarget:
     macOS: "13.0"   # Ventura: supports Intel Macs from 2017 and every Apple Silicon Mac
     iOS: "16.0"
@@ -22,6 +23,9 @@ settings:
     # Universal Binary: arm64 + x86_64 for macOS. Debug builds only the
     # machine you're on (fast); Release always builds both.
     ARCHS: "$(ARCHS_STANDARD)"
+    # Xcode's recommended settings (kept here so regenerating doesn't undo them)
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
   configs:
     Debug:
       ONLY_ACTIVE_ARCH: YES
