@@ -17,6 +17,10 @@ import AppKit
 /// - Apple Pencil (2nd gen / Pro) double-tap: right-click at the Pencil
 /// - Hold 2 fingers still for ~0.6 s, or 3-finger tap: show/hide the
 ///   overlay (`onToggleControls`)
+/// - 3-finger swipe: ← → switch Desktops / full-screen apps (⌃← ⌃→),
+///   ↑ Mission Control (⌃↑), ↓ App Exposé (⌃↓), like a Mac trackpad
+/// - Lifting the Pencil out of hover range near a screen edge nudges the
+///   pointer off the edge, so an auto-hiding Dock closes after you pick an app
 /// - Hardware keyboard (Smart Keyboard Folio…) and Magic Trackpad go to the
 ///   Mac; the iPad's own round pointer is hidden over the video.
 public struct VideoSurfaceView {
@@ -86,6 +90,9 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private static let zoomStep: CGFloat = 1.18
     /// Where the Pencil last touched or hovered (target of its double-tap).
     private var lastPencilPoint: CGPoint?
+    /// The current hover comes from an Apple Pencil (not the trackpad).
+    private var hoverIsPencil = false
+    private var lastHoverPoint: CGPoint?
     private static let pressDelay: TimeInterval = 0.08
     private static let dragThreshold: CGFloat = 6
 
@@ -140,6 +147,11 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
         pinch.delegate = self
 
+        let threeFingerSwipe = UIPanGestureRecognizer(target: self, action: #selector(handleThreeFingerSwipe(_:)))
+        threeFingerSwipe.minimumNumberOfTouches = 3
+        threeFingerSwipe.maximumNumberOfTouches = 3
+        threeFingerSwipe.delegate = self
+
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(handleHover(_:)))
 
         // Trackpad / mouse: two-finger click = right-click, two-finger swipe = scroll.
@@ -150,7 +162,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         wheel.allowedTouchTypes = []  // scroll events only, never fingers on the glass
         wheel.delegate = self
 
-        [press, scroll, rightClick, toggle, holdToggle, pinch, hover, secondaryClick, wheel]
+        [press, scroll, rightClick, toggle, holdToggle, pinch, threeFingerSwipe, hover, secondaryClick, wheel]
             .forEach(addGestureRecognizer)
         addInteraction(UIPointerInteraction(delegate: self))
         // `UIPencilInteraction(delegate:)` is iPadOS 17.5+; set the delegate instead.
@@ -179,6 +191,16 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     // MARK: Keyboard
 
     public override var canBecomeFirstResponder: Bool { true }
+
+    /// Turns off iPadOS's three-finger undo/redo/copy gestures over the
+    /// video, so three-finger swipes reach the Mac.
+    public override var editingInteractionConfiguration: UIEditingInteractionConfiguration { .none }
+
+    /// Tells the Mac which modifier keys are really held right now.
+    private func sendModifiers(of recognizer: UIGestureRecognizer) {
+        let flags = UInt32(truncatingIfNeeded: recognizer.modifierFlags.rawValue) & 0x1E_0000  // ⇧ ⌃ ⌥ ⌘
+        onInput(.modifierState(flags: flags))
+    }
 
     public override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -290,6 +312,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         if pressIsImmediate { lastPencilPoint = point }
         switch recognizer.state {
         case .began:
+            sendModifiers(of: recognizer)
             if pressIsImmediate {
                 pressDown(at: point)  // Pencil / trackpad click: never the start of a scroll
             } else {
@@ -352,6 +375,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
                 sendPointer(.cancelled, .left, at: recognizer.location(in: self))
             }
             lastScrollTranslation = .zero
+            sendModifiers(of: recognizer)
             onInput(.scroll(phase: .began, x: Double(location.x), y: Double(location.y), deltaX: 0, deltaY: 0))
         case .changed:
             let dx = (translation.x - lastScrollTranslation.x) * scale
@@ -369,6 +393,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
 
     @objc private func handleRightClick(_ recognizer: UITapGestureRecognizer) {
         cancelPendingPress()
+        sendModifiers(of: recognizer)
         let p = normalized(recognizer.location(in: self))
         onInput(.rightClick(x: Double(p.x), y: Double(p.y)))
     }
@@ -383,6 +408,38 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         onToggleControls()
     }
 
+    /// Three-finger swipe → the Mac's own Mission Control / Spaces shortcuts.
+    @objc private func handleThreeFingerSwipe(_ recognizer: UIPanGestureRecognizer) {
+        switch recognizer.state {
+        case .began:
+            cancelPendingPress()
+            if buttonDown {
+                buttonDown = false
+                sendPointer(.cancelled, .left, at: recognizer.location(in: self))
+            }
+        case .ended:
+            let t = recognizer.translation(in: self)
+            guard max(abs(t.x), abs(t.y)) > 60 else { return }
+            let arrow: UInt16
+            if abs(t.x) > abs(t.y) {
+                arrow = t.x < 0 ? 0x4F : 0x50   // fingers left → next Desktop (⌃→), right → previous (⌃←)
+            } else {
+                arrow = t.y < 0 ? 0x52 : 0x51   // up → Mission Control (⌃↑), down → App Exposé (⌃↓)
+            }
+            sendShortcut(control: true, key: arrow)
+        default:
+            break
+        }
+    }
+
+    /// Presses ⌃ + key on the Mac (HID usages: 0xE0 = Left Control).
+    private func sendShortcut(control: Bool, key usage: UInt16) {
+        if control { onInput(.key(usage: 0xE0, down: true)) }
+        onInput(.key(usage: usage, down: true))
+        onInput(.key(usage: usage, down: false))
+        if control { onInput(.key(usage: 0xE0, down: false)) }
+    }
+
     /// Pinch (fingers or trackpad) → one ⌘= / ⌘− per ~18 % of scale change.
     @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
         let p = normalized(recognizer.location(in: self))
@@ -390,6 +447,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         case .began:
             lastZoomStepScale = 1
             pinching = false
+            sendModifiers(of: recognizer)
         case .changed:
             let scale = recognizer.scale
             if abs(log(scale)) > 0.08 { pinching = true }
@@ -413,10 +471,34 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         case .began, .changed:
             let point = recognizer.location(in: self)
             lastPencilPoint = point
+            lastHoverPoint = point
+            if #available(iOS 16.1, *) {
+                // Only the Pencil hovers above the glass; a trackpad pointer has no height.
+                if recognizer.zOffset > 0 { hoverIsPencil = true }
+            }
             if !buttonDown { sendPointer(.moved, .none, at: point) }
+        case .ended, .cancelled:
+            if hoverIsPencil, !buttonDown, let point = lastHoverPoint {
+                nudgeOffScreenEdge(from: point)
+            }
+            hoverIsPencil = false
+            lastHoverPoint = nil
         default:
             break
         }
+    }
+
+    /// The Pencil left hover range: if the pointer was parked on a screen
+    /// edge (where the Dock lives), move it inward so an auto-hiding Dock
+    /// closes instead of staying open under an invisible pointer.
+    private func nudgeOffScreenEdge(from point: CGPoint) {
+        let p = normalized(point)
+        var target = p
+        if p.y > 0.92 { target.y = 0.75 }
+        if p.x < 0.04 { target.x = 0.25 }
+        if p.x > 0.96 { target.x = 0.75 }
+        guard target != p else { return }
+        onInput(.pointer(phase: .moved, button: .none, x: Double(target.x), y: Double(target.y)))
     }
 }
 
@@ -487,7 +569,13 @@ public final class LayerHostingView: NSView {
 
     public override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        sendModifiers(of: event)
         pointer(.began, .left, event)
+    }
+
+    private func sendModifiers(of event: NSEvent) {
+        let flags = UInt32(truncatingIfNeeded: event.modifierFlags.rawValue) & 0x1E_0000  // ⇧ ⌃ ⌥ ⌘
+        onInput(.modifierState(flags: flags))
     }
     public override func mouseDragged(with event: NSEvent) { pointer(.moved, .left, event) }
     public override func mouseUp(with event: NSEvent) { pointer(.ended, .left, event) }
@@ -521,6 +609,7 @@ public final class LayerHostingView: NSView {
     }
 
     public override func rightMouseDown(with event: NSEvent) {
+        sendModifiers(of: event)
         let p = normalized(event)
         onInput(.rightClick(x: Double(p.x), y: Double(p.y)))
     }
@@ -530,6 +619,7 @@ public final class LayerHostingView: NSView {
         let scale = Double(VideoGeometry.pointScale(videoSize: videoSize() ?? bounds.size, in: bounds)
                            / max(window?.backingScaleFactor ?? 2, 1))
         let phase: PointerPhase = event.phase == .began ? .began : (event.phase == .ended ? .ended : .moved)
+        if phase == .began { sendModifiers(of: event) }
         onInput(.scroll(phase: phase, x: Double(p.x), y: Double(p.y),
                         deltaX: Double(event.scrollingDeltaX) * scale,
                         deltaY: Double(event.scrollingDeltaY) * scale))

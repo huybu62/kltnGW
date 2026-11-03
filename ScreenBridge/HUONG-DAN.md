@@ -430,6 +430,9 @@ Muốn iPad bấm và kéo được trên Mac, macOS cần quyền **Trợ năng
 | **Apple Pencil** chạm / kéo | Như ngón tay, nhưng phản hồi ngay, không có độ trễ chờ |
 | **Apple Pencil để gần màn hình** (chưa chạm) | Con trỏ chuột di chuyển theo bút |
 | Kéo 2 ngón | Cuộn trang |
+| **Vuốt 3 ngón sang trái / phải** | Chuyển màn hình Desktop / app toàn màn hình (như vuốt trackpad Mac) |
+| **Vuốt 3 ngón lên / xuống** | Mission Control / các cửa sổ của app đang dùng |
+| **Nhấc Pencil ra xa** khi con trỏ đang ở mép màn hình | Con trỏ tự lùi vào trong, nên **Dock tự ẩn** sau khi bạn chọn app (cần bật tự động ẩn Dock trên Mac: Cài đặt hệ thống → Desktop & Dock) |
 | Chạm 2 ngón | Bấm chuột phải (menu ngữ cảnh) |
 | Bàn di chuột / chuột nối với iPad | Di chuyển con trỏ, bấm, cuộn |
 
@@ -497,6 +500,18 @@ Khi iPad đang hiện màn hình Mac, **mọi phím gõ trên Folio đều đi s
 - **Vuốt từ mép màn hình** (về Home, Trung tâm điều khiển, thông báo): khi đang hiện màn hình Mac, **phải vuốt 2 lần** mới có tác dụng. Vuốt nhầm một lần sẽ không thoát ra. Muốn về màn hình chính iPad: **vuốt lên từ đáy 2 lần**.
 - **Vuốt 3–4 ngón trên Magic Trackpad** (chuyển app, về Home): đây là cử chỉ hệ thống của iPadOS, **app không tắt được**. Nếu không muốn bị chuyển app nhầm, tắt trong **Cài đặt → Đa nhiệm & cử chỉ** (Multitasking & Gestures), mục cử chỉ vuốt bằng nhiều ngón. Tên mục khác nhau tùy phiên bản iPadOS. Sau khi tắt, bạn vẫn về Home được bằng cách vuốt lên từ đáy màn hình 2 lần.
 - **Thay cho cử chỉ trackpad của Mac**, dùng phím tắt có sẵn của macOS trên Folio: **⌃↑** = Mission Control, **⌃← / ⌃→** = chuyển giữa các màn hình Desktop (Spaces), **⌃↓** = các cửa sổ của app đang dùng.
+
+### Chỉ dùng bàn phím, trackpad cho Mac: khóa cử chỉ của iPad bằng "Truy cập được hướng dẫn"
+
+App không tự tắt được cử chỉ hệ thống của iPad, như vuốt 4–5 ngón, vuốt trackpad nhiều ngón, ⌘Tab, ⌘Space và phím 🌐. Nhưng iPad có sẵn tính năng **Truy cập được hướng dẫn (Guided Access)**: khóa iPad trong một app và tắt hết các cử chỉ đó.
+
+1. **Cài đặt → Trợ năng → Truy cập được hướng dẫn**: bật lên, rồi đặt mật mã.
+2. Mở ScreenBridge, kết nối với Mac.
+3. **Bấm nhanh 3 lần nút nguồn** (nút trên cạnh iPad) → **Bắt đầu**.
+4. Giờ iPad không thoát ra được, cử chỉ hệ thống bị tắt, và gần như mọi thao tác đều đi vào màn hình Mac.
+5. Muốn thoát: bấm nhanh 3 lần nút nguồn → nhập mật mã → **Kết thúc**.
+
+> Claude chưa thử được trên máy thật xem khi bật tính năng này, ⌘Tab và ⌘Space có sang được Mac không. Nếu vẫn không, tiếp tục dùng ⌃⌥Tab / ⌃⌥Space.
 
 ### Âm thanh trên iPad
 
@@ -663,6 +678,24 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 
 **Hỏi: Dữ liệu có đi qua máy chủ của ai không?**
 Đáp: Không. Dữ liệu đi thẳng giữa hai máy và được mã hóa đầu cuối.
+
+**Hỏi: Mac và iPad cách nhau tối đa bao xa?**
+Đáp: Tùy đường kết nối:
+
+| Đường kết nối | Khoảng cách | Ghi chú |
+|---|---|---|
+| **Cáp** | Bằng chiều dài cáp, thường 1–2 m | Độ trễ thấp nhất (~1–2 ms), ổn định nhất, sạc được iPad |
+| **Cùng mạng Wi-Fi** | Hai máy cùng trong vùng phủ sóng của router. Tốt nhất **cùng phòng với router**, hoặc cách router dưới ~10 m, ít tường | Mỗi bức tường làm tăng độ trễ và gây giật. Dùng băng tần **5 GHz / 6 GHz**, đừng dùng 2,4 GHz |
+| **Wi-Fi trực tiếp** (không có router) | Khoảng **10 m**, tương đương AirDrop | Tốt nhất khi hai máy ở gần nhau, cùng phòng |
+
+Để dùng như màn hình phụ, nên để **Mac và iPad cách nhau dưới 3 m**. Nếu muốn mượt nhất thì cắm cáp.
+
+**Hỏi: Làm sao bớt trễ và giật?**
+Đáp: Theo thứ tự hiệu quả:
+1. **Cắm cáp.** Gần như hết trễ và giật.
+2. Dùng **Wi-Fi 5 GHz hoặc 6 GHz**, để hai máy gần router, và bớt thiết bị khác đang tải nặng trên cùng mạng.
+3. Hạ **Refresh** xuống **60 Hz**, hoặc **Quality** xuống **Balanced**. Ít dữ liệu hơn thì ít bị nghẽn hơn.
+4. Tắt **VPN** trên cả hai máy.
 
 **Hỏi: Một máy phát nối được nhiều màn hình cùng lúc không?**
 Đáp: Hiện tại mỗi lúc chỉ một kết nối. Máy đang bận sẽ hiện **Busy**. Hỗ trợ nhiều màn hình có thể tính sau Giai đoạn 4.

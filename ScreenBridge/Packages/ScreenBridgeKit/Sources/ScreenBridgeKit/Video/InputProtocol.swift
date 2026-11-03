@@ -28,6 +28,11 @@ public enum InputEvent: Codable, Sendable, Equatable {
     /// One step of a pinch: zoom in/out in the app under the pointer
     /// (sent to the Mac as ⌘= / ⌘−, which nearly every Mac app supports).
     case zoom(zoomIn: Bool, x: Double, y: Double)
+    /// Which of ⇧ ⌃ ⌥ ⌘ are physically held right now (bits as in
+    /// UIKeyModifierFlags / CGEventFlags, which share values). Sent before
+    /// clicks and scrolls so the Mac can let go of a modifier whose key-up
+    /// iPadOS swallowed (a stuck ⌃ turns every click into a right-click).
+    case modifierState(flags: UInt32)
 }
 
 /// Where the (aspect-fit) video sits inside a view, and conversions to the

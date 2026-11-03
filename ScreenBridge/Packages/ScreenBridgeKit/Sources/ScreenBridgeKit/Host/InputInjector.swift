@@ -128,6 +128,9 @@ final class InputInjector {
         case .macKey(let code, let down):
             handleKey(code, down: down)
 
+        case .modifierState(let raw):
+            reconcileModifiers(with: CGEventFlags(rawValue: UInt64(raw)))
+
         case .zoom(let zoomIn, let x, let y):
             postMouse(.mouseMoved, at: place(x, y), button: .left)  // zoom what's under the fingers
             let key = zoomIn ? KeyMap.equal : KeyMap.minus
@@ -161,6 +164,22 @@ final class InputInjector {
             let target = pressedKeys.removeValue(forKey: code) ?? (code: code, flags: modifierFlags)
             stopRepeat()
             postKey(target.code, down: false, flags: target.flags)
+        }
+    }
+
+    /// Makes our idea of held modifiers match what the Display reports.
+    private func reconcileModifiers(with reported: CGEventFlags) {
+        let modifiers: [(KeyMap.Modifier, UInt16)] = [(.shift, 0x38), (.control, 0x3B), (.option, 0x3A), (.command, 0x37)]
+        for (modifier, code) in modifiers {
+            let held = heldModifiers.values.contains(modifier)
+            let wanted = reported.contains(modifier.flag)
+            if held, !wanted {
+                heldModifiers = heldModifiers.filter { $0.value != modifier }
+                postModifierChange(code)
+            } else if !held, wanted {
+                heldModifiers[code] = modifier
+                postModifierChange(code)
+            }
         }
     }
 
