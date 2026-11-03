@@ -519,6 +519,9 @@ extension VideoSurfaceView: NSViewRepresentable {
 /// Host while the pointer is over the video.
 public final class LayerHostingView: NSView {
     var videoSize: () -> CGSize? = { nil }
+    /// Unused on macOS (Mac displays don't drop their refresh rate the way
+    /// ProMotion does); present so `configure` is the same on both platforms.
+    var streamFrameRate: () -> Int? = { nil }
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
 
