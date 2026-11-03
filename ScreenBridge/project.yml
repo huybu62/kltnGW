@@ -6,7 +6,7 @@
 name: ScreenBridge
 
 options:
-  bundleIdPrefix: app.screenbridge
+  bundleIdPrefix: com.quybu.screenbridge
   createIntermediateGroups: true
   xcodeVersion: "26.1"   # stops Xcode's "Update to recommended settings" prompt
   deploymentTarget:
@@ -40,6 +40,16 @@ packages:
 # (iOS 14+, macOS 15+). Without NSBonjourServices, browsing silently finds
 # nothing on iPadOS.
 x-network-info: &networkInfo
+  # Standard bundle keys. XcodeGen writes only what's listed here, and iOS
+  # refuses to install an app without CFBundleExecutable.
+  CFBundleExecutable: $(EXECUTABLE_NAME)
+  CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+  CFBundleName: $(PRODUCT_NAME)
+  CFBundlePackageType: $(PRODUCT_BUNDLE_PACKAGE_TYPE)
+  CFBundleShortVersionString: $(MARKETING_VERSION)
+  CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+  CFBundleInfoDictionaryVersion: "6.0"
+  CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
   NSLocalNetworkUsageDescription: >-
     ScreenBridge finds your Mac and iPad on the local network and over a
     Thunderbolt cable so one can be used as a display for the other.
@@ -64,6 +74,7 @@ targets:
       path: Apps/Host/Info.plist
       properties:
         <<: *networkInfo
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         CFBundleDisplayName: ScreenBridge
         LSUIElement: true                    # menu-bar only, no Dock icon
         LSApplicationCategoryType: public.app-category.productivity
@@ -74,7 +85,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: ScreenBridge
-        PRODUCT_BUNDLE_IDENTIFIER: app.screenbridge.host
+        PRODUCT_BUNDLE_IDENTIFIER: com.quybu.screenbridge.host
         ENABLE_HARDENED_RUNTIME: YES
 
   ScreenBridgeDisplay-macOS:
@@ -89,6 +100,7 @@ targets:
       path: Apps/Display/Info-macOS.plist
       properties:
         <<: *networkInfo
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         CFBundleDisplayName: ScreenBridge Display
         LSApplicationCategoryType: public.app-category.productivity
     entitlements:
@@ -98,7 +110,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: ScreenBridge Display
-        PRODUCT_BUNDLE_IDENTIFIER: app.screenbridge.display
+        PRODUCT_BUNDLE_IDENTIFIER: com.quybu.screenbridge.display
         ENABLE_HARDENED_RUNTIME: YES
 
   ScreenBridgeDisplay-iOS:
@@ -114,6 +126,7 @@ targets:
       properties:
         <<: *networkInfo
         CFBundleDisplayName: ScreenBridge
+        LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIRequiresFullScreen: false
         UIApplicationSceneManifest:
@@ -130,7 +143,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: ScreenBridge
-        PRODUCT_BUNDLE_IDENTIFIER: app.screenbridge.display.ios
+        PRODUCT_BUNDLE_IDENTIFIER: com.quybu.screenbridge.display.ios
         TARGETED_DEVICE_FAMILY: "1,2"
 
 schemes:
