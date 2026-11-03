@@ -62,6 +62,8 @@ final class InputInjector {
     func releaseAll() {
         queue.async {
             self.stopRepeat()
+            self.stopMomentum()
+            self.postProximity(false)
             for (_, posted) in self.pressedKeys {
                 self.postKey(posted.code, down: false, flags: [])
             }
@@ -132,6 +134,28 @@ final class InputInjector {
 
         case .macKey(let code, let down):
             handleKey(code, down: down)
+
+        case .penProximity(let entering):
+            postProximity(entering)
+
+        case .pen(let phase, let x, let y, let pressure, let tiltX, let tiltY):
+            let point = place(x, y)
+            postProximity(true)
+            let pen = (pressure: pressure, tiltX: tiltX, tiltY: tiltY)
+            switch phase {
+            case .began:
+                stopMomentum()
+                updateClickCount(at: point)
+                leftButtonDown = true
+                postPen(.leftMouseDown, at: point, pen: pen, clickState: clickCount)
+            case .moved:
+                postPen(leftButtonDown ? .leftMouseDragged : .mouseMoved, at: point, pen: pen)
+            case .ended, .cancelled:
+                if leftButtonDown {
+                    leftButtonDown = false
+                    postPen(.leftMouseUp, at: point, pen: (pressure: 0, tiltX: tiltX, tiltY: tiltY), clickState: clickCount)
+                }
+            }
 
         case .modifierState(let raw):
             reconcileModifiers(with: CGEventFlags(rawValue: UInt64(raw)))
@@ -299,6 +323,48 @@ final class InputInjector {
     private func stopMomentum() {
         momentumTimer?.cancel()
         momentumTimer = nil
+    }
+
+    // MARK: - Pen tablet (Apple Pencil)
+
+    /// Pen events look like a pen tablet's: mouse events with the tablet-
+    /// point subtype plus pressure and tilt, bracketed by proximity events.
+    /// Drawing apps (Photoshop, Illustrator, Krita, Affinity…) read pressure
+    /// from these; everything else just sees normal clicks and drags.
+    private static let penDeviceID: Int64 = 0x5342
+    private var penInProximity = false
+
+    private func postPen(_ type: CGEventType, at point: CGPoint,
+                         pen: (pressure: Double, tiltX: Double, tiltY: Double), clickState: Int64? = nil) {
+        guard let event = CGEvent(mouseEventSource: source, mouseType: type,
+                                  mouseCursorPosition: point, mouseButton: .left) else { return }
+        if let clickState { event.setIntegerValueField(.mouseEventClickState, value: clickState) }
+        event.flags = modifierFlags
+        event.setIntegerValueField(.mouseEventSubtype, value: Int64(CGEventMouseSubtype.tabletPoint.rawValue))
+        event.setDoubleValueField(.mouseEventPressure, value: pen.pressure)
+        event.setDoubleValueField(.tabletEventPointPressure, value: pen.pressure)
+        event.setDoubleValueField(.tabletEventTiltX, value: pen.tiltX)
+        event.setDoubleValueField(.tabletEventTiltY, value: pen.tiltY)
+        event.setIntegerValueField(.tabletEventDeviceID, value: Self.penDeviceID)
+        event.post(tap: .cghidEventTap)
+    }
+
+    private func postProximity(_ entering: Bool) {
+        guard entering != penInProximity else { return }
+        penInProximity = entering
+        let location = CGEvent(source: nil)?.location ?? .zero
+        guard let event = CGEvent(mouseEventSource: source, mouseType: .mouseMoved,
+                                  mouseCursorPosition: location, mouseButton: .left) else { return }
+        event.type = .tabletProximity
+        event.setIntegerValueField(.tabletProximityEventEnterProximity, value: entering ? 1 : 0)
+        event.setIntegerValueField(.tabletProximityEventPointerType, value: 1)          // pen tip
+        event.setIntegerValueField(.tabletProximityEventDeviceID, value: Self.penDeviceID)
+        event.setIntegerValueField(.tabletProximityEventSystemTabletID, value: Self.penDeviceID)
+        event.setIntegerValueField(.tabletProximityEventVendorID, value: 0x5342)
+        event.setIntegerValueField(.tabletProximityEventPointerID, value: 1)
+        // x, y, buttons, pressure, tilt x/y
+        event.setIntegerValueField(.tabletProximityEventCapabilityMask, value: 0x0587)
+        event.post(tap: .cghidEventTap)
     }
 
     // MARK: - Mouse

@@ -94,6 +94,9 @@ public struct VideoFormat: Codable, Sendable, Equatable {
     /// Frame rate the Host streams at. The iPad keeps ProMotion at 120 Hz
     /// when this is above 60, so touch/trackpad input is reported at 120 Hz too.
     public var framesPerSecond: Int? = nil
+    /// The pointer is left out of the video; the Display draws it locally
+    /// (instantly, at the touch/trackpad position) from `.cursor` updates.
+    public var drawsCursor: Bool? = nil
 }
 
 /// Prefix of every `sealedVideoFrame` payload; the rest is one encoded

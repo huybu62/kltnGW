@@ -50,6 +50,8 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
 
     public func sessionEnded(willReconnect: Bool) {
         audio.stop()
+        latchedModifiers = []  // the Mac releases everything when a session ends
+        latchedFlags.value = 0
         lock.lock()
         session = nil
         let timer = statsTimer
@@ -127,11 +129,70 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     }
 
     public func receivedControl(_ message: ControlMessage) {
-        if case .streamStopped = message {
+        switch message {
+        case .streamStopped:
             audio.stop()
             decoder.reset()
             clearScreen()
+        case .cursor(let x, let y, let visible):
+            DispatchQueue.main.async { [weak self] in
+                self?.onCursorUpdate?(CGPoint(x: x, y: y), visible)
+            }
+        default:
+            break
         }
+    }
+
+    // MARK: Local pointer
+
+    /// The Mac leaves its pointer out of the video; draw it here.
+    public var drawsCursor: Bool {
+        decoder.currentFormat?.drawsCursor ?? false
+    }
+
+    /// Main thread: the Mac's pointer moved (normalized position, visible on this screen).
+    public var onCursorUpdate: ((CGPoint, Bool) -> Void)?
+
+    // MARK: Shortcut bar modifiers
+
+    /// HID usages of ⌘ ⌥ ⌃ ⇧ latched on the shortcut bar (main thread).
+    @Published public private(set) var latchedModifiers: Set<UInt16> = []
+    private let latchedFlags = LockedValue<UInt32>(0)
+
+    /// Modifier flags held on the shortcut bar, included whenever the iPad
+    /// reports its modifier state (so the Mac doesn't drop them). Any thread.
+    public var shortcutBarModifierFlags: UInt32 { latchedFlags.value }
+
+    public static func modifierFlag(forUsage usage: UInt16) -> UInt32 {
+        switch usage {
+        case 0xE1, 0xE5: return 0x2_0000   // ⇧
+        case 0xE0, 0xE4: return 0x4_0000   // ⌃
+        case 0xE2, 0xE6: return 0x8_0000   // ⌥
+        case 0xE3, 0xE7: return 0x10_0000  // ⌘
+        default: return 0
+        }
+    }
+
+    /// Main thread. Presses or releases a modifier from the shortcut bar.
+    public func setModifier(_ usage: UInt16, down: Bool) {
+        guard down != latchedModifiers.contains(usage) else { return }
+        if down { latchedModifiers.insert(usage) } else { latchedModifiers.remove(usage) }
+        latchedFlags.value = latchedModifiers.reduce(0) { $0 | Self.modifierFlag(forUsage: $1) }
+        sendInput(.key(usage: usage, down: down))
+    }
+
+    /// Main thread. Types one shortcut, e.g. ⌘Z = `press(0x1D, with: [0xE3])`.
+    public func press(_ usage: UInt16, with modifiers: [UInt16] = []) {
+        let extra = modifiers.filter { !latchedModifiers.contains($0) }
+        for modifier in extra { sendInput(.key(usage: modifier, down: true)) }
+        sendInput(.key(usage: usage, down: true))
+        sendInput(.key(usage: usage, down: false))
+        for modifier in extra.reversed() { sendInput(.key(usage: modifier, down: false)) }
+    }
+
+    /// Lets go of every latched modifier (e.g. when the session ends).
+    public func releaseModifiers() {
+        for usage in latchedModifiers { setModifier(usage, down: false) }
     }
 
     /// Call when the app returns to the foreground (iPadOS may have reset

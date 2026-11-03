@@ -41,7 +41,7 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
     static func requestPermission() -> Bool { CGRequestScreenCaptureAccess() }
 
     func start(displayID: CGDirectDisplayID, width: Int, height: Int, framesPerSecond: Int,
-               captureAudio: Bool) async throws {
+               captureAudio: Bool, showsCursor: Bool = true) async throws {
         let display = try await Self.findDisplay(displayID)
 
         let filter = SCContentFilter(display: display, excludingWindows: [])
@@ -51,7 +51,7 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(framesPerSecond))
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         configuration.queueDepth = 5
-        configuration.showsCursor = true
+        configuration.showsCursor = showsCursor
         configuration.capturesAudio = captureAudio
         if captureAudio {
             configuration.sampleRate = Int(AudioPacketHeader.sampleRate)

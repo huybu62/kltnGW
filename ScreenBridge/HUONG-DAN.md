@@ -501,6 +501,26 @@ Khi iPad đang hiện màn hình Mac, **mọi phím gõ trên Folio đều đi s
 - **Vuốt 3–4 ngón trên Magic Trackpad** (chuyển app, về Home): đây là cử chỉ hệ thống của iPadOS, **app không tắt được**. Nếu không muốn bị chuyển app nhầm, tắt trong **Cài đặt → Đa nhiệm & cử chỉ** (Multitasking & Gestures), mục cử chỉ vuốt bằng nhiều ngón. Tên mục khác nhau tùy phiên bản iPadOS. Sau khi tắt, bạn vẫn về Home được bằng cách vuốt lên từ đáy màn hình 2 lần.
 - **Thay cho cử chỉ trackpad của Mac**, dùng phím tắt có sẵn của macOS trên Folio: **⌃↑** = Mission Control, **⌃← / ⌃→** = chuyển giữa các màn hình Desktop (Spaces), **⌃↓** = các cửa sổ của app đang dùng.
 
+### Con trỏ vẽ trên iPad, Apple Pencil cho app vẽ, chống chạm nhầm, thanh phím tắt
+
+**Con trỏ vẽ trên iPad (bật sẵn).** Trong menu Mac: **Draw pointer on iPad (less lag)**.
+- **Bật:** iPad tự vẽ con trỏ ngay tại chỗ bạn di trackpad hoặc Pencil, **không còn trễ**. Đổi lại con trỏ luôn là mũi tên thường, không đổi hình (chữ I, mũi tên kéo giãn…).
+- **Tắt:** con trỏ là con trỏ thật của Mac nằm trong video, đổi hình đúng nhưng trễ một chút.
+- Khi di chuột bằng trackpad của chính MacBook sang màn hình iPad, con trỏ vẫn hiện đúng chỗ.
+
+**Apple Pencil cho app vẽ trên Mac.** Pencil hoạt động như **bảng vẽ** (giống Wacom): Photoshop, Illustrator, Krita, Affinity, Clip Studio… nhận **lực nhấn** (ấn mạnh thì nét đậm hơn) và **độ nghiêng** của bút. Các app khác coi Pencil như chuột bình thường.
+
+**Chống chạm nhầm lòng bàn tay (tự động).** Khi đang dùng Pencil (bút đang lơ lửng, hoặc vừa dùng trong vòng 1 giây), mọi cú chạm bằng ngón tay và bàn tay đều bị bỏ qua. Bạn có thể tì tay lên màn hình khi viết hay vẽ. Chạm bằng phần rộng của bàn tay luôn bị bỏ qua.
+
+**Thanh phím tắt bên trái màn hình iPad** (giống Sidecar):
+
+| Nút | Cách dùng |
+|---|---|
+| **⌘ ⌥ ⌃ ⇧** | **Chạm 1 lần** để khóa phím (nút sáng màu; chạm lại để nhả). **Giữ** để chỉ nhấn trong lúc giữ. Ví dụ: tay trái giữ ⇧, tay phải dùng Pencil chọn nhiều file |
+| **Esc, Undo, Redo, Cut, Copy, Paste, Save** | Chạm 1 lần (Undo = ⌘Z, Redo = ⇧⌘Z, Save = ⌘S…) |
+
+Muốn ẩn hoặc hiện thanh này: giữ yên 2 ngón trên màn hình để mở thanh trạng thái, rồi bấm **Shortcut bar**.
+
 ### Chỉ dùng bàn phím, trackpad cho Mac: khóa cử chỉ của iPad bằng "Truy cập được hướng dẫn"
 
 App không tự tắt được cử chỉ hệ thống của iPad, như vuốt 4–5 ngón, vuốt trackpad nhiều ngón, ⌘Tab, ⌘Space và phím 🌐. Nhưng iPad có sẵn tính năng **Truy cập được hướng dẫn (Guided Access)**: khóa iPad trong một app và tắt hết các cử chỉ đó.

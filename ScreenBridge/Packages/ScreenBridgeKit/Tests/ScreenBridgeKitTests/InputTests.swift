@@ -13,6 +13,8 @@ final class InputTests: XCTestCase {
             .macKey(code: 0x37, down: false),
             .zoom(zoomIn: true, x: 0.5, y: 0.5),
             .modifierState(flags: 0x14_0000),
+            .pen(phase: .moved, x: 0.3, y: 0.4, pressure: 0.6, tiltX: -0.2, tiltY: 0.5),
+            .penProximity(entering: true),
         ]
         for event in events {
             XCTAssertEqual(try WireCoding.decode(InputEvent.self, from: WireCoding.encode(event)), event)

@@ -45,6 +45,12 @@ struct HostStreamPanel: View {
 
             Divider()
 
+            Toggle("Draw pointer on iPad (less lag)", isOn: $stream.drawPointerOnDisplay)
+            Text(stream.drawPointerOnDisplay
+                 ? "The pointer moves instantly on the iPad but is always a plain arrow."
+                 : "The pointer is part of the video: it changes shape (text, resize…) but lags slightly.")
+                .font(.caption).foregroundStyle(.secondary)
+
             Toggle("Play sound on iPad", isOn: $stream.soundOnDisplay)
             if stream.soundOnDisplay {
                 Toggle("Mute this Mac's speakers", isOn: $stream.muteMacWhileSharing)

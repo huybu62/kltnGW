@@ -21,6 +21,8 @@ import AppKit
 ///   ↑ Mission Control (⌃↑), ↓ App Exposé (⌃↓), like a Mac trackpad
 /// - Lifting the Pencil out of hover range near a screen edge nudges the
 ///   pointer off the edge, so an auto-hiding Dock closes after you pick an app
+/// - Apple Pencil acts as a pen tablet (pressure, tilt) for drawing apps;
+///   while the Pencil is in use, the resting hand is ignored (palm rejection)
 /// - Hardware keyboard (Smart Keyboard Folio…) and Magic Trackpad go to the
 ///   Mac; the iPad's own round pointer is hidden over the video.
 public struct VideoSurfaceView {
@@ -38,6 +40,11 @@ public struct VideoSurfaceView {
         view.streamFrameRate = { controller.streamFrameRate }
         view.onInput = { controller.sendInput($0) }
         view.onToggleControls = onToggleControls
+        view.drawsCursor = { controller.drawsCursor }
+        view.extraModifierFlags = { controller.shortcutBarModifierFlags }
+        controller.onCursorUpdate = { [weak view] point, visible in
+            view?.remoteCursorMoved(to: point, visible: visible)
+        }
     }
 }
 
@@ -58,6 +65,25 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
                                      UIPencilInteractionDelegate {
     var videoSize: () -> CGSize? = { nil }
     var streamFrameRate: () -> Int? = { nil }
+    var drawsCursor: () -> Bool = { false }
+    /// Modifiers held on the shortcut bar, reported along with the keyboard's.
+    var extraModifierFlags: () -> UInt32 = { 0 }
+
+    /// The pointer drawn locally (when the Mac leaves it out of the video):
+    /// it follows touch/trackpad/Pencil instantly instead of a network
+    /// round trip later.
+    private let cursorLayer = CAShapeLayer()
+    private var lastLocalPointerTime: CFTimeInterval = 0
+
+    // Apple Pencil as a pen tablet + palm rejection
+    private weak var pressRecognizer: UILongPressGestureRecognizer?
+    private var pencilTouch: UITouch?
+    private var lastPencilActivity: CFTimeInterval = 0
+    private var penInProximity = false
+    /// Fingers are ignored this long after the Pencil was last used.
+    private static let palmRejectionWindow: CFTimeInterval = 1.0
+    /// Touches wider than this are a palm or the side of a hand, not a fingertip.
+    private static let palmRadius: CGFloat = 30
 
     /// ProMotion drops to 60 Hz (or lower) when an app looks idle, and
     /// trackpad / Pencil-hover positions are only reported at the display's
@@ -109,7 +135,71 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         backgroundColor = .black
         layer.addSublayer(hosted)
         isMultipleTouchEnabled = true
+        setUpCursorLayer()
         installGestures()
+    }
+
+    // MARK: Local pointer
+
+    private func setUpCursorLayer() {
+        // The classic macOS arrow, tip at (0, 0).
+        let path = UIBezierPath()
+        path.move(to: .zero)
+        path.addLine(to: CGPoint(x: 0, y: 17))
+        path.addLine(to: CGPoint(x: 4.2, y: 13.2))
+        path.addLine(to: CGPoint(x: 7, y: 19.5))
+        path.addLine(to: CGPoint(x: 9.6, y: 18.4))
+        path.addLine(to: CGPoint(x: 6.9, y: 12.2))
+        path.addLine(to: CGPoint(x: 12.2, y: 12.2))
+        path.close()
+        cursorLayer.path = path.cgPath
+        cursorLayer.fillColor = UIColor.black.cgColor
+        cursorLayer.strokeColor = UIColor.white.cgColor
+        cursorLayer.lineWidth = 1.2
+        cursorLayer.lineJoin = .round
+        cursorLayer.bounds = CGRect(x: 0, y: 0, width: 13, height: 20)
+        cursorLayer.anchorPoint = .zero
+        cursorLayer.shadowOpacity = 0.3
+        cursorLayer.shadowRadius = 1.5
+        cursorLayer.shadowOffset = CGSize(width: 0, height: 1)
+        cursorLayer.zPosition = 10
+        cursorLayer.isHidden = true
+        layer.addSublayer(cursorLayer)
+    }
+
+    private func placeCursor(at point: CGPoint) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        cursorLayer.position = point
+        cursorLayer.isHidden = false
+        CATransaction.commit()
+    }
+
+    /// Our own input moved the pointer: draw it there now.
+    private func moveLocalCursor(to point: CGPoint) {
+        guard drawsCursor() else {
+            if !cursorLayer.isHidden { cursorLayer.isHidden = true }
+            return
+        }
+        lastLocalPointerTime = CACurrentMediaTime()
+        placeCursor(at: point)
+    }
+
+    /// The Mac reports where its pointer is (e.g. moved by the Mac's own trackpad).
+    func remoteCursorMoved(to normalizedPoint: CGPoint, visible: Bool) {
+        guard drawsCursor() else {
+            cursorLayer.isHidden = true
+            return
+        }
+        // Right after local input this is just our own movement arriving late.
+        guard CACurrentMediaTime() - lastLocalPointerTime > 0.3 else { return }
+        guard visible else {
+            cursorLayer.isHidden = true
+            return
+        }
+        let rect = VideoGeometry.videoRect(videoSize: videoSize() ?? bounds.size, in: bounds)
+        placeCursor(at: CGPoint(x: rect.minX + normalizedPoint.x * rect.width,
+                                y: rect.minY + normalizedPoint.y * rect.height))
     }
 
     @available(*, unavailable)
@@ -129,6 +219,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         press.allowableMovement = .greatestFiniteMagnitude
         press.numberOfTouchesRequired = 1
         press.delegate = self
+        pressRecognizer = press
 
         let scroll = UIPanGestureRecognizer(target: self, action: #selector(handleScroll(_:)))
         scroll.minimumNumberOfTouches = 2
@@ -141,6 +232,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
 
         let toggle = UITapGestureRecognizer(target: self, action: #selector(handleToggle(_:)))
         toggle.numberOfTouchesRequired = 3
+        toggle.delegate = self
 
         // Hold two fingers still: show/hide the overlay. A quick two-finger
         // tap is still a right-click (it waits only until the hold fails).
@@ -209,7 +301,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     /// Tells the Mac which modifier keys are really held right now.
     private func sendModifiers(of recognizer: UIGestureRecognizer) {
         let flags = UInt32(truncatingIfNeeded: recognizer.modifierFlags.rawValue) & 0x1E_0000  // ⇧ ⌃ ⌥ ⌘
-        onInput(.modifierState(flags: flags))
+        onInput(.modifierState(flags: flags | extraModifierFlags()))
     }
 
     public override func didMoveToWindow() {
@@ -300,9 +392,18 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     }
 
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        if gestureRecognizer is UILongPressGestureRecognizer {
+        let now = CACurrentMediaTime()
+        if touch.type == .pencil { lastPencilActivity = now }
+        if touch.type == .direct {
+            // Palm rejection: a palm is a wide touch, and while writing or
+            // drawing with the Pencil every finger touch is the resting hand.
+            if touch.majorRadius > Self.palmRadius { return false }
+            if hoverIsPencil || now - lastPencilActivity < Self.palmRejectionWindow { return false }
+        }
+        if gestureRecognizer === pressRecognizer {
             pressIsImmediate = touch.type == .pencil || touch.type == .indirectPointer
             pressIsPencil = touch.type == .pencil
+            pencilTouch = touch.type == .pencil ? touch : nil
         }
         return true
     }
@@ -313,7 +414,35 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
 
     private func sendPointer(_ phase: PointerPhase, _ button: PointerButton, at point: CGPoint) {
         let p = normalized(point)
+        moveLocalCursor(to: point)
         onInput(.pointer(phase: phase, button: button, x: Double(p.x), y: Double(p.y)))
+    }
+
+    /// Left-button events of the one-finger/Pencil press: pen-tablet events
+    /// (pressure, tilt) for the Pencil, plain mouse events otherwise.
+    private func sendPress(_ phase: PointerPhase, at point: CGPoint) {
+        guard pressIsPencil, let touch = pencilTouch else {
+            sendPointer(phase, .left, at: point)
+            return
+        }
+        lastPencilActivity = CACurrentMediaTime()
+        penInProximity = true
+        let p = normalized(point)
+        moveLocalCursor(to: point)
+        let lifting = phase == .ended || phase == .cancelled
+        let pressure: Double = touch.maximumPossibleForce > 0
+            ? min(1, Double(touch.force / (touch.maximumPossibleForce * 0.75)))
+            : 0.5
+        let tilt = max(0, 1 - Double(touch.altitudeAngle / (.pi / 2)))  // 0 upright … 1 flat
+        let azimuth = Double(touch.azimuthAngle(in: self))
+        onInput(.pen(phase: phase, x: Double(p.x), y: Double(p.y), pressure: lifting ? 0 : pressure,
+                     tiltX: cos(azimuth) * tilt, tiltY: sin(azimuth) * tilt))
+    }
+
+    private func setPenProximity(_ near: Bool) {
+        guard near != penInProximity else { return }
+        penInProximity = near
+        onInput(.penProximity(entering: near))
     }
 
     // MARK: One finger / Pencil
@@ -339,19 +468,19 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             if let start = pendingPress, hypot(point.x - start.x, point.y - start.y) > Self.dragThreshold {
                 pressDown(at: start)
             }
-            if buttonDown { sendPointer(.moved, .left, at: point) }
+            if buttonDown { sendPress(.moved, at: point) }
         case .ended:
             if let start = pendingPress { pressDown(at: start) }  // quick tap
             if buttonDown {
                 buttonDown = false
-                sendPointer(.ended, .left, at: point)
+                sendPress(.ended, at: point)
             }
             if pressIsPencil { pencilDidClick(at: point) }
         case .cancelled, .failed:
             cancelPendingPress()
             if buttonDown {
                 buttonDown = false
-                sendPointer(.cancelled, .left, at: point)
+                sendPress(.cancelled, at: point)
             }
         default:
             break
@@ -362,7 +491,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         cancelPendingPress()
         guard !buttonDown else { return }
         buttonDown = true
-        sendPointer(.began, .left, at: point)
+        sendPress(.began, at: point)
     }
 
     private func cancelPendingPress() {
@@ -384,7 +513,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             cancelPendingPress()
             if buttonDown {
                 buttonDown = false
-                sendPointer(.cancelled, .left, at: recognizer.location(in: self))
+                sendPress(.cancelled, at: recognizer.location(in: self))
             }
             lastScrollTranslation = .zero
             sendModifiers(of: recognizer)
@@ -430,7 +559,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             cancelPendingPress()
             if buttonDown {
                 buttonDown = false
-                sendPointer(.cancelled, .left, at: recognizer.location(in: self))
+                sendPress(.cancelled, at: recognizer.location(in: self))
             }
         case .ended:
             let t = recognizer.translation(in: self)
@@ -492,6 +621,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
                 if recognizer.zOffset > 0 { hoverIsPencil = true }
             }
             if hoverIsPencil {
+                lastPencilActivity = CACurrentMediaTime()
+                setPenProximity(true)
+            }
+            if hoverIsPencil {
                 pencilNudgeWork?.cancel()  // Pencil still nearby; wait until it leaves
                 pencilNudgeWork = nil
             }
@@ -500,6 +633,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             if hoverIsPencil, pencilClicked, !buttonDown, let point = lastHoverPoint {
                 nudgeOffScreenEdge(from: point)
             }
+            if hoverIsPencil, !buttonDown { setPenProximity(false) }
             hoverIsPencil = false
             pencilClicked = false
             lastHoverPoint = nil
@@ -519,6 +653,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             guard let self, self.pencilClicked, !self.buttonDown else { return }
             self.pencilClicked = false
             self.nudgeOffScreenEdge(from: point)
+            self.setPenProximity(false)
         }
         pencilNudgeWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
@@ -556,6 +691,11 @@ extension VideoSurfaceView: NSViewRepresentable {
 /// Host while the pointer is over the video.
 public final class LayerHostingView: NSView {
     var videoSize: () -> CGSize? = { nil }
+    /// A Mac display shows its own pointer over the window, so the Host never
+    /// leaves the pointer out of the video for it; kept for a shared `configure`.
+    var drawsCursor: () -> Bool = { false }
+    var extraModifierFlags: () -> UInt32 = { 0 }
+    func remoteCursorMoved(to normalizedPoint: CGPoint, visible: Bool) {}
     /// Unused on macOS (Mac displays don't drop their refresh rate the way
     /// ProMotion does); present so `configure` is the same on both platforms.
     var streamFrameRate: () -> Int? = { nil }
@@ -615,7 +755,7 @@ public final class LayerHostingView: NSView {
 
     private func sendModifiers(of event: NSEvent) {
         let flags = UInt32(truncatingIfNeeded: event.modifierFlags.rawValue) & 0x1E_0000  // ⇧ ⌃ ⌥ ⌘
-        onInput(.modifierState(flags: flags))
+        onInput(.modifierState(flags: flags | extraModifierFlags()))
     }
     public override func mouseDragged(with event: NSEvent) { pointer(.moved, .left, event) }
     public override func mouseUp(with event: NSEvent) { pointer(.ended, .left, event) }

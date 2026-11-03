@@ -31,6 +31,12 @@ final class HostStreamer: @unchecked Sendable {
     let frameRate: StreamFrameRate
     /// Send the Mac's sound to the Display.
     let sendsAudio: Bool
+    /// Leave the pointer out of the video and let the Display draw it
+    /// (instant response to touch/trackpad; see `.cursor` messages).
+    let localCursor: Bool
+    private var cursorTimer: DispatchSourceTimer?
+    private var lastCursor: (x: Double, y: Double, visible: Bool)?
+    private var cursorKeepAlive = 0
     private let audioPacketizer = AudioPacketizer()
 
     /// Delivered on the main thread.
@@ -82,9 +88,10 @@ final class HostStreamer: @unchecked Sendable {
     private var statsTimer: DispatchSourceTimer?
 
     init(session: SecureSession, peerDisplay: DisplayCapabilities?, mode: StreamMode,
-         quality: StreamQuality, frameRate: StreamFrameRate, sendsAudio: Bool) {
+         quality: StreamQuality, frameRate: StreamFrameRate, sendsAudio: Bool, localCursor: Bool) {
         self.session = session
         self.sendsAudio = sendsAudio
+        self.localCursor = localCursor
         self.peerID = session.peer.id
         self.peerName = session.peer.name
         self.peerDisplay = peerDisplay
@@ -126,11 +133,13 @@ final class HostStreamer: @unchecked Sendable {
         }
         do {
             try await capturer.start(displayID: target.displayID, width: target.width,
-                                     height: target.height, framesPerSecond: fps, captureAudio: sendsAudio)
+                                     height: target.height, framesPerSecond: fps, captureAudio: sendsAudio,
+                                     showsCursor: !localCursor)
         } catch ScreenCapturer.CaptureError.permissionDenied {
             throw StreamError.screenRecordingDenied
         }
         startStatsTimer()
+        if localCursor { startCursorTimer(displayID: target.displayID) }
     }
 
     func stop(reason: String = "stopped") async {
@@ -138,6 +147,7 @@ final class HostStreamer: @unchecked Sendable {
         let (timer, encoder, display) = teardown
 
         timer?.cancel()
+        stopCursorTimer()
         await capturer.stop()
         encoder?.invalidate()
         frameQueue.sync {
@@ -323,7 +333,7 @@ final class HostStreamer: @unchecked Sendable {
         guard let sets = frame.parameterSets, !sets.isEmpty, let encoder else { return nil }
         return VideoFormat(streamID: streamID, codec: encoder.codec, width: width, height: height,
                            parameterSets: sets, nalUnitHeaderLength: frame.nalUnitHeaderLength,
-                           framesPerSecond: frameRate.rawValue)
+                           framesPerSecond: frameRate.rawValue, drawsCursor: localCursor)
     }
 
     // MARK: - Feedback from the Display (media queue)
@@ -357,6 +367,41 @@ final class HostStreamer: @unchecked Sendable {
             if self.pendingFrame == nil { self.pendingFrame = self.lastFrame }
             self.drain()
         }
+    }
+
+    // MARK: - Pointer position (local cursor mode)
+
+    /// Reports where the Mac's pointer is ~60 times a second while it moves
+    /// (also when moved by the Mac's own trackpad), so the Display can draw it.
+    private func startCursorTimer(displayID: CGDirectDisplayID) {
+        let queue = DispatchQueue(label: "app.screenbridge.cursor", qos: .userInteractive)
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: 1.0 / 60)
+        timer.setEventHandler { [weak self] in self?.reportCursor(on: displayID) }
+        lock.lock(); cursorTimer = timer; lock.unlock()
+        timer.resume()
+    }
+
+    private func stopCursorTimer() {
+        lock.lock(); let timer = cursorTimer; cursorTimer = nil; lock.unlock()
+        timer?.cancel()
+    }
+
+    /// Cursor queue.
+    private func reportCursor(on displayID: CGDirectDisplayID) {
+        guard let location = CGEvent(source: nil)?.location else { return }
+        let bounds = CGDisplayBounds(displayID)
+        let visible = bounds.contains(location)
+        let x = Double((location.x - bounds.minX) / max(bounds.width, 1))
+        let y = Double((location.y - bounds.minY) / max(bounds.height, 1))
+        cursorKeepAlive += 1
+        if let last = lastCursor, last.visible == visible, abs(last.x - x) < 0.0002, abs(last.y - y) < 0.0002,
+           cursorKeepAlive < 60 {
+            return  // unchanged; still resend once a second
+        }
+        cursorKeepAlive = 0
+        lastCursor = (x: x, y: y, visible: visible)
+        currentSession().sendWithoutWaiting(.cursor(x: x, y: y, visible: visible))
     }
 
     // MARK: - Stats + adaptive bitrate

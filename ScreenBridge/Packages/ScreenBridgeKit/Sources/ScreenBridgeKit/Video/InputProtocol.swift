@@ -33,6 +33,11 @@ public enum InputEvent: Codable, Sendable, Equatable {
     /// clicks and scrolls so the Mac can let go of a modifier whose key-up
     /// iPadOS swallowed (a stuck ⌃ turns every click into a right-click).
     case modifierState(flags: UInt32)
+    /// Apple Pencil on the glass, sent to the Mac as a pen tablet would be
+    /// (pressure 0…1, tilt −1…1 per axis) so drawing apps get pressure.
+    case pen(phase: PointerPhase, x: Double, y: Double, pressure: Double, tiltX: Double, tiltY: Double)
+    /// Apple Pencil came near the screen / went away (tablet proximity).
+    case penProximity(entering: Bool)
 }
 
 /// Where the (aspect-fit) video sits inside a view, and conversions to the

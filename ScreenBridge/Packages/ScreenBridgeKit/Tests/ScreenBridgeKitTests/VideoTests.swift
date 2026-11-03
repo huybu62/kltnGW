@@ -13,7 +13,8 @@ final class VideoProtocolTests: XCTestCase {
     }
 
     func testNewControlMessagesRoundTrip() throws {
-        for message in [ControlMessage.requestKeyframe, .frameAck(frameNumber: 7), .streamStopped(reason: "x")] {
+        for message in [ControlMessage.requestKeyframe, .frameAck(frameNumber: 7), .streamStopped(reason: "x"),
+                        .cursor(x: 0.25, y: 0.5, visible: true)] {
             let data = try WireCoding.encode(message)
             XCTAssertEqual(try WireCoding.decode(ControlMessage.self, from: data), message)
         }

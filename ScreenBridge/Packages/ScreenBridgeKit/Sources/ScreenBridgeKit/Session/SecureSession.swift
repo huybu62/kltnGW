@@ -11,6 +11,9 @@ public enum ControlMessage: Codable, Sendable, Equatable {
     case frameAck(frameNumber: UInt32)
     /// Host → Display: the video stream ended (mode change, error, stop).
     case streamStopped(reason: String)
+    /// Host → Display: where the Mac's pointer is (normalized to the
+    /// captured screen), when the Display draws the pointer itself.
+    case cursor(x: Double, y: Double, visible: Bool)
 }
 
 public enum SessionEvent: @unchecked Sendable {

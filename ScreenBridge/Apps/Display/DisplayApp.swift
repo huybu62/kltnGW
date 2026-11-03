@@ -41,12 +41,22 @@ private struct DisplayRootView: View {
     @ObservedObject var coordinator: ConnectionCoordinator
     @ObservedObject var stream: DisplayStreamController
     @State private var showControls = false
+    /// Shortcut bar beside the Mac screen (iPad), remembered between launches.
+    @AppStorage("ScreenBridge.showShortcutBar") private var showShortcutBar = true
 
     var body: some View {
         if stream.isReceiving {
             ZStack(alignment: .top) {
-                VideoSurfaceView(controller: stream) { showControls.toggle() }
-                    .ignoresSafeArea()
+                HStack(spacing: 0) {
+                    #if os(iOS)
+                    if showShortcutBar {
+                        ShortcutBar(controller: stream)
+                            .ignoresSafeArea(edges: .vertical)
+                    }
+                    #endif
+                    VideoSurfaceView(controller: stream) { showControls.toggle() }
+                        .ignoresSafeArea()
+                }
                 if showControls {
                     controls
                 }
@@ -90,6 +100,10 @@ private struct DisplayRootView: View {
             Image(systemName: coordinator.activeLink?.systemImage ?? "network")
             Text(stream.stats?.summary ?? "…").font(.caption.monospaced())
             Spacer()
+            #if os(iOS)
+            Toggle("Shortcut bar", isOn: $showShortcutBar)
+                .toggleStyle(.button)
+            #endif
             Button("Hide") { showControls = false }
             Button("Disconnect", role: .destructive) { coordinator.disconnect() }
         }

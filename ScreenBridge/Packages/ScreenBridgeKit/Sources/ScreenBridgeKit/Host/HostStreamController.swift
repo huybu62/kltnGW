@@ -73,9 +73,20 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         }
     }
 
+    /// Draw the pointer on the iPad itself instead of in the video: no lag
+    /// when moving it, but it's always a plain arrow.
+    @Published public var drawPointerOnDisplay: Bool {
+        didSet {
+            guard drawPointerOnDisplay != oldValue else { return }
+            defaults.set(drawPointerOnDisplay, forKey: Self.pointerKey)
+            restart()
+        }
+    }
+
     /// The Mac stays awake with its lid closed (see `LidClosedMode`).
     @Published public private(set) var lidClosedModeEnabled = LidClosedMode.isEnabled
 
+    private static let pointerKey = "ScreenBridge.drawPointerOnDisplay"
     private static let soundKey = "ScreenBridge.soundOnDisplay"
     private static let muteKey = "ScreenBridge.muteMacWhileSharing"
     private var isSharing = false
@@ -107,6 +118,7 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         frameRate = StreamFrameRate(rawValue: savedRate) ?? .fps60
         soundOnDisplay = defaults.object(forKey: Self.soundKey) as? Bool ?? true
         muteMacWhileSharing = defaults.object(forKey: Self.muteKey) as? Bool ?? true
+        drawPointerOnDisplay = defaults.object(forKey: Self.pointerKey) as? Bool ?? true
     }
 
     // MARK: Lid closed, staying awake, sound
@@ -271,7 +283,9 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         let myGeneration = generation
         let streamer = session.map {
             HostStreamer(session: $0, peerDisplay: $0.peer.display, mode: mode, quality: quality,
-                         frameRate: frameRate, sendsAudio: soundOnDisplay)
+                         frameRate: frameRate, sendsAudio: soundOnDisplay,
+                         // A Mac display has its own pointer over the window; only iPads draw one.
+                         localCursor: drawPointerOnDisplay && $0.peer.platform != .mac)
         }
         self.streamer = streamer
         lock.unlock()
