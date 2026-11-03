@@ -54,7 +54,9 @@ private struct DisplayRootView: View {
                             .ignoresSafeArea(edges: .vertical)
                     }
                     #endif
-                    VideoSurfaceView(controller: stream) { showControls.toggle() }
+                    VideoSurfaceView(controller: stream,
+                                     onToggleControls: { showControls.toggle() },
+                                     onToggleShortcutBar: { showShortcutBar.toggle() })
                         .ignoresSafeArea()
                 }
                 if showControls {

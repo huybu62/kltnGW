@@ -421,7 +421,8 @@ Muốn iPad bấm và kéo được trên Mac, macOS cần quyền **Trợ năng
 
 | Thao tác trên iPad | Trên Mac |
 |---|---|
-| **Giữ yên 2 ngón khoảng nửa giây** (hoặc chạm 3 ngón) | **Hiện / ẩn thanh trạng thái** của ScreenBridge |
+| **Giữ yên 2 ngón khoảng nửa giây** | **Hiện / ẩn thanh trạng thái** của ScreenBridge |
+| **Chạm 3 ngón** | **Hiện / ẩn thanh phím tắt** bên trái |
 | **Chụm / mở 2 ngón** | Thu nhỏ / phóng to (gửi ⌘− / ⌘= cho app đang mở) |
 | **Chạm 2 lần vào thân Apple Pencil** (Pencil 2 / Pencil Pro) | **Chuột phải**, tại chỗ bút đang trỏ |
 | Chạm 1 ngón | Bấm chuột trái |
@@ -519,7 +520,7 @@ Khi iPad đang hiện màn hình Mac, **mọi phím gõ trên Folio đều đi s
 | **⌘ ⌥ ⌃ ⇧** | **Chạm 1 lần** để khóa phím (nút sáng màu; chạm lại để nhả). **Giữ** để chỉ nhấn trong lúc giữ. Ví dụ: tay trái giữ ⇧, tay phải dùng Pencil chọn nhiều file |
 | **Esc, Undo, Redo, Cut, Copy, Paste, Save** | Chạm 1 lần (Undo = ⌘Z, Redo = ⇧⌘Z, Save = ⌘S…) |
 
-Muốn ẩn hoặc hiện thanh này: giữ yên 2 ngón trên màn hình để mở thanh trạng thái, rồi bấm **Shortcut bar**.
+Muốn ẩn hoặc hiện thanh này: **chạm 3 ngón** lên màn hình (hoặc bấm **Shortcut bar** trên thanh trạng thái).
 
 ### Chỉ dùng bàn phím, trackpad cho Mac: khóa cử chỉ của iPad bằng "Truy cập được hướng dẫn"
 

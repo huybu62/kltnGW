@@ -16,7 +16,8 @@ import AppKit
 /// - 2-finger drag: scroll · 2-finger tap: right-click · pinch: zoom
 /// - Apple Pencil (2nd gen / Pro) double-tap: right-click at the Pencil
 /// - Hold 2 fingers still for ~0.6 s, or 3-finger tap: show/hide the
-///   overlay (`onToggleControls`)
+///   status overlay (`onToggleControls`)
+/// - 3-finger tap: show/hide the shortcut bar (`onToggleShortcutBar`)
 /// - 3-finger swipe: ← → switch Desktops / full-screen apps (⌃← ⌃→),
 ///   ↑ Mission Control (⌃↑), ↓ App Exposé (⌃↓), like a Mac trackpad
 /// - Lifting the Pencil out of hover range near a screen edge nudges the
@@ -28,10 +29,17 @@ import AppKit
 public struct VideoSurfaceView {
     let controller: DisplayStreamController
     let onToggleControls: () -> Void
+    let onToggleShortcutBar: () -> Void
 
-    public init(controller: DisplayStreamController, onToggleControls: @escaping () -> Void = {}) {
+    /// - Parameters:
+    ///   - onToggleControls: hold two fingers still (~0.6 s): status overlay.
+    ///   - onToggleShortcutBar: three-finger tap: shortcut bar.
+    public init(controller: DisplayStreamController,
+                onToggleControls: @escaping () -> Void = {},
+                onToggleShortcutBar: @escaping () -> Void = {}) {
         self.controller = controller
         self.onToggleControls = onToggleControls
+        self.onToggleShortcutBar = onToggleShortcutBar
     }
 
     fileprivate func configure(_ view: LayerHostingView) {
@@ -40,6 +48,7 @@ public struct VideoSurfaceView {
         view.streamFrameRate = { controller.streamFrameRate }
         view.onInput = { controller.sendInput($0) }
         view.onToggleControls = onToggleControls
+        view.onToggleShortcutBar = onToggleShortcutBar
         view.drawsCursor = { controller.drawsCursor }
         view.extraModifierFlags = { controller.shortcutBarModifierFlags }
         controller.onCursorUpdate = { [weak view] point, visible in
@@ -82,8 +91,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private var penInProximity = false
     /// Fingers are ignored this long after the Pencil was last used.
     private static let palmRejectionWindow: CFTimeInterval = 1.0
-    /// Touches wider than this are a palm or the side of a hand, not a fingertip.
-    private static let palmRadius: CGFloat = 30
+    /// Touches wider than this are a palm or the side of a hand, not a
+    /// fingertip. iPadOS reports radii in steps of ~10.4 pt and an ordinary
+    /// fingertip is often 20.8 or 31.3, so only 52+ counts as a palm.
+    private static let palmRadius: CGFloat = 50
 
     /// ProMotion drops to 60 Hz (or lower) when an app looks idle, and
     /// trackpad / Pencil-hover positions are only reported at the display's
@@ -99,6 +110,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private static let lowRate = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
+    var onToggleShortcutBar: () -> Void = {}
 
     private let hosted: CALayer
 
@@ -543,7 +555,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     }
 
     @objc private func handleToggle(_ recognizer: UITapGestureRecognizer) {
-        onToggleControls()
+        onToggleShortcutBar()
     }
 
     @objc private func handleHoldToggle(_ recognizer: UILongPressGestureRecognizer) {
@@ -701,6 +713,7 @@ public final class LayerHostingView: NSView {
     var streamFrameRate: () -> Int? = { nil }
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
+    var onToggleShortcutBar: () -> Void = {}
 
     private let hosted: CALayer
     private var trackingArea: NSTrackingArea?
