@@ -60,7 +60,11 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     /// current rate. While the Mac streams above 60 fps, this display link
     /// asks iPadOS to stay at 120 Hz.
     private var displayLink: CADisplayLink?
-    private var rateCheckTimer: Timer?
+    private var wantsHighRate = false
+    private var ticksSinceRateCheck = 0
+    private static let highRate = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
+    /// When not streaming above 60 fps, tick slowly so we don't hold the display up.
+    private static let lowRate = CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
 
@@ -192,24 +196,26 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private func startHighRefreshRate() {
         guard displayLink == nil else { return }
         let link = CADisplayLink(target: self, selector: #selector(displayLinkTick))
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
-        link.isPaused = true
+        link.preferredFrameRateRange = Self.lowRate
         link.add(to: .main, forMode: .common)
         displayLink = link
-        rateCheckTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self, let link = self.displayLink else { return }
-            link.isPaused = (self.streamFrameRate() ?? 60) <= 60
-        }
     }
 
     private func stopHighRefreshRate() {
         displayLink?.invalidate()  // CADisplayLink retains its target; break the cycle
         displayLink = nil
-        rateCheckTimer?.invalidate()
-        rateCheckTimer = nil
     }
 
-    @objc private func displayLinkTick() {}
+    /// Re-checks the stream's frame rate about twice a second.
+    @objc private func displayLinkTick() {
+        ticksSinceRateCheck += 1
+        guard ticksSinceRateCheck >= (wantsHighRate ? 60 : 15) else { return }
+        ticksSinceRateCheck = 0
+        let wanted = (streamFrameRate() ?? 60) > 60
+        guard wanted != wantsHighRate else { return }
+        wantsHighRate = wanted
+        displayLink?.preferredFrameRateRange = wanted ? Self.highRate : Self.lowRate
+    }
 
     public override func resignFirstResponder() -> Bool {
         releaseHeldKeys()
