@@ -71,7 +71,7 @@ targets:
     dependencies:
       - package: ScreenBridgeKit
     info:
-      path: Apps/Host/Info.plist
+      path: Support/Host-Info.plist
       properties:
         <<: *networkInfo
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
@@ -79,7 +79,7 @@ targets:
         LSUIElement: true                    # menu-bar only, no Dock icon
         LSApplicationCategoryType: public.app-category.productivity
     entitlements:
-      path: Apps/Host/Host.entitlements
+      path: Support/Host.entitlements
       properties:
         <<: *macSandbox
     settings:
@@ -97,14 +97,14 @@ targets:
     dependencies:
       - package: ScreenBridgeKit
     info:
-      path: Apps/Display/Info-macOS.plist
+      path: Support/Display-macOS-Info.plist
       properties:
         <<: *networkInfo
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         CFBundleDisplayName: ScreenBridge Display
         LSApplicationCategoryType: public.app-category.productivity
     entitlements:
-      path: Apps/Display/Display-macOS.entitlements
+      path: Support/Display-macOS.entitlements
       properties:
         <<: *macSandbox
     settings:
@@ -122,7 +122,7 @@ targets:
     dependencies:
       - package: ScreenBridgeKit
     info:
-      path: Apps/Display/Info-iOS.plist
+      path: Support/Display-iOS-Info.plist
       properties:
         <<: *networkInfo
         CFBundleDisplayName: ScreenBridge
