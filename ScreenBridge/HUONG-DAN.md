@@ -421,6 +421,9 @@ Muốn iPad bấm và kéo được trên Mac, macOS cần quyền **Trợ năng
 
 | Thao tác trên iPad | Trên Mac |
 |---|---|
+| **Giữ yên 2 ngón khoảng nửa giây** (hoặc chạm 3 ngón) | **Hiện / ẩn thanh trạng thái** của ScreenBridge |
+| **Chụm / mở 2 ngón** | Thu nhỏ / phóng to (gửi ⌘− / ⌘= cho app đang mở) |
+| **Chạm 2 lần vào thân Apple Pencil** (Pencil 2 / Pencil Pro) | **Chuột phải**, tại chỗ bút đang trỏ |
 | Chạm 1 ngón | Bấm chuột trái |
 | Chạm nhanh 2 lần | Bấm đúp (mở file, chọn chữ) |
 | Giữ 1 ngón rồi kéo | Kéo (di chuyển cửa sổ, kéo thả file, bôi đen chữ) |
@@ -428,7 +431,6 @@ Muốn iPad bấm và kéo được trên Mac, macOS cần quyền **Trợ năng
 | **Apple Pencil để gần màn hình** (chưa chạm) | Con trỏ chuột di chuyển theo bút |
 | Kéo 2 ngón | Cuộn trang |
 | Chạm 2 ngón | Bấm chuột phải (menu ngữ cảnh) |
-| Chạm 3 ngón | Hiện / ẩn thanh điều khiển của ScreenBridge |
 | Bàn di chuột / chuột nối với iPad | Di chuyển con trỏ, bấm, cuộn |
 
 ### Bảng thử
@@ -489,6 +491,12 @@ Khi iPad đang hiện màn hình Mac, **mọi phím gõ trên Folio đều đi s
 | Bấm bằng 2 ngón | Chuột phải |
 | Vuốt 2 ngón | Cuộn |
 | Bấm giữ rồi kéo | Kéo thả |
+
+### Cử chỉ hệ thống của iPad (vuốt về màn hình chính, chuyển app)
+
+- **Vuốt từ mép màn hình** (về Home, Trung tâm điều khiển, thông báo): khi đang hiện màn hình Mac, **phải vuốt 2 lần** mới có tác dụng. Vuốt nhầm một lần sẽ không thoát ra. Muốn về màn hình chính iPad: **vuốt lên từ đáy 2 lần**.
+- **Vuốt 3–4 ngón trên Magic Trackpad** (chuyển app, về Home): đây là cử chỉ hệ thống của iPadOS, **app không tắt được**. Nếu không muốn bị chuyển app nhầm, tắt trong **Cài đặt → Đa nhiệm & cử chỉ** (Multitasking & Gestures), mục cử chỉ vuốt bằng nhiều ngón. Tên mục khác nhau tùy phiên bản iPadOS. Sau khi tắt, bạn vẫn về Home được bằng cách vuốt lên từ đáy màn hình 2 lần.
+- **Thay cho cử chỉ trackpad của Mac**, dùng phím tắt có sẵn của macOS trên Folio: **⌃↑** = Mission Control, **⌃← / ⌃→** = chuyển giữa các màn hình Desktop (Spaces), **⌃↓** = các cửa sổ của app đang dùng.
 
 ### Âm thanh trên iPad
 

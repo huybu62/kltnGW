@@ -59,7 +59,9 @@ public enum PeerConnector {
     /// was just plugged in). Wired paths are tried first.
     public static func upgrade(to endpoint: NWEndpoint, betterThan current: LinkType,
                                callbackQueue: DispatchQueue = .main) async -> PeerConnection? {
-        for prohibitWiFi in [true, false] {
+        // Look for a cable path only; from Direct Wi-Fi also try a router path.
+        let attempts: [Bool] = current == .peerToPeerWiFi ? [true, false] : [true]
+        for prohibitWiFi in attempts {
             let connection = PeerConnection(
                 connection: NWConnection(to: endpoint, using: ScreenBridgeParameters.make(prohibitWiFi: prohibitWiFi)),
                 callbackQueue: callbackQueue)

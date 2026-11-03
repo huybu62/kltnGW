@@ -68,6 +68,10 @@ private struct DisplayRootView: View {
             #if os(iOS)
             .statusBarHidden(true)
             .persistentSystemOverlays(.hidden)
+            // Edge swipes (Home, Control Center, Notification Center) need a
+            // second swipe, so a stray swipe while working doesn't leave the
+            // Mac screen. Swipe up twice from the bottom to go Home.
+            .defersSystemGestures(on: .all)
             #endif
         } else {
             ScrollView {

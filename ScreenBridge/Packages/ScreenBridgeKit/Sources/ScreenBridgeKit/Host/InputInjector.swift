@@ -127,6 +127,12 @@ final class InputInjector {
 
         case .macKey(let code, let down):
             handleKey(code, down: down)
+
+        case .zoom(let zoomIn, let x, let y):
+            postMouse(.mouseMoved, at: place(x, y), button: .left)  // zoom what's under the fingers
+            let key = zoomIn ? KeyMap.equal : KeyMap.minus
+            postKey(key, down: true, flags: .maskCommand)
+            postKey(key, down: false, flags: .maskCommand)
         }
     }
 

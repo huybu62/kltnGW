@@ -40,6 +40,8 @@ enum KeyMap {
     static let space: UInt16 = 0x31
     static let escape: UInt16 = 0x35
     static let grave: UInt16 = 0x32
+    static let equal: UInt16 = 0x18
+    static let minus: UInt16 = 0x1B
     /// F1…F12 in order.
     static let functionKeys: [UInt16] = [0x7A, 0x78, 0x63, 0x76, 0x60, 0x61, 0x62, 0x64, 0x65, 0x6D, 0x67, 0x6F]
     /// 1 2 3 4 5 6 7 8 9 0 - = (the keys that become F1…F12 in the shortcut layer).

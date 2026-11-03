@@ -285,9 +285,10 @@ public final class ConnectionCoordinator: ObservableObject {
                 guard let session else { return }
                 try? await session.ping()
                 pings += 1
-                // Every ~20 s on wireless, check whether a cable path appeared
-                // that the OS didn't announce.
-                if pings % 10 == 0 { self?.switchLink(.upgrade) }
+                // Every ~4 s on wireless, check whether a cable path appeared
+                // that the OS didn't announce (the iPad's USB link can show up
+                // a few seconds after plugging in).
+                if pings % 2 == 0, session.link.isWired == false { self?.switchLink(.upgrade) }
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
@@ -313,7 +314,7 @@ public final class ConnectionCoordinator: ObservableObject {
 
         migrationTask = Task { [weak self] in
             // Give a fresh interface a moment to get an address.
-            try? await Task.sleep(nanoseconds: kind == .upgrade ? 800_000_000 : 300_000_000)
+            try? await Task.sleep(nanoseconds: kind == .upgrade ? 300_000_000 : 100_000_000)
             let connection: PeerConnection?
             switch kind {
             case .upgrade: connection = await PeerConnector.upgrade(to: endpoint, betterThan: current)
@@ -403,7 +404,9 @@ public final class ConnectionCoordinator: ObservableObject {
             roundTripMs = roundTripMs.map { $0 * 0.8 + ms * 0.2 } ?? ms
         case .closed(let error):
             let lost = session
-            let unexpected = error != nil && !(error is CancellationError)
+            // Only network failures count. A peer that closed cleanly (app
+            // quit, Disconnect pressed) must not be reconnected to.
+            let unexpected = error.map(Self.isNetworkFailure) ?? false
             // On an unexpected drop the initiator reconnects, so both sides
             // keep their media state for a while.
             teardownSession(willReconnect: unexpected)
@@ -433,6 +436,17 @@ public final class ConnectionCoordinator: ObservableObject {
         }
         teardownSession()
         phase = .idle
+    }
+
+    private static func isNetworkFailure(_ error: Error) -> Bool {
+        if error is CancellationError { return false }
+        if let connectionError = error as? PeerConnectionError {
+            switch connectionError {
+            case .closedByPeer, .cancelled: return false
+            default: return true
+            }
+        }
+        return true
     }
 
     /// Stops a retired connection's events from steering the current session.

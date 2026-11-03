@@ -178,6 +178,10 @@ public final class SecureSession: @unchecked Sendable {
     /// Politely tells the peer and closes.
     public func close(reason: String = "closed") async {
         try? await send(.goodbye(reason: reason))
+        // Let the goodbye reach the peer before closing. Closing at once can
+        // drop it, and the peer would mistake a deliberate disconnect for a
+        // network failure and reconnect.
+        try? await Task.sleep(nanoseconds: 250_000_000)
         receiveTask?.cancel()
         connection.cancel()
     }

@@ -13,8 +13,10 @@ import AppKit
 /// iPad gestures:
 /// - 1 finger / Pencil: tap = click, double-tap = double-click, drag = drag
 /// - Pencil hover / trackpad pointer: moves the Mac's cursor
-/// - 2-finger drag: scroll · 2-finger tap: right-click
-/// - 3-finger tap: show/hide the overlay (`onToggleControls`)
+/// - 2-finger drag: scroll · 2-finger tap: right-click · pinch: zoom
+/// - Apple Pencil (2nd gen / Pro) double-tap: right-click at the Pencil
+/// - Hold 2 fingers still for ~0.6 s, or 3-finger tap: show/hide the
+///   overlay (`onToggleControls`)
 /// - Hardware keyboard (Smart Keyboard Folio…) and Magic Trackpad go to the
 ///   Mac; the iPad's own round pointer is hidden over the video.
 public struct VideoSurfaceView {
@@ -47,7 +49,8 @@ extension VideoSurfaceView: UIViewRepresentable {
     }
 }
 
-public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPointerInteractionDelegate {
+public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPointerInteractionDelegate,
+                                     UIPencilInteractionDelegate {
     var videoSize: () -> CGSize? = { nil }
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
@@ -64,6 +67,12 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private var pressIsImmediate = false
     private var heldKeys = Set<UInt16>()
     private var lastScrollTranslation = CGPoint.zero
+    /// While a pinch is clearly under way, two-finger scrolling pauses.
+    private var pinching = false
+    private var lastZoomStepScale: CGFloat = 1
+    private static let zoomStep: CGFloat = 1.18
+    /// Where the Pencil last touched or hovered (target of its double-tap).
+    private var lastPencilPoint: CGPoint?
     private static let pressDelay: TimeInterval = 0.08
     private static let dragThreshold: CGFloat = 6
 
@@ -106,6 +115,18 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         let toggle = UITapGestureRecognizer(target: self, action: #selector(handleToggle(_:)))
         toggle.numberOfTouchesRequired = 3
 
+        // Hold two fingers still: show/hide the overlay. A quick two-finger
+        // tap is still a right-click (it waits only until the hold fails).
+        let holdToggle = UILongPressGestureRecognizer(target: self, action: #selector(handleHoldToggle(_:)))
+        holdToggle.numberOfTouchesRequired = 2
+        holdToggle.minimumPressDuration = 0.6
+        holdToggle.allowableMovement = 12
+        holdToggle.delegate = self
+        rightClick.require(toFail: holdToggle)
+
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+        pinch.delegate = self
+
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(handleHover(_:)))
 
         // Trackpad / mouse: two-finger click = right-click, two-finger swipe = scroll.
@@ -116,8 +137,20 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         wheel.allowedTouchTypes = []  // scroll events only, never fingers on the glass
         wheel.delegate = self
 
-        [press, scroll, rightClick, toggle, hover, secondaryClick, wheel].forEach(addGestureRecognizer)
+        [press, scroll, rightClick, toggle, holdToggle, pinch, hover, secondaryClick, wheel]
+            .forEach(addGestureRecognizer)
         addInteraction(UIPointerInteraction(delegate: self))
+        addInteraction(UIPencilInteraction(delegate: self))
+    }
+
+    // MARK: Apple Pencil double-tap → right-click
+
+    // Deprecated in iPadOS 17.5 in favour of `pencilInteraction(_:didReceiveTap:)`,
+    // but it's the one that works on every supported version.
+    public func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+        let point = lastPencilPoint ?? CGPoint(x: bounds.midX, y: bounds.midY)
+        let p = normalized(point)
+        onInput(.rightClick(x: Double(p.x), y: Double(p.y)))
     }
 
     // MARK: Pointer (hide the iPad's own cursor; the Mac draws its own in the video)
@@ -210,6 +243,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
 
     @objc private func handlePress(_ recognizer: UILongPressGestureRecognizer) {
         let point = recognizer.location(in: self)
+        if pressIsImmediate { lastPencilPoint = point }
         switch recognizer.state {
         case .began:
             if pressIsImmediate {
@@ -279,6 +313,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             let dx = (translation.x - lastScrollTranslation.x) * scale
             let dy = (translation.y - lastScrollTranslation.y) * scale
             lastScrollTranslation = translation
+            guard !pinching else { return }
             onInput(.scroll(phase: .moved, x: Double(location.x), y: Double(location.y),
                             deltaX: Double(dx), deltaY: Double(dy)))
         case .ended, .cancelled, .failed:
@@ -298,12 +333,43 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         onToggleControls()
     }
 
+    @objc private func handleHoldToggle(_ recognizer: UILongPressGestureRecognizer) {
+        guard recognizer.state == .began else { return }
+        cancelPendingPress()
+        onToggleControls()
+    }
+
+    /// Pinch (fingers or trackpad) → one ⌘= / ⌘− per ~18 % of scale change.
+    @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+        let p = normalized(recognizer.location(in: self))
+        switch recognizer.state {
+        case .began:
+            lastZoomStepScale = 1
+            pinching = false
+        case .changed:
+            let scale = recognizer.scale
+            if abs(log(scale)) > 0.08 { pinching = true }
+            while scale / lastZoomStepScale > Self.zoomStep {
+                lastZoomStepScale *= Self.zoomStep
+                onInput(.zoom(zoomIn: true, x: Double(p.x), y: Double(p.y)))
+            }
+            while lastZoomStepScale / scale > Self.zoomStep {
+                lastZoomStepScale /= Self.zoomStep
+                onInput(.zoom(zoomIn: false, x: Double(p.x), y: Double(p.y)))
+            }
+        default:
+            pinching = false
+        }
+    }
+
     // MARK: Hover (Pencil hover, trackpad, mouse)
 
     @objc private func handleHover(_ recognizer: UIHoverGestureRecognizer) {
         switch recognizer.state {
         case .began, .changed:
-            if !buttonDown { sendPointer(.moved, .none, at: recognizer.location(in: self)) }
+            let point = recognizer.location(in: self)
+            lastPencilPoint = point
+            if !buttonDown { sendPointer(.moved, .none, at: point) }
         default:
             break
         }

@@ -25,6 +25,9 @@ public enum InputEvent: Codable, Sendable, Equatable {
     case key(usage: UInt16, down: Bool)
     /// A key on a Mac acting as the display, as a macOS virtual key code.
     case macKey(code: UInt16, down: Bool)
+    /// One step of a pinch: zoom in/out in the app under the pointer
+    /// (sent to the Mac as ⌘= / ⌘−, which nearly every Mac app supports).
+    case zoom(zoomIn: Bool, x: Double, y: Double)
 }
 
 /// Where the (aspect-fit) video sits inside a view, and conversions to the

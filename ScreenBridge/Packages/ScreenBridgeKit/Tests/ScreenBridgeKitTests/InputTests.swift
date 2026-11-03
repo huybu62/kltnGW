@@ -11,6 +11,7 @@ final class InputTests: XCTestCase {
             .scroll(phase: .moved, x: 0.1, y: 0.2, deltaX: -3.5, deltaY: 12),
             .key(usage: 0x04, down: true),
             .macKey(code: 0x37, down: false),
+            .zoom(zoomIn: true, x: 0.5, y: 0.5),
         ]
         for event in events {
             XCTAssertEqual(try WireCoding.decode(InputEvent.self, from: WireCoding.encode(event)), event)
