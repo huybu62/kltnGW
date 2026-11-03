@@ -85,7 +85,27 @@ Nếu báo `command not found`, cài bằng lệnh:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-Cài xong, **đọc mấy dòng cuối** Terminal in ra. Trên Mac chip Apple, Homebrew sẽ bảo bạn chạy thêm 2 lệnh `echo …` và `eval …` để thêm `brew` vào PATH. Hãy chép và chạy đúng hai lệnh đó.
+Cài xong, Terminal in ra mục **"Next steps"**. **Bắt buộc** phải chạy 3 lệnh dưới đây, nếu không Terminal sẽ báo `zsh: command not found: brew`. Đây là lệnh cho Mac chip Apple (M1, M2…); Mac chip Intel thường không cần bước này.
+
+```bash
+echo >> ~/.zprofile
+```
+
+```bash
+echo 'eval "$(/opt/homebrew/bin/brew shellenv zsh)"' >> ~/.zprofile
+```
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv zsh)"
+```
+
+> ⚠️ **Đừng gõ chữ `echo …` (có dấu ba chấm).** Phải chép **đúng nguyên văn** các lệnh ở trên, hoặc các lệnh Homebrew in ra ở mục "Next steps".
+
+Kiểm tra lại. Lệnh phải in ra số phiên bản, ví dụ `Homebrew 4.x.x`:
+
+```bash
+brew --version
+```
 
 ### 3.3. Cài XcodeGen
 
