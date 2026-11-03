@@ -15,6 +15,8 @@ import AppKit
 /// - Pencil hover / trackpad pointer: moves the Mac's cursor
 /// - 2-finger drag: scroll · 2-finger tap: right-click
 /// - 3-finger tap: show/hide the overlay (`onToggleControls`)
+/// - Hardware keyboard (Smart Keyboard Folio…) and Magic Trackpad go to the
+///   Mac; the iPad's own round pointer is hidden over the video.
 public struct VideoSurfaceView {
     let controller: DisplayStreamController
     let onToggleControls: () -> Void
@@ -45,7 +47,7 @@ extension VideoSurfaceView: UIViewRepresentable {
     }
 }
 
-public final class LayerHostingView: UIView, UIGestureRecognizerDelegate {
+public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPointerInteractionDelegate {
     var videoSize: () -> CGSize? = { nil }
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
@@ -57,7 +59,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate {
     private var pendingPress: CGPoint?
     private var pendingWork: DispatchWorkItem?
     private var buttonDown = false
-    private var pressIsPencil = false
+    /// Pencil and trackpad clicks can't be the start of a two-finger
+    /// scroll, so they skip the hold-back delay.
+    private var pressIsImmediate = false
+    private var heldKeys = Set<UInt16>()
     private var lastScrollTranslation = CGPoint.zero
     private static let pressDelay: TimeInterval = 0.08
     private static let dragThreshold: CGFloat = 6
@@ -92,7 +97,6 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate {
         let scroll = UIPanGestureRecognizer(target: self, action: #selector(handleScroll(_:)))
         scroll.minimumNumberOfTouches = 2
         scroll.maximumNumberOfTouches = 2
-        scroll.allowedScrollTypesMask = .all  // trackpad two-finger scrolling too
         scroll.delegate = self
 
         let rightClick = UITapGestureRecognizer(target: self, action: #selector(handleRightClick(_:)))
@@ -104,7 +108,81 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate {
 
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(handleHover(_:)))
 
-        [press, scroll, rightClick, toggle, hover].forEach(addGestureRecognizer)
+        // Trackpad / mouse: two-finger click = right-click, two-finger swipe = scroll.
+        let secondaryClick = UITapGestureRecognizer(target: self, action: #selector(handleRightClick(_:)))
+        secondaryClick.buttonMaskRequired = .secondary
+        let wheel = UIPanGestureRecognizer(target: self, action: #selector(handleScroll(_:)))
+        wheel.allowedScrollTypesMask = .all
+        wheel.allowedTouchTypes = []  // scroll events only, never fingers on the glass
+        wheel.delegate = self
+
+        [press, scroll, rightClick, toggle, hover, secondaryClick, wheel].forEach(addGestureRecognizer)
+        addInteraction(UIPointerInteraction(delegate: self))
+    }
+
+    // MARK: Pointer (hide the iPad's own cursor; the Mac draws its own in the video)
+
+    public func pointerInteraction(_ interaction: UIPointerInteraction,
+                                   styleFor region: UIPointerRegion) -> UIPointerStyle? {
+        UIPointerStyle.hidden()
+    }
+
+    // MARK: Keyboard
+
+    public override var canBecomeFirstResponder: Bool { true }
+
+    public override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            DispatchQueue.main.async { [weak self] in _ = self?.becomeFirstResponder() }
+        } else {
+            releaseHeldKeys()
+        }
+    }
+
+    public override func resignFirstResponder() -> Bool {
+        releaseHeldKeys()
+        return super.resignFirstResponder()
+    }
+
+    public override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let unhandled = forward(presses, down: true)
+        if !unhandled.isEmpty { super.pressesBegan(unhandled, with: event) }
+    }
+
+    public override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let unhandled = forward(presses, down: false)
+        if !unhandled.isEmpty { super.pressesEnded(unhandled, with: event) }
+    }
+
+    public override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let unhandled = forward(presses, down: false)
+        if !unhandled.isEmpty { super.pressesCancelled(unhandled, with: event) }
+    }
+
+    /// Sends keyboard presses to the Mac; returns the presses that weren't keys.
+    private func forward(_ presses: Set<UIPress>, down: Bool) -> Set<UIPress> {
+        var unhandled = Set<UIPress>()
+        for press in presses {
+            guard let key = press.key else {
+                unhandled.insert(press)
+                continue
+            }
+            let usage = UInt16(truncatingIfNeeded: key.keyCode.rawValue)
+            if down {
+                heldKeys.insert(usage)
+            } else {
+                heldKeys.remove(usage)
+            }
+            onInput(.key(usage: usage, down: down))
+        }
+        return unhandled
+    }
+
+    /// Never leave a key (e.g. ⌘) stuck down on the Mac.
+    private func releaseHeldKeys() {
+        for usage in heldKeys { onInput(.key(usage: usage, down: false)) }
+        heldKeys.removeAll()
     }
 
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
@@ -114,7 +192,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate {
 
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         if gestureRecognizer is UILongPressGestureRecognizer {
-            pressIsPencil = touch.type == .pencil
+            pressIsImmediate = touch.type == .pencil || touch.type == .indirectPointer
         }
         return true
     }
@@ -134,8 +212,8 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate {
         let point = recognizer.location(in: self)
         switch recognizer.state {
         case .began:
-            if pressIsPencil {
-                pressDown(at: point)  // a Pencil is never the start of a scroll
+            if pressIsImmediate {
+                pressDown(at: point)  // Pencil / trackpad click: never the start of a scroll
             } else {
                 pendingPress = point
                 let work = DispatchWorkItem { [weak self] in
@@ -297,10 +375,40 @@ public final class LayerHostingView: NSView {
         onInput(.pointer(phase: phase, button: button, x: Double(p.x), y: Double(p.y)))
     }
 
-    public override func mouseDown(with event: NSEvent) { pointer(.began, .left, event) }
+    public override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        pointer(.began, .left, event)
+    }
     public override func mouseDragged(with event: NSEvent) { pointer(.moved, .left, event) }
     public override func mouseUp(with event: NSEvent) { pointer(.ended, .left, event) }
     public override func mouseMoved(with event: NSEvent) { pointer(.moved, .none, event) }
+
+    public override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.makeFirstResponder(self)
+    }
+
+    public override func keyDown(with event: NSEvent) {
+        // The Host repeats held keys itself.
+        if !event.isARepeat { onInput(.macKey(code: event.keyCode, down: true)) }
+    }
+
+    public override func keyUp(with event: NSEvent) {
+        onInput(.macKey(code: event.keyCode, down: false))
+    }
+
+    public override func flagsChanged(with event: NSEvent) {
+        let flag: NSEvent.ModifierFlags
+        switch event.keyCode {
+        case 0x38, 0x3C: flag = .shift
+        case 0x3B, 0x3E: flag = .control
+        case 0x3A, 0x3D: flag = .option
+        case 0x37, 0x36: flag = .command
+        case 0x39: flag = .capsLock
+        default: return
+        }
+        onInput(.macKey(code: event.keyCode, down: event.modifierFlags.contains(flag)))
+    }
 
     public override func rightMouseDown(with event: NSEvent) {
         let p = normalized(event)

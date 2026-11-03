@@ -21,6 +21,7 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     public let displayLayer: AVSampleBufferDisplayLayer
 
     private let decoder = VideoDecoder()
+    private let audio = AudioPlayer()
     private let lock = NSLock()
     private var session: SecureSession?
     private var lastKeyframeRequest: TimeInterval = 0
@@ -48,6 +49,7 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     }
 
     public func sessionEnded(willReconnect: Bool) {
+        audio.stop()
         lock.lock()
         session = nil
         let timer = statsTimer
@@ -111,13 +113,17 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
                            isKeyframe: isKeyframe)
             markReceiving(true)
 
+        case .sealedAudio:
+            audio.enqueue(payload)
+
         default:
-            break  // input etc. (Phase 3)
+            break
         }
     }
 
     public func receivedControl(_ message: ControlMessage) {
         if case .streamStopped = message {
+            audio.stop()
             decoder.reset()
             clearScreen()
         }

@@ -35,20 +35,38 @@ final class HostAppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func applicationWillTerminate(_ notification: Notification) {
         coordinator.stop()
+        stream.shutdown()
     }
 }
 
 private struct HostMenuContent: View {
     @ObservedObject var coordinator: ConnectionCoordinator
-    let stream: HostStreamController
+    @ObservedObject var stream: HostStreamController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if stream.lidClosedModeEnabled && coordinator.phase != .connected {
+                lidModeReminder
+            }
             DiscoveryDebugView(coordinator: coordinator)
-            if coordinator.phase == .connected {
+            if coordinator.phase == .connected || stream.state == .reconnecting {
                 HostStreamPanel(stream: stream)
             }
         }
+    }
+
+    /// Reminder that the Mac won't sleep when closed, shown while not connected.
+    private var lidModeReminder: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("This Mac won't sleep when you close it", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("“Use with the lid closed” is still on. Turn it off before putting the MacBook in a bag.")
+                .font(.caption)
+            Button("Turn Off") { stream.setLidClosedMode(false) }
+        }
+        .padding()
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .padding([.horizontal, .top])
     }
 }
 

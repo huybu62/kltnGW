@@ -42,6 +42,26 @@ struct HostStreamPanel: View {
             if stream.state == .streaming {
                 controlPermission
             }
+
+            Divider()
+
+            Toggle("Play sound on iPad", isOn: $stream.soundOnDisplay)
+            if stream.soundOnDisplay {
+                Toggle("Mute this Mac's speakers", isOn: $stream.muteMacWhileSharing)
+                    .padding(.leading, 16)
+            }
+
+            Toggle("Use with the lid closed", isOn: Binding(
+                get: { stream.lidClosedModeEnabled },
+                set: { stream.setLidClosedMode($0) }))
+            if stream.lidClosedModeEnabled {
+                Text("The Mac stays awake when closed and the iPad becomes its main screen. "
+                     + "Plug the MacBook into power. Don't put it in a bag while this is on.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("Asks for your Mac password. Closing the lid then keeps the Mac running on the iPad.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .padding(.horizontal)
         .padding(.bottom, 8)

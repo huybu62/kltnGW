@@ -54,6 +54,36 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
     /// Highest refresh rate the connected Display supports (60 if unknown).
     @Published public private(set) var displayMaxRefreshRate = 60
 
+    /// Play this Mac's sound on the Display.
+    @Published public var soundOnDisplay: Bool {
+        didSet {
+            guard soundOnDisplay != oldValue else { return }
+            defaults.set(soundOnDisplay, forKey: Self.soundKey)
+            applyMute()
+            restart()
+        }
+    }
+
+    /// Mute this Mac's speakers while its sound plays on the Display.
+    @Published public var muteMacWhileSharing: Bool {
+        didSet {
+            guard muteMacWhileSharing != oldValue else { return }
+            defaults.set(muteMacWhileSharing, forKey: Self.muteKey)
+            applyMute()
+        }
+    }
+
+    /// The Mac stays awake with its lid closed (see `LidClosedMode`).
+    @Published public private(set) var lidClosedModeEnabled = LidClosedMode.isEnabled
+
+    private static let soundKey = "ScreenBridge.soundOnDisplay"
+    private static let muteKey = "ScreenBridge.muteMacWhileSharing"
+    private var isSharing = false
+    private var awakeAssertion: DisplaySleepAssertion?
+    private var mutedByUs = false
+    private var lidTimer: Timer?
+    private var builtInWasActive = true
+
     private static let frameRateKey = "ScreenBridge.streamFrameRate"
     private static let modeKey = "ScreenBridge.streamMode"
     private static let qualityKey = "ScreenBridge.streamQuality"
@@ -75,6 +105,65 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         quality = defaults.string(forKey: Self.qualityKey).flatMap(StreamQuality.init(rawValue:)) ?? .balanced
         let savedRate = defaults.integer(forKey: Self.frameRateKey)
         frameRate = StreamFrameRate(rawValue: savedRate) ?? .fps60
+        soundOnDisplay = defaults.object(forKey: Self.soundKey) as? Bool ?? true
+        muteMacWhileSharing = defaults.object(forKey: Self.muteKey) as? Bool ?? true
+    }
+
+    // MARK: Lid closed, staying awake, sound
+
+    /// Turns "use with the lid closed" on or off (asks for the admin password).
+    public func setLidClosedMode(_ enabled: Bool) {
+        LidClosedMode.setEnabled(enabled)
+        lidClosedModeEnabled = LidClosedMode.isEnabled
+        // With the lid closed only the extra display is visible.
+        if lidClosedModeEnabled, mode == .mirror { mode = .extend }
+    }
+
+    /// Call when the app quits: give the Mac its speakers back.
+    public func shutdown() {
+        isSharing = false
+        applyMute()
+    }
+
+    private func beginSharing() {
+        guard !isSharing else { return }
+        isSharing = true
+        awakeAssertion = DisplaySleepAssertion(reason: "ScreenBridge is sharing the screen")
+        builtInWasActive = BuiltInDisplay.isActive
+        lidTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            self?.checkLid()
+        }
+        applyMute()
+    }
+
+    private func endSharing() {
+        guard isSharing else { return }
+        isSharing = false
+        awakeAssertion = nil
+        lidTimer?.invalidate()
+        lidTimer = nil
+        applyMute()
+    }
+
+    /// Closing the lid turns the built-in screen off; Mirror would then show
+    /// nothing, so switch to Extend (the extra display becomes the main one).
+    private func checkLid() {
+        let active = BuiltInDisplay.isActive
+        if builtInWasActive, !active, mode == .mirror {
+            mode = .extend
+        }
+        builtInWasActive = active
+    }
+
+    private func applyMute() {
+        let shouldMute = isSharing && soundOnDisplay && muteMacWhileSharing
+        if shouldMute, !mutedByUs, !SystemAudio.isMuted {
+            SystemAudio.setMuted(true)
+            mutedByUs = true
+        } else if !shouldMute, mutedByUs {
+            SystemAudio.setMuted(false)
+            mutedByUs = false
+        }
     }
 
     // MARK: SessionMediaSink
@@ -89,6 +178,8 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         lock.unlock()
         displayMaxRefreshRate = session.peer.display?.maxRefreshRate ?? 60
         canControlMac = InputInjector.isTrusted
+        lidClosedModeEnabled = LidClosedMode.isEnabled
+        beginSharing()
 
         if let parked, parked.peerID == session.peer.id {
             // Same Display came back (link switch / reconnect): continue the
@@ -103,14 +194,17 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
     }
 
     public func sessionEnded(willReconnect: Bool) {
+        injector.releaseAll()
         let old = swap(session: nil, streamer: nil)
         stats = nil
         guard let old else {
             state = .idle
+            endSharing()
             return
         }
         guard willReconnect else {
             state = .idle
+            endSharing()
             Task { await old.stop(reason: "disconnected") }
             return
         }
@@ -119,6 +213,7 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         let work = DispatchWorkItem { [weak self] in
             guard let self, let parked = self.takeParked() else { return }
             self.state = .idle
+            self.endSharing()
             Task { await parked.stop(reason: "disconnected") }
         }
         parkTimer = work
@@ -131,7 +226,7 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
               let event = try? WireCoding.decode(InputEvent.self, from: payload) else { return }
         lock.lock(); let displayID = streamer?.displayID; lock.unlock()
         guard let displayID else { return }
-        injector.handle(event, on: displayID)
+        injector.submit(event, on: displayID)
     }
 
     /// Opens the Accessibility setting needed for touch control.
@@ -176,7 +271,7 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         let myGeneration = generation
         let streamer = session.map {
             HostStreamer(session: $0, peerDisplay: $0.peer.display, mode: mode, quality: quality,
-                         frameRate: frameRate)
+                         frameRate: frameRate, sendsAudio: soundOnDisplay)
         }
         self.streamer = streamer
         lock.unlock()

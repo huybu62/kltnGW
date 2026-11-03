@@ -20,6 +20,11 @@ public enum InputEvent: Codable, Sendable, Equatable {
     /// Deltas in points; positive `deltaY` = fingers moved down (content
     /// follows the fingers, like on an iPad).
     case scroll(phase: PointerPhase, x: Double, y: Double, deltaX: Double, deltaY: Double)
+    /// A physical key on an iPad keyboard (Smart Keyboard Folio, Magic
+    /// Keyboard…), as a USB HID usage code. Modifier keys are sent too.
+    case key(usage: UInt16, down: Bool)
+    /// A key on a Mac acting as the display, as a macOS virtual key code.
+    case macKey(code: UInt16, down: Bool)
 }
 
 /// Where the (aspect-fit) video sits inside a view, and conversions to the

@@ -17,6 +17,7 @@ public enum MessageType: UInt8, Sendable {
     // Reserved for Phase 2/3
     case sealedVideoFormat = 0x30   // parameter sets (SPS/PPS/VPS), resolution, codec
     case sealedVideoFrame = 0x31    // one encoded access unit
+    case sealedAudio = 0x32         // 16-bit PCM, see AudioPacket
     case sealedInput = 0x40         // pointer / keyboard events from Display → Host
 }
 

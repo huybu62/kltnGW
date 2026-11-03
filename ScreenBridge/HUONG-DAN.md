@@ -5,7 +5,8 @@ ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình ph�
 > **Tình trạng hiện tại: đang ở Giai đoạn 3/4.**
 > - **Giai đoạn 1 (đã chạy thật):** hai máy tự tìm thấy nhau, ghép đôi bằng mã 6 số, kết nối có mã hóa.
 > - **Giai đoạn 2 (đã chạy thật):** màn hình Mac hiện lên iPad, chế độ Mở rộng / Phản chiếu, 30/60/120 Hz. Đo được ~100 hình/giây, độ trễ mạng 1–2 ms qua cáp, 7–15 ms qua Wi-Fi.
-> - **Giai đoạn 3 (mới viết, chờ thử):** chạm và Apple Pencil trên iPad điều khiển Mac; tự chuyển sang cáp khi cắm vào; tự kết nối lại khi rớt mạng. Cách thử ở [mục 8C](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại).
+> - **Giai đoạn 3 (đã chạy thật):** chạm và Apple Pencil trên iPad điều khiển Mac; tự chuyển sang cáp khi cắm vào; tự kết nối lại khi rớt mạng.
+> - **Giai đoạn 3b (mới viết, chờ thử):** bàn phím Folio và Magic Trackpad của iPad điều khiển Mac; âm thanh Mac phát trên iPad; **dùng khi gập MacBook**. Cách thử ở [mục 8D](#8d-bàn-phím-trackpad-âm-thanh-và-dùng-khi-gập-macbook).
 > - Phần mới **chưa được biên dịch thử** (máy làm việc của Claude không có Xcode). Xem [mục 9](#9-khi-build-bị-lỗi) để biết cách gửi lỗi cho Claude sửa.
 
 ---
@@ -22,6 +23,7 @@ ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình ph�
 8. [Kiểm tra Giai đoạn 1 từng bước](#8-kiểm-tra-giai-đoạn-1-từng-bước)
     - [8B. Kiểm tra Giai đoạn 2 (hình ảnh màn hình)](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình)
     - [8C. Kiểm tra Giai đoạn 3 (điều khiển bằng cảm ứng, cáp, kết nối lại)](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại)
+    - [8D. Bàn phím, trackpad, âm thanh và dùng khi gập MacBook](#8d-bàn-phím-trackpad-âm-thanh-và-dùng-khi-gập-macbook)
 9. [Khi build bị lỗi](#9-khi-build-bị-lỗi)
 10. [Xử lý sự cố khi chạy](#10-xử-lý-sự-cố-khi-chạy)
 11. [Dùng cáp Thunderbolt](#11-dùng-cáp-thunderbolt)
@@ -446,6 +448,86 @@ Gửi Claude: mục nào chạy, mục nào không, và cảm nhận (ví dụ: 
 
 ---
 
+## 8D. Bàn phím, trackpad, âm thanh và dùng khi gập MacBook
+
+### Cập nhật
+
+Cài lại **cả hai app**, như các lần trước:
+
+```bash
+cd ~/Desktop/kltnGW && git pull
+```
+
+```bash
+cd ScreenBridge && xcodegen generate && open ScreenBridge.xcodeproj
+```
+
+Nếu sau khi build lại, chạm từ iPad không còn tác dụng: vào **Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Trợ năng**, tắt rồi bật lại ScreenBridge.
+
+### Bàn phím Smart Keyboard Folio
+
+Khi iPad đang hiện màn hình Mac, **mọi phím gõ trên Folio đều đi sang Mac**, kể cả ⌘ ⌥ ⌃ ⇧ và phím mũi tên. Giữ phím thì phím tự lặp, theo tốc độ lặp phím đã chỉnh trên Mac.
+
+- **Gõ tiếng Việt:** dùng bộ gõ **trên Mac** (Telex/VNI của macOS, hoặc EVKey/OpenKey nếu cài trên Mac). Bộ gõ trên iPad không ảnh hưởng.
+- **Phím tắt iPad giữ lại cho nó:** **⌘Tab**, **⌘Space** và phím 🌐 do iPadOS xử lý trước, không sang được Mac. Folio cũng không có phím Esc và F1–F12. Dùng **lớp phím thay thế**: giữ **⌃ Control + ⌥ Option** rồi bấm:
+
+| Giữ ⌃⌥ + | Trên Mac thành |
+|---|---|
+| **Tab** | ⌘Tab (chuyển app) |
+| **Space** | ⌘Space (Spotlight) |
+| **`** (phím dấu huyền, cạnh số 1) | **Esc** |
+| **1 … 9, 0, -, =** | **F1 … F12** |
+
+- Rời màn hình video, chuyển sang app khác trên iPad, hoặc ngắt kết nối thì bàn phím lại gõ cho iPad như bình thường.
+
+### Magic Trackpad / chuột nối với iPad
+
+| Thao tác | Trên Mac |
+|---|---|
+| Di ngón tay | Di con trỏ. Con trỏ tròn của iPad được ẩn đi, chỉ còn con trỏ Mac. |
+| Bấm | Bấm chuột trái (bấm 2 lần = bấm đúp) |
+| Bấm bằng 2 ngón | Chuột phải |
+| Vuốt 2 ngón | Cuộn |
+| Bấm giữ rồi kéo | Kéo thả |
+
+### Âm thanh trên iPad
+
+Menu ScreenBridge trên Mac (khi đang kết nối) có thêm:
+- **Play sound on iPad** (bật sẵn): âm thanh Mac phát ra loa iPad, hoặc tai nghe/AirPods đang nối với iPad.
+- **Mute this Mac's speakers** (bật sẵn): tắt tiếng loa Mac để không bị nghe 2 lần. Ngắt kết nối thì loa Mac tự bật lại.
+
+> **Cần bạn thử:** nếu bật *Mute this Mac's speakers* mà iPad **mất tiếng**, nghĩa là macOS ngừng thu âm khi Mac tắt tiếng. Khi đó tắt mục này và hạ âm lượng Mac xuống thấp. Báo Claude kết quả.
+
+### Dùng khi gập MacBook
+
+1. Cắm sạc cho MacBook (nên làm). Nên cắm cáp giữa Mac và iPad.
+2. Kết nối như bình thường, chọn **Mode: Extend**.
+3. Trong menu ScreenBridge, bật **Use with the lid closed**. macOS hỏi **mật khẩu Mac**, nhập vào.
+4. **Gập MacBook lại.** Sau 2–3 giây, **iPad thành màn hình chính**: thanh menu, Dock và các cửa sổ chuyển sang iPad.
+5. Dùng Mac bằng bàn phím Folio, trackpad, ngón tay và Apple Pencil như ở trên.
+6. Dùng xong: mở nắp MacBook ra, rồi **tắt Use with the lid closed** (lại nhập mật khẩu).
+
+> ⚠️ **Quan trọng:** khi *Use with the lid closed* đang bật, MacBook **không ngủ kể cả khi gập**. **Đừng bỏ vào túi** lúc này, máy sẽ nóng và hết pin. Khi chưa kết nối mà mục này vẫn bật, menu ScreenBridge hiện cảnh báo màu cam kèm nút **Turn Off**.
+
+- **Mac tự khóa:** trong lúc kết nối, app giữ Mac không tự tắt màn hình hay khóa vì để lâu. Nhưng nếu Mac đã khóa trước đó, ô mật khẩu có thể không nhận phím từ iPad, vì macOS chặn vì lý do bảo mật. **Mở khóa Mac trước khi gập.**
+- **Đang Mirror mà gập máy:** app tự chuyển sang **Extend**, vì màn hình MacBook đã tắt nên Mirror sẽ chỉ còn màu đen.
+
+### Bảng thử
+
+| Bước | Làm gì | Kết quả đúng |
+|---|---|---|
+| 1 | Mở TextEdit trên iPad (màn hình Mac), gõ vài chữ bằng Folio. | Chữ hiện ra trên Mac. |
+| 2 | Gõ tiếng Việt (bật Telex trên Mac): *Việt Nam*. | Ra đúng dấu. |
+| 3 | Giữ phím **Delete**. | Xóa liên tục. |
+| 4 | **⌘C / ⌘V**, **⌘Z**. | Sao chép, dán, hoàn tác. |
+| 5 | **⌃⌥Tab**, **⌃⌥Space**, **⌃⌥`**. | Chuyển app / Spotlight / Esc. |
+| 6 | Dùng trackpad: di chuyển, bấm, bấm 2 ngón, cuộn. | Chỉ thấy 1 con trỏ (của Mac); các thao tác chạy đúng. |
+| 7 | Mở YouTube trên Mac. | Tiếng phát ra **iPad**, loa Mac im. |
+| 8 | Bật *Use with the lid closed*, gập MacBook. | iPad thành màn hình chính, vẫn gõ, bấm, nghe nhạc được. |
+| 9 | Mở MacBook, tắt *Use with the lid closed*. | Mọi thứ về như cũ. |
+
+---
+
 ## 9. Khi build bị lỗi
 
 Mã nguồn chưa được biên dịch thử, nên lần đầu có thể gặp lỗi. Đây là việc bình thường. Cách gửi lỗi cho Claude sửa:
@@ -594,7 +676,8 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 |---|---|---|
 | **1** | Tìm thiết bị (Bonjour), chọn đường kết nối tốt nhất, ghép đôi khác Apple ID, mã hóa | ✅ Xong |
 | **2** | Quay màn hình (ScreenCaptureKit), nén phần cứng H.264/HEVC (VideoToolbox) trên Mac; giải nén và hiển thị trên iPad/Mac; màn hình ảo cho chế độ mở rộng; truyền video mã hóa, tự giảm chất lượng khi mạng chậm; 30/60/120 Hz | ✅ Xong |
-| **3** | Cảm ứng / Apple Pencil (cả khi bút chưa chạm) điều khiển Mac; tự chuyển sang cáp khi cắm vào giữa chừng; tự kết nối lại khi rớt mạng mà vẫn giữ màn hình phụ | 🧪 Đang thử |
+| **3** | Cảm ứng / Apple Pencil (cả khi bút chưa chạm) điều khiển Mac; tự chuyển sang cáp khi cắm vào giữa chừng; tự kết nối lại khi rớt mạng mà vẫn giữ màn hình phụ | ✅ Xong |
+| **3b** | Bàn phím Folio + Magic Trackpad điều khiển Mac, âm thanh trên iPad, dùng khi gập MacBook | 🧪 Đang thử |
 | **4** | Giao diện hoàn chỉnh: bảng điều khiển trên thanh menu, màn hình **radar** hiện thiết bị xung quanh, kết nối 1 chạm, hướng dẫn bằng hình khi không tìm thấy máy | ⏳ |
 
-Khi đã thử xong Giai đoạn 3 (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8C](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại), hoặc gửi lỗi theo hướng dẫn ở mục 9.
+Khi đã thử xong (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8D](#8d-bàn-phím-trackpad-âm-thanh-và-dùng-khi-gập-macbook), hoặc gửi lỗi theo hướng dẫn ở mục 9.

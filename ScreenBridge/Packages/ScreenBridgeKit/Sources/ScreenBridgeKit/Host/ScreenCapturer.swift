@@ -24,11 +24,14 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
 
     /// Called on the capture queue for every *changed* frame.
     var onFrame: ((CVPixelBuffer, CMTime) -> Void)?
+    /// Called on the audio queue with system audio, when enabled.
+    var onAudio: ((CMSampleBuffer) -> Void)?
     /// Called if macOS stops the stream (display unplugged, permission revoked…).
     var onStop: ((Error) -> Void)?
 
     private var stream: SCStream?
     private let queue = DispatchQueue(label: "app.screenbridge.capture", qos: .userInteractive)
+    private let audioQueue = DispatchQueue(label: "app.screenbridge.capture.audio", qos: .userInteractive)
 
     /// True if this app may capture the screen. Calling `requestPermission`
     /// shows the system prompt the first time.
@@ -37,7 +40,8 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
     @discardableResult
     static func requestPermission() -> Bool { CGRequestScreenCaptureAccess() }
 
-    func start(displayID: CGDirectDisplayID, width: Int, height: Int, framesPerSecond: Int) async throws {
+    func start(displayID: CGDirectDisplayID, width: Int, height: Int, framesPerSecond: Int,
+               captureAudio: Bool) async throws {
         let display = try await Self.findDisplay(displayID)
 
         let filter = SCContentFilter(display: display, excludingWindows: [])
@@ -48,10 +52,18 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         configuration.queueDepth = 5
         configuration.showsCursor = true
-        configuration.capturesAudio = false
+        configuration.capturesAudio = captureAudio
+        if captureAudio {
+            configuration.sampleRate = Int(AudioPacketHeader.sampleRate)
+            configuration.channelCount = Int(AudioPacketHeader.channels)
+            configuration.excludesCurrentProcessAudio = true
+        }
 
         let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
+        if captureAudio {
+            try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue)
+        }
         try await stream.startCapture()
         self.stream = stream
     }
@@ -84,6 +96,10 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
                 of type: SCStreamOutputType) {
+        if type == .audio {
+            if sampleBuffer.isValid { onAudio?(sampleBuffer) }
+            return
+        }
         guard type == .screen, sampleBuffer.isValid,
               let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false)
                 as? [[SCStreamFrameInfo: Any]],

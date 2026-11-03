@@ -29,6 +29,9 @@ final class HostStreamer: @unchecked Sendable {
     let mode: StreamMode
     let quality: StreamQuality
     let frameRate: StreamFrameRate
+    /// Send the Mac's sound to the Display.
+    let sendsAudio: Bool
+    private let audioPacketizer = AudioPacketizer()
 
     /// Delivered on the main thread.
     var onStats: ((StreamStats) -> Void)?
@@ -79,8 +82,9 @@ final class HostStreamer: @unchecked Sendable {
     private var statsTimer: DispatchSourceTimer?
 
     init(session: SecureSession, peerDisplay: DisplayCapabilities?, mode: StreamMode,
-         quality: StreamQuality, frameRate: StreamFrameRate) {
+         quality: StreamQuality, frameRate: StreamFrameRate, sendsAudio: Bool) {
         self.session = session
+        self.sendsAudio = sendsAudio
         self.peerID = session.peer.id
         self.peerName = session.peer.name
         self.peerDisplay = peerDisplay
@@ -113,12 +117,16 @@ final class HostStreamer: @unchecked Sendable {
             guard let self else { return }
             self.frameQueue.async { self.admit(pixelBuffer) }
         }
+        capturer.onAudio = { [weak self] sampleBuffer in
+            guard let self, let packet = self.audioPacketizer.packet(from: sampleBuffer) else { return }
+            try? self.currentSession().sendSealedWithoutWaiting(.sealedAudio, payload: packet)
+        }
         capturer.onStop = { [weak self] error in
             DispatchQueue.main.async { self?.onFailure?(error) }
         }
         do {
             try await capturer.start(displayID: target.displayID, width: target.width,
-                                     height: target.height, framesPerSecond: fps)
+                                     height: target.height, framesPerSecond: fps, captureAudio: sendsAudio)
         } catch ScreenCapturer.CaptureError.permissionDenied {
             throw StreamError.screenRecordingDenied
         }

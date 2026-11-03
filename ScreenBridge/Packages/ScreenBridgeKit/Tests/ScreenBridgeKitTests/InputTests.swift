@@ -9,6 +9,8 @@ final class InputTests: XCTestCase {
             .pointer(phase: .moved, button: .none, x: 1, y: 0),
             .rightClick(x: 0.5, y: 0.5),
             .scroll(phase: .moved, x: 0.1, y: 0.2, deltaX: -3.5, deltaY: 12),
+            .key(usage: 0x04, down: true),
+            .macKey(code: 0x37, down: false),
         ]
         for event in events {
             XCTAssertEqual(try WireCoding.decode(InputEvent.self, from: WireCoding.encode(event)), event)
@@ -33,4 +35,40 @@ final class InputTests: XCTestCase {
         XCTAssertEqual(inBar.x, 0)
         XCTAssertEqual(inBar.y, 0)
     }
+
+    func testAudioHeaderRoundTrip() throws {
+        let header = AudioPacketHeader()
+        let decoded = try XCTUnwrap(AudioPacketHeader(header.encoded() + Data(repeating: 1, count: 16)))
+        XCTAssertEqual(decoded, header)
+        XCTAssertEqual(decoded.sampleRate, 48_000)
+        XCTAssertNil(AudioPacketHeader(Data([0, 1])))
+    }
 }
+
+#if os(macOS)
+final class KeyMapTests: XCTestCase {
+    func testCommonKeys() {
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x04), 0x00)  // A
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x1D), 0x06)  // Z
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x27), 0x1D)  // 0
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x28), 0x24)  // Return
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x2C), 0x31)  // Space
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x50), 0x7B)  // ←
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0x3A), 0x7A)  // F1
+        XCTAssertEqual(KeyMap.macKeyCode(forHIDUsage: 0xE3), 0x37)  // Left ⌘
+        XCTAssertNil(KeyMap.macKeyCode(forHIDUsage: 0x00))
+    }
+
+    func testEveryLetterAndDigitIsMappedOnce() {
+        let codes = (0x04...0x27).compactMap { KeyMap.macKeyCode(forHIDUsage: UInt16($0)) }
+        XCTAssertEqual(codes.count, 36)
+        XCTAssertEqual(Set(codes).count, 36)
+    }
+
+    func testModifiers() {
+        XCTAssertEqual(KeyMap.modifier(forMacKeyCode: 0x37), .command)
+        XCTAssertEqual(KeyMap.modifier(forMacKeyCode: 0x3D), .option)
+        XCTAssertNil(KeyMap.modifier(forMacKeyCode: 0x00))
+    }
+}
+#endif

@@ -9,7 +9,7 @@ Use any Mac or iPad as a second display for a Mac, **even when the devices are s
 | **Host** | macOS 13+ (menu bar app) | Captures the screen with ScreenCaptureKit, encodes it with VideoToolbox (H.264/HEVC), sends it |
 | **Display** | macOS 13+ / iPadOS 16+ | Receives, decodes with VideoToolbox, renders with `AVSampleBufferDisplayLayer`/Metal |
 
-Status: **Phases 1–2 verified on hardware** (Mac ↔ iPad Pro on different Apple IDs: Extend/Mirror at up to 120 Hz, ~100 fps measured while dragging, 1–2 ms network latency over cable, 7–15 ms over Wi-Fi). **Phase 3 (touch/Pencil input, cable hand-over, auto-reconnect) is written and awaiting its first on-device test.** Phase 4 builds the final UI (radar, onboarding).
+Status: **Phases 1–2 verified on hardware** (Mac ↔ iPad Pro on different Apple IDs: Extend/Mirror at up to 120 Hz, ~100 fps measured while dragging, 1–2 ms network latency over cable, 7–15 ms over Wi-Fi). **Phase 3 (touch/Pencil, cable hand-over, auto-reconnect) verified on hardware; Phase 3b (keyboard, trackpad, audio, lid-closed use) awaiting its first on-device test.** Phase 4 builds the final UI (radar, onboarding).
 
 ---
 
@@ -85,6 +85,13 @@ Host (macOS)                                                   Display (iPadOS /
 - **Input:** the Display sends normalized pointer/scroll/right-click events (`sealedInput`, JSON). The Host injects them as `CGEvent`s on the captured display, which requires the Accessibility permission. On iPad, a one-finger press is held back 80 ms so that the start of a two-finger scroll never clicks. Apple Pencil skips that delay, and Pencil hover moves the cursor.
 - **Cable hand-over (make-before-break):** while connected, the initiator watches for new wired interfaces (`NWPathMonitor`, `betterPathUpdateHandler`, plus a check every 20 s on wireless). When it sees one, it opens a second session to the peer's unpinned Bonjour name with Wi-Fi prohibited, keeps it only if its link ranks better, and swaps it in. The responder admits a new session from its current peer even while busy.
 - **Cable pulled / drop:** viability loss on a wired link triggers an immediate failover to any path. An unexpected close makes the initiator retry for ~30 s. Both sides keep media state for 20 s (the Host keeps the virtual display and stream, the Display keeps the last frame), so windows don't jump back to the Mac.
+
+## Keyboard, trackpad, audio, lid closed (Phase 3b)
+
+- **Keyboard:** the iPad forwards hardware key presses as HID usages (`UIPress.key`); the Host maps them to macOS virtual key codes and posts them. Physical keys are sent, so the Mac's own input source (e.g. Vietnamese Telex) does the typing. The Host generates auto-repeat itself. iPadOS keeps ⌘Tab, ⌘Space and Globe for itself, so ⌃⌥ + Tab/Space/`/1…= gives ⌘Tab, ⌘Space, Esc and F1–F12.
+- **Trackpad:** the iPad's own pointer is hidden over the video (`UIPointerStyle.hidden()`). Two-finger click is a right-click, and scroll events get a dedicated recognizer.
+- **Audio:** ScreenCaptureKit system audio (own process excluded), sent as 48 kHz stereo 16-bit PCM (`sealedAudio`, ~1.5 Mbit/s). It plays through `AVAudioEngine` with a 40 ms start buffer, and packets are dropped once 120 ms is queued. "Mute this Mac's speakers" uses `set volume with output muted`. It still needs testing whether capture survives the mute.
+- **Lid closed:** a virtual display doesn't qualify for clamshell mode, so "Use with the lid closed" toggles `pmset -a disablesleep` (admin prompt). A display-sleep assertion is held while sharing. If the built-in screen goes inactive while in Mirror, the Host switches to Extend.
 
 ## ⚠️ Constraints
 
