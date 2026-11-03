@@ -31,6 +31,7 @@ public struct VideoSurfaceView {
     fileprivate func configure(_ view: LayerHostingView) {
         let controller = self.controller
         view.videoSize = { controller.videoSize }
+        view.streamFrameRate = { controller.streamFrameRate }
         view.onInput = { controller.sendInput($0) }
         view.onToggleControls = onToggleControls
     }
@@ -52,6 +53,14 @@ extension VideoSurfaceView: UIViewRepresentable {
 public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPointerInteractionDelegate,
                                      UIPencilInteractionDelegate {
     var videoSize: () -> CGSize? = { nil }
+    var streamFrameRate: () -> Int? = { nil }
+
+    /// ProMotion drops to 60 Hz (or lower) when an app looks idle, and
+    /// trackpad / Pencil-hover positions are only reported at the display's
+    /// current rate. While the Mac streams above 60 fps, this display link
+    /// asks iPadOS to stay at 120 Hz.
+    private var displayLink: CADisplayLink?
+    private var rateCheckTimer: Timer?
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
 
@@ -171,10 +180,36 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         super.didMoveToWindow()
         if window != nil {
             DispatchQueue.main.async { [weak self] in _ = self?.becomeFirstResponder() }
+            startHighRefreshRate()
         } else {
             releaseHeldKeys()
+            stopHighRefreshRate()
         }
     }
+
+    // MARK: ProMotion
+
+    private func startHighRefreshRate() {
+        guard displayLink == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(displayLinkTick))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
+        link.isPaused = true
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+        rateCheckTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self, let link = self.displayLink else { return }
+            link.isPaused = (self.streamFrameRate() ?? 60) <= 60
+        }
+    }
+
+    private func stopHighRefreshRate() {
+        displayLink?.invalidate()  // CADisplayLink retains its target; break the cycle
+        displayLink = nil
+        rateCheckTimer?.invalidate()
+        rateCheckTimer = nil
+    }
+
+    @objc private func displayLinkTick() {}
 
     public override func resignFirstResponder() -> Bool {
         releaseHeldKeys()

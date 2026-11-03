@@ -75,6 +75,11 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     // MARK: Input (any thread)
 
     /// Size of the incoming picture in pixels, for mapping touches.
+    /// Frame rate the Mac is streaming at (nil before the first keyframe).
+    public var streamFrameRate: Int? {
+        decoder.currentFormat?.framesPerSecond
+    }
+
     public var videoSize: CGSize? {
         decoder.currentFormat.map { CGSize(width: $0.width, height: $0.height) }
     }

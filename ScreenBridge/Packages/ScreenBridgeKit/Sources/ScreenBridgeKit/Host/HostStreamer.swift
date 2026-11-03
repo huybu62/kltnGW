@@ -322,7 +322,8 @@ final class HostStreamer: @unchecked Sendable {
     private func currentFormat(_ frame: VideoEncoder.EncodedFrame) -> VideoFormat? {
         guard let sets = frame.parameterSets, !sets.isEmpty, let encoder else { return nil }
         return VideoFormat(streamID: streamID, codec: encoder.codec, width: width, height: height,
-                           parameterSets: sets, nalUnitHeaderLength: frame.nalUnitHeaderLength)
+                           parameterSets: sets, nalUnitHeaderLength: frame.nalUnitHeaderLength,
+                           framesPerSecond: frameRate.rawValue)
     }
 
     // MARK: - Feedback from the Display (media queue)

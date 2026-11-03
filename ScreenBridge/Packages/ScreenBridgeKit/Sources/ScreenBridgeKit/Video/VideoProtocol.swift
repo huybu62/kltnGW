@@ -91,6 +91,9 @@ public struct VideoFormat: Codable, Sendable, Equatable {
     public var parameterSets: [Data]
     /// Size of the length prefix before each NAL unit (normally 4).
     public var nalUnitHeaderLength: Int
+    /// Frame rate the Host streams at. The iPad keeps ProMotion at 120 Hz
+    /// when this is above 60, so touch/trackpad input is reported at 120 Hz too.
+    public var framesPerSecond: Int? = nil
 }
 
 /// Prefix of every `sealedVideoFrame` payload; the rest is one encoded
