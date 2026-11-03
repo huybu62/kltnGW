@@ -37,6 +37,18 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         }
     }
 
+    @Published public var frameRate: StreamFrameRate {
+        didSet {
+            guard frameRate != oldValue else { return }
+            defaults.set(frameRate.rawValue, forKey: Self.frameRateKey)
+            restart()
+        }
+    }
+
+    /// Highest refresh rate the connected Display supports (60 if unknown).
+    @Published public private(set) var displayMaxRefreshRate = 60
+
+    private static let frameRateKey = "ScreenBridge.streamFrameRate"
     private static let modeKey = "ScreenBridge.streamMode"
     private static let qualityKey = "ScreenBridge.streamQuality"
     private let defaults: UserDefaults
@@ -50,12 +62,15 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         self.defaults = defaults
         mode = defaults.string(forKey: Self.modeKey).flatMap(StreamMode.init(rawValue:)) ?? .extend
         quality = defaults.string(forKey: Self.qualityKey).flatMap(StreamQuality.init(rawValue:)) ?? .balanced
+        let savedRate = defaults.integer(forKey: Self.frameRateKey)
+        frameRate = StreamFrameRate(rawValue: savedRate) ?? .fps60
     }
 
     // MARK: SessionMediaSink
 
     public func sessionStarted(_ session: SecureSession) {
         lock.lock(); self.session = session; lock.unlock()
+        displayMaxRefreshRate = session.peer.display?.maxRefreshRate ?? 60
         restart()
     }
 
@@ -98,7 +113,8 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         generation += 1
         let myGeneration = generation
         let streamer = session.map {
-            HostStreamer(session: $0, peerDisplay: $0.peer.display, mode: mode, quality: quality)
+            HostStreamer(session: $0, peerDisplay: $0.peer.display, mode: mode, quality: quality,
+                         frameRate: frameRate)
         }
         self.streamer = streamer
         lock.unlock()

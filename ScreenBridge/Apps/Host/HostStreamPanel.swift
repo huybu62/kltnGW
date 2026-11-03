@@ -22,6 +22,21 @@ struct HostStreamPanel: View {
                 }
             }
 
+            Picker("Refresh", selection: $stream.frameRate) {
+                ForEach(StreamFrameRate.allCases) { rate in
+                    Text(rate.displayName).tag(rate)
+                        .disabled(rate.rawValue > stream.displayMaxRefreshRate)
+                }
+            }
+            .pickerStyle(.segmented)
+            if stream.frameRate.rawValue > stream.displayMaxRefreshRate {
+                Text("This display shows at most \(stream.displayMaxRefreshRate) Hz; streaming at \(stream.displayMaxRefreshRate) Hz.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if stream.frameRate == .fps120 {
+                Text("120 Hz: smoothest, but uses more battery and Wi-Fi. Works best close to the router or over a cable.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             status
         }
         .padding(.horizontal)

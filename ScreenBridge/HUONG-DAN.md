@@ -352,7 +352,8 @@ Khi đã kết nối, menu ScreenBridge trên Mac có thêm phần **Screen shar
 | Mục | Lựa chọn |
 |---|---|
 | **Mode** (chế độ) | **Extend** = iPad thành màn hình thứ hai (mặc định) · **Mirror** = iPad hiện y hệt màn hình Mac |
-| **Quality** (chất lượng) | **Battery Saver** (tiết kiệm pin: 30 hình/giây, nửa độ phân giải) · **Balanced** (cân bằng: 60 hình/giây, đủ độ phân giải) · **Best Quality** (nét nhất) |
+| **Quality** (chất lượng) | **Battery Saver** (tiết kiệm pin: nửa độ phân giải, ít dữ liệu) · **Balanced** (cân bằng: đủ độ phân giải, mặc định) · **Best Quality** (nét nhất, nhiều dữ liệu hơn) |
+| **Refresh** (tần số quét) | **30 Hz** (tiết kiệm pin) · **60 Hz** (mặc định) · **120 Hz** (mượt nhất, chỉ iPad Pro có màn hình ProMotion) |
 
 | Bước | Làm gì | Kết quả đúng |
 |---|---|---|
@@ -361,7 +362,8 @@ Khi đã kết nối, menu ScreenBridge trên Mac có thêm phần **Screen shar
 | 3 | Trên Mac, kéo một cửa sổ (ví dụ Safari) **ra mép phải màn hình** và tiếp tục kéo sang. | Cửa sổ "bay" sang iPad. |
 | 4 | Nếu cửa sổ sang sai phía: **Cài đặt hệ thống → Màn hình (Displays) → Sắp xếp (Arrange)**. | Kéo ô màn hình iPad tới vị trí thật của iPad so với Mac. |
 | 5 | Đổi **Mode** sang **Mirror**. | Sau 1–2 giây, iPad hiện **y hệt** màn hình Mac. Màn hình Mac rộng hơn iPad nên có viền đen trên dưới; đây là bình thường. |
-| 6 | Đổi **Quality** sang **Battery Saver**. | Số liệu đổi thành khoảng `30 fps`, Mbps giảm rõ. |
+| 6 | Đổi **Quality** sang **Battery Saver**. | Độ phân giải trong dòng số liệu giảm một nửa, Mbps giảm rõ. |
+| 6b | Đổi **Refresh** sang **120 Hz**, rồi kéo cửa sổ qua lại trên iPad. | Dòng số liệu lên tới khoảng `120 fps` khi đang kéo; chuyển động mượt hơn rõ. |
 | 7 | Trên iPad, **chạm nhanh 2 lần** vào màn hình. | Hiện thanh nhỏ phía trên: đường kết nối, số liệu, nút **Hide** (ẩn) và **Disconnect** (ngắt). |
 | 8 | Bấm **Disconnect**. | Màn hình phụ biến mất khỏi Mac; các cửa sổ trên đó tự về màn hình Mac. |
 

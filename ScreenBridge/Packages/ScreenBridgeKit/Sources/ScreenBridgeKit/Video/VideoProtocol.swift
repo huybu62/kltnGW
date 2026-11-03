@@ -22,12 +22,30 @@ public enum StreamMode: String, Codable, CaseIterable, Sendable, Identifiable {
     public var displayName: String { self == .extend ? "Extend" : "Mirror" }
 }
 
+/// How many frames per second to stream. 120 needs a ProMotion display
+/// (iPad Pro) and a fast link; the Host clamps to what the Display supports.
+public enum StreamFrameRate: Int, Codable, CaseIterable, Sendable, Identifiable {
+    case fps30 = 30
+    case fps60 = 60
+    case fps120 = 120
+
+    public var id: Int { rawValue }
+    public var displayName: String { "\(rawValue) Hz" }
+
+    /// The highest option the Display can show.
+    static func clamped(_ requested: StreamFrameRate, toDisplayMax maxRefresh: Int?) -> StreamFrameRate {
+        let limit = maxRefresh ?? 60
+        return allCases.reversed().first { $0.rawValue <= max(limit, 30) && $0.rawValue <= requested.rawValue } ?? .fps30
+    }
+}
+
+/// Resolution + bitrate. Frame rate is chosen separately.
 public enum StreamQuality: String, Codable, CaseIterable, Sendable, Identifiable {
-    /// 30 fps, half resolution, low bitrate: least battery and Wi-Fi use.
+    /// Half resolution, low bitrate: least battery and Wi-Fi use.
     case lowPower
-    /// 60 fps at the display's full resolution.
+    /// The display's full resolution.
     case balanced
-    /// 60 fps, full resolution, generous bitrate for text and fine detail.
+    /// Full resolution, generous bitrate for text and fine detail.
     case maximum
 
     public var id: String { rawValue }
@@ -40,7 +58,6 @@ public enum StreamQuality: String, Codable, CaseIterable, Sendable, Identifiable
         }
     }
 
-    var framesPerSecond: Int { self == .lowPower ? 30 : 60 }
     var resolutionScale: Double { self == .lowPower ? 0.5 : 1.0 }
 
     /// Encoded bits per pixel per frame. Desktop content is mostly static
@@ -53,9 +70,13 @@ public enum StreamQuality: String, Codable, CaseIterable, Sendable, Identifiable
         }
     }
 
-    func bitrate(width: Int, height: Int) -> Int {
-        let raw = Double(width * height * framesPerSecond) * bitsPerPixel
-        return Int(min(max(raw, 4_000_000), 80_000_000))
+    /// Frames above 60 fps differ less from each other, so they get half
+    /// weight: 120 fps costs ~1.5× the bitrate of 60, not 2×.
+    func bitrate(width: Int, height: Int, framesPerSecond: Int) -> Int {
+        let fps = Double(framesPerSecond)
+        let effectiveFPS = fps <= 60 ? fps : 60 + (fps - 60) / 2
+        let raw = Double(width * height) * effectiveFPS * bitsPerPixel
+        return Int(min(max(raw, 4_000_000), 100_000_000))
     }
 }
 

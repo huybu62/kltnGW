@@ -28,6 +28,7 @@ final class HostStreamer: @unchecked Sendable {
 
     let mode: StreamMode
     let quality: StreamQuality
+    let frameRate: StreamFrameRate
 
     /// Delivered on the main thread.
     var onStats: ((StreamStats) -> Void)?
@@ -68,11 +69,13 @@ final class HostStreamer: @unchecked Sendable {
     private var calmSeconds = 0
     private var statsTimer: DispatchSourceTimer?
 
-    init(session: SecureSession, peerDisplay: DisplayCapabilities?, mode: StreamMode, quality: StreamQuality) {
+    init(session: SecureSession, peerDisplay: DisplayCapabilities?, mode: StreamMode,
+         quality: StreamQuality, frameRate: StreamFrameRate) {
         self.session = session
         self.peerDisplay = peerDisplay
         self.mode = mode
         self.quality = quality
+        self.frameRate = StreamFrameRate.clamped(frameRate, toDisplayMax: peerDisplay?.maxRefreshRate)
     }
 
     // MARK: - Lifecycle
@@ -84,8 +87,8 @@ final class HostStreamer: @unchecked Sendable {
         }
 
         let target = try await prepareDisplay()
-        let fps = quality.framesPerSecond
-        let bitrate = quality.bitrate(width: target.width, height: target.height)
+        let fps = frameRate.rawValue
+        let bitrate = quality.bitrate(width: target.width, height: target.height, framesPerSecond: fps)
         let encoder = try VideoEncoder(configuration: .init(
             codec: (peerDisplay?.supportsHEVC ?? false) ? .hevc : .h264,
             width: target.width, height: target.height,
@@ -164,8 +167,9 @@ final class HostStreamer: @unchecked Sendable {
         switch mode {
         case .extend:
             let name = "ScreenBridge – \(session.peer.name)"
+            let refresh = Double(max(frameRate.rawValue, 60))
             let created = await MainActor.run {
-                VirtualDisplay(name: name, pixelWidth: screenWidth, pixelHeight: screenHeight)
+                VirtualDisplay(name: name, pixelWidth: screenWidth, pixelHeight: screenHeight, refreshRate: refresh)
             }
             guard let display = created else { throw StreamError.virtualDisplayFailed }
             keep(display)

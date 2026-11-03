@@ -20,11 +20,21 @@ final class VideoProtocolTests: XCTestCase {
     }
 
     func testBitrateStaysInBounds() {
-        XCTAssertEqual(StreamQuality.lowPower.bitrate(width: 16, height: 16), 4_000_000)
-        XCTAssertEqual(StreamQuality.maximum.bitrate(width: 8000, height: 8000), 80_000_000)
-        let ipad = StreamQuality.balanced.bitrate(width: 2732, height: 2048)
-        XCTAssertGreaterThan(ipad, 15_000_000)
-        XCTAssertLessThan(ipad, 40_000_000)
+        XCTAssertEqual(StreamQuality.lowPower.bitrate(width: 16, height: 16, framesPerSecond: 30), 4_000_000)
+        XCTAssertEqual(StreamQuality.maximum.bitrate(width: 8000, height: 8000, framesPerSecond: 120), 100_000_000)
+        let ipad60 = StreamQuality.balanced.bitrate(width: 2732, height: 2048, framesPerSecond: 60)
+        XCTAssertGreaterThan(ipad60, 15_000_000)
+        XCTAssertLessThan(ipad60, 40_000_000)
+        let ipad120 = StreamQuality.balanced.bitrate(width: 2732, height: 2048, framesPerSecond: 120)
+        XCTAssertEqual(Double(ipad120) / Double(ipad60), 1.5, accuracy: 0.01)
+    }
+
+    func testFrameRateClampsToDisplay() {
+        XCTAssertEqual(StreamFrameRate.clamped(.fps120, toDisplayMax: 120), .fps120)
+        XCTAssertEqual(StreamFrameRate.clamped(.fps120, toDisplayMax: 60), .fps60)
+        XCTAssertEqual(StreamFrameRate.clamped(.fps60, toDisplayMax: 120), .fps60)
+        XCTAssertEqual(StreamFrameRate.clamped(.fps120, toDisplayMax: nil), .fps60)
+        XCTAssertEqual(StreamFrameRate.clamped(.fps30, toDisplayMax: 120), .fps30)
     }
 
     func testEvenDimensions() {
