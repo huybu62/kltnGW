@@ -90,6 +90,7 @@ final class InputInjector {
             let point = place(x, y)
             switch (phase, button) {
             case (.began, .left):
+                stopMomentum()
                 updateClickCount(at: point)
                 leftButtonDown = true
                 postMouse(.leftMouseDown, at: point, button: .left, clickState: clickCount)
@@ -110,16 +111,20 @@ final class InputInjector {
             postMouse(.rightMouseUp, at: point, button: .right, clickState: 1)
 
         case .scroll(let phase, let x, let y, let deltaX, let deltaY):
-            if phase == .began {
-                // Scroll whatever is under the fingers.
-                postMouse(.mouseMoved, at: place(x, y), button: .left)
+            // Posted like a real trackpad: continuous, with gesture phases and
+            // momentum. Apps need the phases for two-finger swipe Back/Forward,
+            // rubber-banding and smooth scrolling.
+            switch phase {
+            case .began:
+                stopMomentum()
+                postMouse(.mouseMoved, at: place(x, y), button: .left)  // scroll what's under the fingers
+                postScroll(dx: 0, dy: 0, phase: Self.scrollBegan)
+            case .moved:
+                postScroll(dx: deltaX, dy: deltaY, phase: Self.scrollChanged)
+            case .ended, .cancelled:
+                postScroll(dx: 0, dy: 0, phase: Self.scrollEnded)
+                startMomentum(velocityX: deltaX, velocityY: deltaY)  // on .ended, deltas = lift-off velocity
             }
-            guard deltaX != 0 || deltaY != 0,
-                  let scroll = CGEvent(scrollWheelEvent2Source: source, units: .pixel, wheelCount: 2,
-                                       wheel1: Int32(deltaY.rounded()), wheel2: Int32(deltaX.rounded()),
-                                       wheel3: 0) else { return }
-            scroll.flags = modifierFlags
-            scroll.post(tap: .cghidEventTap)
 
         case .key(let usage, let down):
             guard let code = KeyMap.macKeyCode(forHIDUsage: usage) else { return }
@@ -217,8 +222,19 @@ final class InputInjector {
         repeatTimer = nil
     }
 
+    /// Real arrow keys carry the Fn and numeric-pad flags, and navigation /
+    /// function keys carry Fn. macOS's own shortcuts (⌃← ⌃→ Spaces, ⌃↑
+    /// Mission Control…) only fire when those flags are present.
+    private static let arrowKeys: Set<UInt16> = [0x7B, 0x7C, 0x7D, 0x7E]
+    private static let fnKeys: Set<UInt16> = arrowKeys
+        .union([0x73, 0x74, 0x75, 0x77, 0x79])
+        .union(KeyMap.functionKeys)
+
     private func postKey(_ code: UInt16, down: Bool, flags: CGEventFlags, isRepeat: Bool = false) {
         guard let event = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(code), keyDown: down) else { return }
+        var flags = flags
+        if Self.fnKeys.contains(code) { flags.insert(.maskSecondaryFn) }
+        if Self.arrowKeys.contains(code) { flags.insert(.maskNumericPad) }
         event.flags = flags
         if isRepeat { event.setIntegerValueField(.keyboardEventAutorepeat, value: 1) }
         event.post(tap: .cghidEventTap)
@@ -229,6 +245,60 @@ final class InputInjector {
         event.type = .flagsChanged
         event.flags = modifierFlags
         event.post(tap: .cghidEventTap)
+    }
+
+    // MARK: - Scrolling
+
+    // CGScrollPhase / CGMomentumScrollPhase values.
+    private static let scrollBegan: Int64 = 1
+    private static let scrollChanged: Int64 = 2
+    private static let scrollEnded: Int64 = 4
+    private static let momentumBegin: Int64 = 1
+    private static let momentumContinue: Int64 = 2
+    private static let momentumEnd: Int64 = 3
+
+    private var momentumTimer: DispatchSourceTimer?
+
+    private func postScroll(dx: Double, dy: Double, phase: Int64, momentum: Int64 = 0) {
+        guard let event = CGEvent(scrollWheelEvent2Source: source, units: .pixel, wheelCount: 2,
+                                  wheel1: Int32(dy.rounded()), wheel2: Int32(dx.rounded()), wheel3: 0) else { return }
+        event.flags = modifierFlags
+        if let continuous = CGEventField(rawValue: 88) { event.setIntegerValueField(continuous, value: 1) }
+        if let scrollPhase = CGEventField(rawValue: 99) { event.setIntegerValueField(scrollPhase, value: phase) }
+        if let momentumPhase = CGEventField(rawValue: 123) { event.setIntegerValueField(momentumPhase, value: momentum) }
+        event.post(tap: .cghidEventTap)
+    }
+
+    /// Keeps the page gliding after the fingers lift, like a Mac trackpad.
+    private func startMomentum(velocityX: Double, velocityY: Double) {
+        stopMomentum()
+        guard hypot(velocityX, velocityY) > 200 else { return }
+        var vx = velocityX
+        var vy = velocityY
+        var first = true
+        let tick = 1.0 / 120
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + tick, repeating: tick)
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            vx *= 0.975
+            vy *= 0.975
+            if hypot(vx, vy) < 60 {
+                self.postScroll(dx: 0, dy: 0, phase: 0, momentum: Self.momentumEnd)
+                self.stopMomentum()
+                return
+            }
+            self.postScroll(dx: vx * tick, dy: vy * tick, phase: 0,
+                            momentum: first ? Self.momentumBegin : Self.momentumContinue)
+            first = false
+        }
+        momentumTimer = timer
+        timer.resume()
+    }
+
+    private func stopMomentum() {
+        momentumTimer?.cancel()
+        momentumTimer = nil
     }
 
     // MARK: - Mouse

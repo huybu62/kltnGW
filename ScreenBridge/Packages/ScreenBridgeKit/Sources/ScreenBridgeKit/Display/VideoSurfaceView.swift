@@ -394,7 +394,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             onInput(.scroll(phase: .moved, x: Double(location.x), y: Double(location.y),
                             deltaX: Double(dx), deltaY: Double(dy)))
         case .ended, .cancelled, .failed:
-            onInput(.scroll(phase: .ended, x: Double(location.x), y: Double(location.y), deltaX: 0, deltaY: 0))
+            // Lift-off velocity, so the Mac can keep the page gliding.
+            let velocity = pinching ? .zero : recognizer.velocity(in: self)
+            onInput(.scroll(phase: .ended, x: Double(location.x), y: Double(location.y),
+                            deltaX: Double(velocity.x * scale), deltaY: Double(velocity.y * scale)))
         default:
             break
         }
@@ -518,17 +521,17 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
     }
 
-    /// If the pointer was left on a screen edge (Dock, menu bar), move it
-    /// inward so an auto-hiding Dock or menu bar closes instead of staying
-    /// open under a pointer you can no longer see.
+    /// After a Pencil click, once the Pencil is lifted away, park the pointer
+    /// out of the way: off the edge it was on (so an auto-hiding Dock or menu
+    /// bar closes), otherwise against the right edge of the screen so it
+    /// doesn't sit on top of what you just tapped.
     private func nudgeOffScreenEdge(from point: CGPoint) {
         let p = normalized(point)
-        var target = p
-        if p.y > 0.92 { target.y = 0.75 }
-        if p.y < 0.04 { target.y = 0.25 }
-        if p.x < 0.04 { target.x = 0.25 }
-        if p.x > 0.96 { target.x = 0.75 }
-        guard target != p else { return }
+        var target = CGPoint(x: 0.995, y: p.y)
+        if p.y > 0.92 { target = CGPoint(x: p.x, y: 0.75) }
+        if p.y < 0.04 { target = CGPoint(x: p.x, y: 0.25) }
+        if p.x > 0.96 { target = CGPoint(x: 0.75, y: p.y) }
+        if p.x < 0.04 { target = CGPoint(x: 0.25, y: p.y) }
         onInput(.pointer(phase: .moved, button: .none, x: Double(target.x), y: Double(target.y)))
     }
 }

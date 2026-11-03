@@ -429,10 +429,10 @@ Muốn iPad bấm và kéo được trên Mac, macOS cần quyền **Trợ năng
 | Giữ 1 ngón rồi kéo | Kéo (di chuyển cửa sổ, kéo thả file, bôi đen chữ) |
 | **Apple Pencil** chạm / kéo | Như ngón tay, nhưng phản hồi ngay, không có độ trễ chờ |
 | **Apple Pencil để gần màn hình** (chưa chạm) | Con trỏ chuột di chuyển theo bút |
-| Kéo 2 ngón | Cuộn trang |
-| **Vuốt 3 ngón sang trái / phải** | Chuyển màn hình Desktop / app toàn màn hình (như vuốt trackpad Mac) |
+| Kéo 2 ngón | Cuộn trang, nhấc tay ra thì trang trôi tiếp một đoạn như trackpad Mac. **Vuốt ngang 2 ngón trong Safari/Chrome = Back/Forward** (cần bật trên Mac: Cài đặt hệ thống → Trackpad → Cử chỉ khác → *Vuốt giữa các trang*) |
+| **Vuốt 3 ngón sang trái / phải** (trên màn hình iPad) | Chuyển màn hình Desktop / app toàn màn hình, như vuốt trackpad Mac. Cần **có từ 2 Desktop trở lên**, hoặc app đang ở chế độ toàn màn hình; mở Mission Control và bấm **+** để thêm Desktop. Vuốt 3 ngón trên **Magic Trackpad** thì iPadOS giữ cho nó, không sang Mac được |
 | **Vuốt 3 ngón lên / xuống** | Mission Control / các cửa sổ của app đang dùng |
-| **Nhấc Pencil ra xa** khi con trỏ đang ở mép màn hình | Con trỏ tự lùi vào trong, nên **Dock tự ẩn** sau khi bạn chọn app (cần bật tự động ẩn Dock trên Mac: Cài đặt hệ thống → Desktop & Dock) |
+| **Bấm bằng Pencil rồi nhấc bút ra xa** | Con trỏ tự dời đi: nếu đang ở mép (Dock, thanh menu) thì lùi vào trong để **Dock tự ẩn**; nếu ở giữa thì dời sát mép phải, không che chỗ bạn vừa bấm. Chỉ áp dụng sau khi **bấm**, không áp dụng khi bút chỉ lơ lửng. (Muốn Dock tự ẩn: Cài đặt hệ thống → Desktop & Dock → bật *Tự động ẩn và hiện Dock*.) |
 | Chạm 2 ngón | Bấm chuột phải (menu ngữ cảnh) |
 | Bàn di chuột / chuột nối với iPad | Di chuyển con trỏ, bấm, cuộn |
 
