@@ -1,0 +1,150 @@
+# XcodeGen spec — generate the Xcode project with:
+#   brew install xcodegen && cd ScreenBridge && xcodegen generate
+#
+# Change `bundleIdPrefix` and set DEVELOPMENT_TEAM to your own before
+# building for an iPad. Mac targets run with "Sign to Run Locally".
+name: ScreenBridge
+
+options:
+  bundleIdPrefix: app.screenbridge
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "13.0"   # Ventura: supports Intel Macs from 2017 and every Apple Silicon Mac
+    iOS: "16.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    # Universal Binary: arm64 + x86_64 for macOS. Debug builds only the
+    # machine you're on (fast); Release always builds both.
+    ARCHS: "$(ARCHS_STANDARD)"
+  configs:
+    Debug:
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      ONLY_ACTIVE_ARCH: NO
+
+packages:
+  ScreenBridgeKit:
+    path: Packages/ScreenBridgeKit
+
+# Keys every target needs for Bonjour + the Local Network privacy prompt
+# (iOS 14+, macOS 15+). Without NSBonjourServices, browsing silently finds
+# nothing on iPadOS.
+x-network-info: &networkInfo
+  NSLocalNetworkUsageDescription: >-
+    ScreenBridge finds your Mac and iPad on the local network and over a
+    Thunderbolt cable so one can be used as a display for the other.
+  NSBonjourServices:
+    - _screenbridge._tcp
+
+x-mac-sandbox: &macSandbox
+  com.apple.security.app-sandbox: true
+  com.apple.security.network.client: true
+  com.apple.security.network.server: true   # required for NWListener
+
+targets:
+  ScreenBridgeHost:
+    type: application
+    platform: macOS
+    sources:
+      - Apps/Host
+      - Apps/Shared
+    dependencies:
+      - package: ScreenBridgeKit
+    info:
+      path: Apps/Host/Info.plist
+      properties:
+        <<: *networkInfo
+        CFBundleDisplayName: ScreenBridge
+        LSUIElement: true                    # menu-bar only, no Dock icon
+        LSApplicationCategoryType: public.app-category.productivity
+    entitlements:
+      path: Apps/Host/Host.entitlements
+      properties:
+        <<: *macSandbox
+    settings:
+      base:
+        PRODUCT_NAME: ScreenBridge
+        PRODUCT_BUNDLE_IDENTIFIER: app.screenbridge.host
+        ENABLE_HARDENED_RUNTIME: YES
+
+  ScreenBridgeDisplay-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - Apps/Display
+      - Apps/Shared
+    dependencies:
+      - package: ScreenBridgeKit
+    info:
+      path: Apps/Display/Info-macOS.plist
+      properties:
+        <<: *networkInfo
+        CFBundleDisplayName: ScreenBridge Display
+        LSApplicationCategoryType: public.app-category.productivity
+    entitlements:
+      path: Apps/Display/Display-macOS.entitlements
+      properties:
+        <<: *macSandbox
+    settings:
+      base:
+        PRODUCT_NAME: ScreenBridge Display
+        PRODUCT_BUNDLE_IDENTIFIER: app.screenbridge.display
+        ENABLE_HARDENED_RUNTIME: YES
+
+  ScreenBridgeDisplay-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - Apps/Display
+      - Apps/Shared
+    dependencies:
+      - package: ScreenBridgeKit
+    info:
+      path: Apps/Display/Info-iOS.plist
+      properties:
+        <<: *networkInfo
+        CFBundleDisplayName: ScreenBridge
+        UILaunchScreen: {}
+        UIRequiresFullScreen: false
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_NAME: ScreenBridge
+        PRODUCT_BUNDLE_IDENTIFIER: app.screenbridge.display.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+schemes:
+  ScreenBridgeHost:
+    build:
+      targets:
+        ScreenBridgeHost: all
+    archive:
+      config: Release
+  ScreenBridgeDisplay-macOS:
+    build:
+      targets:
+        ScreenBridgeDisplay-macOS: all
+    archive:
+      config: Release
+  ScreenBridgeDisplay-iOS:
+    build:
+      targets:
+        ScreenBridgeDisplay-iOS: all
+    archive:
+      config: Release
