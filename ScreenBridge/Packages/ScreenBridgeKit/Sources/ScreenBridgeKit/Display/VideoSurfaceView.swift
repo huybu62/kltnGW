@@ -67,8 +67,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private var wantsHighRate = false
     private var ticksSinceRateCheck = 0
     private static let highRate = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
-    /// When not streaming above 60 fps, tick slowly so we don't hold the display up.
-    private static let lowRate = CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
+    /// Otherwise ask for a steady 60 Hz. (Never lower: touch, trackpad and
+    /// Pencil positions are reported at the display's refresh rate, so a
+    /// lower rate makes the pointer lag.)
+    private static let lowRate = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
     var onInput: (InputEvent) -> Void = { _ in }
     var onToggleControls: () -> Void = {}
 
@@ -82,6 +84,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     /// Pencil and trackpad clicks can't be the start of a two-finger
     /// scroll, so they skip the hold-back delay.
     private var pressIsImmediate = false
+    private var pressIsPencil = false
     private var heldKeys = Set<UInt16>()
     private var lastScrollTranslation = CGPoint.zero
     /// While a pinch is clearly under way, two-finger scrolling pauses.
@@ -93,6 +96,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     /// The current hover comes from an Apple Pencil (not the trackpad).
     private var hoverIsPencil = false
     private var lastHoverPoint: CGPoint?
+    /// The Pencil clicked since it last left hover range; when it leaves
+    /// again, the pointer is moved off the screen edge (see `nudgeOffScreenEdge`).
+    private var pencilClicked = false
+    private var pencilNudgeWork: DispatchWorkItem?
     private static let pressDelay: TimeInterval = 0.08
     private static let dragThreshold: CGFloat = 6
 
@@ -292,6 +299,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         if gestureRecognizer is UILongPressGestureRecognizer {
             pressIsImmediate = touch.type == .pencil || touch.type == .indirectPointer
+            pressIsPencil = touch.type == .pencil
         }
         return true
     }
@@ -335,6 +343,7 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
                 buttonDown = false
                 sendPointer(.ended, .left, at: point)
             }
+            if pressIsPencil { pencilDidClick(at: point) }
         case .cancelled, .failed:
             cancelPendingPress()
             if buttonDown {
@@ -476,25 +485,47 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
                 // Only the Pencil hovers above the glass; a trackpad pointer has no height.
                 if recognizer.zOffset > 0 { hoverIsPencil = true }
             }
+            if hoverIsPencil {
+                pencilNudgeWork?.cancel()  // Pencil still nearby; wait until it leaves
+                pencilNudgeWork = nil
+            }
             if !buttonDown { sendPointer(.moved, .none, at: point) }
         case .ended, .cancelled:
-            if hoverIsPencil, !buttonDown, let point = lastHoverPoint {
+            if hoverIsPencil, pencilClicked, !buttonDown, let point = lastHoverPoint {
                 nudgeOffScreenEdge(from: point)
             }
             hoverIsPencil = false
+            pencilClicked = false
             lastHoverPoint = nil
         default:
             break
         }
     }
 
-    /// The Pencil left hover range: if the pointer was parked on a screen
-    /// edge (where the Dock lives), move it inward so an auto-hiding Dock
-    /// closes instead of staying open under an invisible pointer.
+    /// After a Pencil click, once the Pencil is lifted away, the pointer
+    /// leaves the edge. Waits for the hover to end; if this iPad reports no
+    /// hover at all, does it shortly after the click.
+    private func pencilDidClick(at point: CGPoint) {
+        pencilClicked = true
+        lastHoverPoint = point
+        pencilNudgeWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.pencilClicked, !self.buttonDown else { return }
+            self.pencilClicked = false
+            self.nudgeOffScreenEdge(from: point)
+        }
+        pencilNudgeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+    }
+
+    /// If the pointer was left on a screen edge (Dock, menu bar), move it
+    /// inward so an auto-hiding Dock or menu bar closes instead of staying
+    /// open under a pointer you can no longer see.
     private func nudgeOffScreenEdge(from point: CGPoint) {
         let p = normalized(point)
         var target = p
         if p.y > 0.92 { target.y = 0.75 }
+        if p.y < 0.04 { target.y = 0.25 }
         if p.x < 0.04 { target.x = 0.25 }
         if p.x > 0.96 { target.x = 0.75 }
         guard target != p else { return }

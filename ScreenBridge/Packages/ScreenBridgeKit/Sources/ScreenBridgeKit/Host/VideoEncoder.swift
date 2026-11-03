@@ -86,6 +86,10 @@ final class VideoEncoder {
             VTSessionSetProperty(session, key: key, value: value as CFTypeRef)
         }
         set(kVTCompressionPropertyKey_RealTime, true)
+        // Hand every frame out as soon as it's encoded (no look-ahead queue).
+        set(kVTCompressionPropertyKey_MaxFrameDelayCount, 0)
+        // Speed over a few % of compression efficiency.
+        set(kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, true)
         set(kVTCompressionPropertyKey_AllowFrameReordering, false)
         set(kVTCompressionPropertyKey_ProfileLevel,
             config.codec == .hevc ? kVTProfileLevel_HEVC_Main_AutoLevel : kVTProfileLevel_H264_High_AutoLevel)
