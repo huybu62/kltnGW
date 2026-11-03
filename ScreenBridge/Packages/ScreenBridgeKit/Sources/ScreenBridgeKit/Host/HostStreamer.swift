@@ -40,7 +40,10 @@ final class HostStreamer: @unchecked Sendable {
     private let capturer = ScreenCapturer()
     /// Serializes frame admission and encoder submission.
     private let frameQueue = DispatchQueue(label: "app.screenbridge.frames", qos: .userInteractive)
-    private let maxFramesInFlight = 4
+    /// Unacknowledged frames allowed: about 100 ms of video (min 4). A fixed
+    /// small window caps throughput at window ÷ round-trip time, e.g. 4
+    /// frames over an 80 ms Wi-Fi round trip = 50 fps, whatever the setting.
+    private let maxFramesInFlight: Int
 
     private let lock = NSLock()
     private var encoder: VideoEncoder?
@@ -76,6 +79,7 @@ final class HostStreamer: @unchecked Sendable {
         self.mode = mode
         self.quality = quality
         self.frameRate = StreamFrameRate.clamped(frameRate, toDisplayMax: peerDisplay?.maxRefreshRate)
+        self.maxFramesInFlight = max(4, self.frameRate.rawValue / 10)
     }
 
     // MARK: - Lifecycle

@@ -47,6 +47,7 @@ public final class ConnectionCoordinator: ObservableObject {
     private var pingTask: Task<Void, Never>?
     private var pendingApproval: (id: UUID, continuation: CheckedContinuation<Bool, Never>)?
     private let busy = AtomicFlag()
+    private var discoveryPausedForSession = false
 
     public init(role: PeerRole, identity: DeviceIdentity? = nil, trustStore: TrustStore = TrustStore()) {
         var warning: String?
@@ -86,10 +87,17 @@ public final class ConnectionCoordinator: ObservableObject {
     // MARK: - Lifecycle
 
     public func start() { discovery.start() }
-    public func stop() { disconnect(); discovery.stop() }
+    public func stop() {
+        disconnect()
+        discoveryPausedForSession = false
+        discovery.stop()
+    }
 
     /// Call from `scenePhase == .active` on iPadOS (listeners die in background).
-    public func appDidBecomeActive() { discovery.restart() }
+    public func appDidBecomeActive() {
+        // While connected, discovery stays paused (see `adopt`).
+        if session == nil { discovery.restart() }
+    }
 
     /// Rename this device everywhere (TXT record, future handshakes).
     public func rename(to name: String) {
@@ -216,6 +224,14 @@ public final class ConnectionCoordinator: ObservableObject {
         self.session = session
         busy.set(true)
         discovery.setBusy(true)
+        // Pause Bonjour while connected. Browsing with peer-to-peer enabled
+        // keeps Apple's device-to-device Wi-Fi (AWDL) active, which makes the
+        // Wi-Fi radio hop channels and adds tens of ms of latency to the
+        // stream. The established connection is unaffected.
+        if discovery.isRunning {
+            discovery.stop()
+            discoveryPausedForSession = true
+        }
         phase = .connected
         activeLink = session.link
         roundTripMs = nil
@@ -286,6 +302,10 @@ public final class ConnectionCoordinator: ObservableObject {
         betterLinkAvailable = false
         busy.set(connectTask != nil)
         discovery.setBusy(false)
+        if discoveryPausedForSession {
+            discoveryPausedForSession = false
+            discovery.start()
+        }
     }
 
     // MARK: - Trust management
