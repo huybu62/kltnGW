@@ -140,7 +140,10 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         [press, scroll, rightClick, toggle, holdToggle, pinch, hover, secondaryClick, wheel]
             .forEach(addGestureRecognizer)
         addInteraction(UIPointerInteraction(delegate: self))
-        addInteraction(UIPencilInteraction(delegate: self))
+        // `UIPencilInteraction(delegate:)` is iPadOS 17.5+; set the delegate instead.
+        let pencil = UIPencilInteraction()
+        pencil.delegate = self
+        addInteraction(pencil)
     }
 
     // MARK: Apple Pencil double-tap → right-click
