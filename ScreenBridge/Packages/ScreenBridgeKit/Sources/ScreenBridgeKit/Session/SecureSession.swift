@@ -63,11 +63,15 @@ public final class SecureSession: @unchecked Sendable {
 
     /// Sends a ping; the RTT arrives later as `.roundTrip` in the event handler.
     public func ping() async throws {
-        lock.lock()
+        try await send(.ping(id: takePingID(), sentAt: ProcessInfo.processInfo.systemUptime))
+    }
+
+    /// Synchronous so NSLock is never held across (or called from) an async context.
+    private func takePingID() -> UInt64 {
+        lock.lock(); defer { lock.unlock() }
         let id = nextPingID
         nextPingID += 1
-        lock.unlock()
-        try await send(.ping(id: id, sentAt: ProcessInfo.processInfo.systemUptime))
+        return id
     }
 
     // MARK: Receiving

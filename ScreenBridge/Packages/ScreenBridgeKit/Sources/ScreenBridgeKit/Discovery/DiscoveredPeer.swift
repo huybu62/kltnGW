@@ -55,10 +55,11 @@ extension DiscoveredPeer {
                     firstSeen: previous[advertisement.deviceID]?.firstSeen ?? now)
             }
         }
-        for key in merged.keys {
-            merged[key]?.routes = Self.dedupe(merged[key]!.routes).sorted { $0.link < $1.link }
+        return merged.mapValues { peer in
+            var peer = peer
+            peer.routes = Self.dedupe(peer.routes).sorted { $0.link < $1.link }
+            return peer
         }
-        return merged
     }
 
     private static func dedupe(_ routes: [DiscoveredRoute]) -> [DiscoveredRoute] {
