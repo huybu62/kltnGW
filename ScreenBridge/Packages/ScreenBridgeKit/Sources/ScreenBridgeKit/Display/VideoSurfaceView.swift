@@ -164,6 +164,9 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         // Trackpad / mouse: two-finger click = right-click, two-finger swipe = scroll.
         let secondaryClick = UITapGestureRecognizer(target: self, action: #selector(handleRightClick(_:)))
         secondaryClick.buttonMaskRequired = .secondary
+        // Trackpad / mouse only. For fingers and the Pencil iPadOS ignores the
+        // button mask, so without this every tap was also a right-click.
+        secondaryClick.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
         let wheel = UIPanGestureRecognizer(target: self, action: #selector(handleScroll(_:)))
         wheel.allowedScrollTypesMask = .all
         wheel.allowedTouchTypes = []  // scroll events only, never fingers on the glass
