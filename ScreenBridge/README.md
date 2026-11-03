@@ -1,5 +1,7 @@
 # ScreenBridge
 
+> 🇻🇳 **Hướng dẫn đầy đủ bằng tiếng Việt: [HUONG-DAN.md](HUONG-DAN.md)**
+
 Use any Mac or iPad as a second display for a Mac, **even when the devices are signed in to different Apple IDs**.
 
 | Role | Platform | What it does |
