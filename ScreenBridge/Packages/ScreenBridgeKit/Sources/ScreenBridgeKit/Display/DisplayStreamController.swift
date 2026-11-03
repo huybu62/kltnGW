@@ -1,0 +1,206 @@
+import Foundation
+import Combine
+import AVFoundation
+import CoreMedia
+import CoreVideo
+
+/// Receives the Host's video, decodes it in hardware and shows it on an
+/// `AVSampleBufferDisplayLayer` (put `VideoSurfaceView` in your UI).
+/// Plug into `ConnectionCoordinator.mediaSink`.
+///
+/// Every frame is displayed immediately on arrival: there is no jitter
+/// buffer, because for a second screen low latency matters more than
+/// perfectly even pacing.
+public final class DisplayStreamController: ObservableObject, SessionMediaSink, @unchecked Sendable {
+    /// True while video is arriving; show `VideoSurfaceView` full screen.
+    @Published public private(set) var isReceiving = false
+    @Published public private(set) var stats: StreamStats?
+
+    public let displayLayer: AVSampleBufferDisplayLayer
+
+    private let decoder = VideoDecoder()
+    private let lock = NSLock()
+    private var session: SecureSession?
+    private var lastKeyframeRequest: TimeInterval = 0
+    private var framesThisSecond = 0
+    private var bytesThisSecond = 0
+    private var statsTimer: DispatchSourceTimer?
+
+    public init() {
+        displayLayer = AVSampleBufferDisplayLayer()
+        displayLayer.videoGravity = .resizeAspect
+        decoder.onDecoded = { [weak self] pixelBuffer in self?.show(pixelBuffer) }
+        decoder.onNeedsKeyframe = { [weak self] in self?.requestKeyframe() }
+    }
+
+    // MARK: SessionMediaSink
+
+    public func sessionStarted(_ session: SecureSession) {
+        lock.lock(); self.session = session; lock.unlock()
+        decoder.reset()
+        startStatsTimer()
+    }
+
+    public func sessionEnded() {
+        lock.lock()
+        session = nil
+        let timer = statsTimer
+        statsTimer = nil
+        lock.unlock()
+        timer?.cancel()
+        decoder.reset()
+        clearScreen()
+    }
+
+    /// Media queue.
+    public func received(type: UInt8, payload: Data, flags: UInt16) {
+        switch MessageType(rawValue: type) {
+        case .sealedVideoFormat:
+            guard let format = try? WireCoding.decode(VideoFormat.self, from: payload) else { return }
+            if !decoder.configure(format) { requestKeyframe() }
+
+        case .sealedVideoFrame:
+            guard let header = VideoFrameHeader(payload) else { return }
+            lock.lock()
+            let session = self.session
+            framesThisSecond += 1
+            bytesThisSecond += payload.count
+            lock.unlock()
+            // Acknowledge on arrival (not after decoding) so the Host's flow
+            // control measures the network, not our decoder.
+            session?.sendWithoutWaiting(.frameAck(frameNumber: header.frameNumber))
+
+            if decoder.currentFormat == nil {
+                requestKeyframe()
+                return
+            }
+            let isKeyframe = flags & VideoFrameFlags.keyframe != 0
+            decoder.decode(payload.subdata(in: payload.startIndex + VideoFrameHeader.size ..< payload.endIndex),
+                           isKeyframe: isKeyframe)
+            markReceiving(true)
+
+        default:
+            break  // input etc. (Phase 3)
+        }
+    }
+
+    public func receivedControl(_ message: ControlMessage) {
+        if case .streamStopped = message {
+            decoder.reset()
+            clearScreen()
+        }
+    }
+
+    /// Call when the app returns to the foreground (iPadOS may have reset
+    /// the decoder and the layer while in the background).
+    public func refresh() {
+        DispatchQueue.main.async { [weak self] in self?.flushLayerIfFailed() }
+        requestKeyframe()
+    }
+
+    // MARK: - Internals
+
+    private func requestKeyframe() {
+        lock.lock()
+        let now = ProcessInfo.processInfo.systemUptime
+        let session = self.session
+        let tooSoon = now - lastKeyframeRequest < 0.3
+        if !tooSoon { lastKeyframeRequest = now }
+        lock.unlock()
+        guard !tooSoon else { return }
+        session?.sendWithoutWaiting(.requestKeyframe)
+    }
+
+    /// VideoToolbox thread.
+    private func show(_ pixelBuffer: CVPixelBuffer) {
+        var description: CMVideoFormatDescription?
+        CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer,
+                                                     formatDescriptionOut: &description)
+        guard let description else { return }
+        var timing = CMSampleTimingInfo(duration: .invalid,
+                                        presentationTimeStamp: CMClockGetTime(CMClockGetHostTimeClock()),
+                                        decodeTimeStamp: .invalid)
+        var sample: CMSampleBuffer?
+        CMSampleBufferCreateReadyWithImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer,
+                                                 formatDescription: description, sampleTiming: &timing,
+                                                 sampleBufferOut: &sample)
+        guard let sample else { return }
+        Self.markDisplayImmediately(sample)
+        enqueue(sample)
+    }
+
+    private func enqueue(_ sample: CMSampleBuffer) {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            let renderer = displayLayer.sampleBufferRenderer
+            if renderer.status == .failed { renderer.flush() }
+            renderer.enqueue(sample)
+        } else {
+            if displayLayer.status == .failed { displayLayer.flush() }
+            displayLayer.enqueue(sample)
+        }
+    }
+
+    private func flushLayerIfFailed() {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            if displayLayer.sampleBufferRenderer.status == .failed { displayLayer.sampleBufferRenderer.flush() }
+        } else if displayLayer.status == .failed {
+            displayLayer.flush()
+        }
+    }
+
+    private func clearScreen() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if #available(iOS 17.0, macOS 14.0, *) {
+                self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
+            } else {
+                self.displayLayer.flushAndRemoveImage()
+            }
+            self.isReceiving = false
+            self.stats = nil
+        }
+    }
+
+    private func markReceiving(_ receiving: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isReceiving != receiving else { return }
+            self.isReceiving = receiving
+        }
+    }
+
+    private static func markDisplayImmediately(_ sample: CMSampleBuffer) {
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true),
+              CFArrayGetCount(attachments) > 0 else { return }
+        let dictionary = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
+        let trueValue: CFBoolean = kCFBooleanTrue
+        CFDictionarySetValue(dictionary,
+                             Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+                             Unmanaged.passUnretained(trueValue).toOpaque())
+    }
+
+    private func startStatsTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        timer.schedule(deadline: .now() + 1, repeating: 1)
+        timer.setEventHandler { [weak self] in self?.publishStats() }
+        lock.lock()
+        statsTimer?.cancel()
+        statsTimer = timer
+        lock.unlock()
+        timer.resume()
+    }
+
+    private func publishStats() {
+        lock.lock()
+        let frames = framesThisSecond
+        let bytes = bytesThisSecond
+        framesThisSecond = 0
+        bytesThisSecond = 0
+        lock.unlock()
+        guard let format = decoder.currentFormat else { return }
+        let stats = StreamStats(codec: format.codec, width: format.width, height: format.height,
+                                framesPerSecond: Double(frames),
+                                megabitsPerSecond: Double(bytes) * 8 / 1_000_000,
+                                latencyMs: nil, skippedFrames: 0)
+        DispatchQueue.main.async { [weak self] in self?.stats = stats }
+    }
+}

@@ -9,7 +9,7 @@ Use any Mac or iPad as a second display for a Mac, **even when the devices are s
 | **Host** | macOS 13+ (menu bar app) | Captures the screen with ScreenCaptureKit, encodes it with VideoToolbox (H.264/HEVC), sends it |
 | **Display** | macOS 13+ / iPadOS 16+ | Receives, decodes with VideoToolbox, renders with `AVSampleBufferDisplayLayer`/Metal |
 
-Status: **Phase 1 of 4 is done.** This phase covers discovery, the transport, pairing across Apple IDs, and the encrypted session. Phase 2 adds the video pipeline, Phase 3 streams it, Phase 4 builds the final UI (radar, onboarding).
+Status: **Phase 1 verified on hardware** (Mac ↔ iPad on different Apple IDs). **Phase 2 (video) is written and awaiting its first on-device test.** Phase 3 tunes latency and adds input and link migration; Phase 4 builds the final UI (radar, onboarding).
 
 ---
 
@@ -61,7 +61,26 @@ Initiator (either side)                       Responder
 
 Wired attempts time out after 2 s and wireless ones after 5 s, so a missing cable costs almost nothing. If a better path appears mid-session (you plug in the cable), it is reported as `betterLinkAvailable`. Phase 3 will move the stream onto it.
 
-## ⚠️ Constraints to know before Phases 2–3
+## Video pipeline (Phase 2)
+
+```
+Host (macOS)                                                   Display (iPadOS / macOS)
+ virtual display (Extend)  ─┐
+ or main display (Mirror)   ├─▶ ScreenCaptureKit (NV12, changed frames only)
+                            └─▶ VTCompressionSession (HEVC/H.264, real-time, no B-frames)
+                                  ─▶ ChaCha20-Poly1305 ─▶ TCP ─▶ open ─▶ VTDecompressionSession
+                                                                        ─▶ AVSampleBufferDisplayLayer
+                     ◀── frameAck per frame / requestKeyframe ──────────────┘
+```
+
+- **Flow control:** the Display acks every frame on arrival, and at most 4 frames may be unacknowledged. A newer screen update replaces a waiting one instead of queueing behind it, so latency can't build up on a slow link, and the newest image is always delivered eventually.
+- **Adaptive bitrate:** if frames are being skipped or latency goes above 120 ms, the bitrate drops 25%. After 5 calm seconds it climbs back 10% at a time, up to the quality preset's target.
+- **Idle screen ≈ zero traffic:** ScreenCaptureKit only delivers changed frames.
+- **Keyframes only on demand** (stream start, decoder reset, iPad returning from background), plus a 30 s safety net.
+- **Extend mode** uses `CGVirtualDisplay` (private CoreGraphics API, declared in the `CGVirtualDisplayPrivate` target). That's why the Host app is not sandboxed; both Display apps still are.
+- **Protocol v2:** both apps must run the same build.
+
+## ⚠️ Constraints to know before Phase 3
 
 1. **Bluetooth can't carry video.** In practice BLE moves well under 1 Mbit/s. A 1080p60 stream needs 15–40 Mbit/s, and Retina needs more. The Network framework also no longer runs Bonjour over Bluetooth. Where Bluetooth helps is waking or finding a device when Wi-Fi is off. That optional CoreBluetooth beacon fits behind the discovery layer later. AWDL already gives a cable-free, router-free path at Wi-Fi speeds.
 2. **iPad over a USB-C cable isn't an IP link.** A Mac ↔ Mac Thunderbolt Bridge is a normal network interface and works now. An iPad cabled to a Mac has no network interface unless you use a USB-C Ethernet adapter. A true wired iPad mode means talking to `usbmuxd` on the Mac, the approach PeerTalk uses. That's planned as an optional Phase 3 transport.
@@ -81,6 +100,9 @@ ScreenBridge/
 │   │   │                PeerConnection (async/await NWConnection), PeerConnector
 │   │   ├── Identity/    DeviceInfo, DeviceIdentity, SecretStore, TrustStore,
 │   │   │                HandshakeCrypto, SessionCrypto
+│   │   ├── Video/       VideoProtocol (format, frame header, quality presets, stats)
+│   │   ├── Host/        VirtualDisplay, ScreenCapturer, VideoEncoder, HostStreamer, HostStreamController (macOS)
+│   │   ├── Display/     VideoDecoder, DisplayStreamController, VideoSurfaceView
 │   │   └── Session/     HandshakeMessages, SessionHandshake, SecureSession,
 │   │                    ConnectionCoordinator (what SwiftUI binds to)
 │   └── Tests/           TXT, framing, link ranking, crypto, loopback end-to-end handshake

@@ -1,9 +1,9 @@
 // swift-tools-version:5.9
 import PackageDescription
 
-// ScreenBridgeKit: the shared networking core used by the Host (macOS) and
-// Display (macOS + iPadOS) apps. Pure Apple frameworks only: Network,
-// CryptoKit, Security, VideoToolbox. No iCloud, no Continuity, no Apple ID.
+// ScreenBridgeKit: the shared core used by the Host (macOS) and Display
+// (macOS + iPadOS) apps. Apple frameworks only: Network, CryptoKit,
+// Security, ScreenCaptureKit, VideoToolbox, AVFoundation. No iCloud.
 let package = Package(
     name: "ScreenBridgeKit",
     platforms: [
@@ -14,7 +14,17 @@ let package = Package(
         .library(name: "ScreenBridgeKit", targets: ["ScreenBridgeKit"]),
     ],
     targets: [
-        .target(name: "ScreenBridgeKit"),
+        // Private CoreGraphics virtual-display declarations (Extend mode, macOS only).
+        .target(
+            name: "CGVirtualDisplayPrivate",
+            linkerSettings: [.linkedFramework("CoreGraphics", .when(platforms: [.macOS]))]
+        ),
+        .target(
+            name: "ScreenBridgeKit",
+            dependencies: [
+                .target(name: "CGVirtualDisplayPrivate", condition: .when(platforms: [.macOS])),
+            ]
+        ),
         .testTarget(name: "ScreenBridgeKitTests", dependencies: ["ScreenBridgeKit"]),
     ]
 )

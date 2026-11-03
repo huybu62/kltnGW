@@ -7,10 +7,11 @@ public enum ScreenBridgeService {
     public static let type = "_screenbridge._tcp"
 
     /// Wire/handshake protocol version we speak.
-    public static let protocolVersion = 1
+    /// v2: video streaming + new control messages (frame acks, keyframes).
+    public static let protocolVersion = 2
 
     /// Oldest peer protocol version we still accept.
-    public static let minimumCompatibleVersion = 1
+    public static let minimumCompatibleVersion = 2
 
     /// Bonjour service instance names are limited to 63 UTF-8 bytes.
     static let maxServiceNameBytes = 63

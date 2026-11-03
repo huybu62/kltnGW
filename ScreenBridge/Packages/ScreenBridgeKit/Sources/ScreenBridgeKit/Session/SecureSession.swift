@@ -1,19 +1,24 @@
 import Foundation
 
 /// Small control messages exchanged after the handshake (always encrypted).
-/// Phase 2/3 add display configuration and bitrate feedback here.
 public enum ControlMessage: Codable, Sendable, Equatable {
     case ping(id: UInt64, sentAt: TimeInterval)
     case pong(id: UInt64, sentAt: TimeInterval)
     case goodbye(reason: String)
+    /// Display → Host: decoder lost sync; send a keyframe now.
+    case requestKeyframe
+    /// Display → Host: video frame received (flow control + latency).
+    case frameAck(frameNumber: UInt32)
+    /// Host → Display: the video stream ended (mode change, error, stop).
+    case streamStopped(reason: String)
 }
 
-public enum SessionEvent {
+public enum SessionEvent: @unchecked Sendable {
     case control(ControlMessage)
     /// Round-trip time measured from a ping we sent.
     case roundTrip(TimeInterval)
-    /// Any other decrypted message type (video, input — Phase 3).
-    case message(type: UInt8, payload: Data)
+    /// Any other decrypted message type (video, input).
+    case message(type: UInt8, payload: Data, flags: UInt16)
     case closed(Error?)
 }
 
@@ -28,6 +33,9 @@ public final class SecureSession: @unchecked Sendable {
 
     let crypto: SessionCrypto
     private let lock = NSLock()
+    /// Held while sealing + enqueueing so the encryption counter reaches
+    /// the wire in order even when several threads send at once.
+    private let sendLock = NSLock()
     private var receiveTask: Task<Void, Never>?
     private var nextPingID: UInt64 = 0
     private var closed = false
@@ -44,21 +52,56 @@ public final class SecureSession: @unchecked Sendable {
         self.wasNewlyPaired = wasNewlyPaired
     }
 
-    // MARK: Sending
+    // MARK: Sending (safe to call from any thread)
 
     public func send(_ control: ControlMessage) async throws {
         try await sendSealed(.sealedControl, payload: WireCoding.encode(control))
     }
 
-    public func sendSealed(_ type: MessageType, payload: Data, flags: UInt16 = 0) async throws {
-        let sealed = try crypto.seal(payload, messageType: type.rawValue)
-        try await connection.send(type, payload: sealed, flags: flags)
+    /// For high-rate control messages (frame acks) from non-async code.
+    public func sendWithoutWaiting(_ control: ControlMessage) {
+        guard let payload = try? WireCoding.encode(control) else { return }
+        try? enqueueSealed(.sealedControl, payload: payload, flags: 0, completion: nil)
     }
 
-    /// Non-blocking variant for per-frame video (Phase 3).
+    public func sendSealed(_ type: MessageType, payload: Data, flags: UInt16 = 0) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            do {
+                try enqueueSealed(type, payload: payload, flags: flags) { error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume()
+                    }
+                }
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    /// Non-blocking variant for per-frame video.
     public func sendSealedWithoutWaiting(_ type: MessageType, payload: Data, flags: UInt16 = 0) throws {
+        try enqueueSealed(type, payload: payload, flags: flags, completion: nil)
+    }
+
+    /// Like `sendSealedWithoutWaiting`, but reports when the network stack
+    /// has taken the data (used to measure send throughput).
+    public func sendSealed(_ type: MessageType, payload: Data, flags: UInt16 = 0,
+                           completion: @escaping (Error?) -> Void) {
+        do {
+            try enqueueSealed(type, payload: payload, flags: flags, completion: completion)
+        } catch {
+            completion(error)
+        }
+    }
+
+    private func enqueueSealed(_ type: MessageType, payload: Data, flags: UInt16,
+                               completion: ((Error?) -> Void)?) throws {
+        sendLock.lock()
+        defer { sendLock.unlock() }
         let sealed = try crypto.seal(payload, messageType: type.rawValue)
-        connection.sendWithoutWaiting(type, payload: sealed, flags: flags)
+        connection.enqueue(type, payload: sealed, flags: flags, completion: completion)
     }
 
     /// Sends a ping; the RTT arrives later as `.roundTrip` in the event handler.
@@ -89,14 +132,17 @@ public final class SecureSession: @unchecked Sendable {
                     let wire = try await self.connection.receive()
                     let plaintext = try self.crypto.open(wire.payload, messageType: wire.rawType)
                     if wire.type == .sealedControl {
-                        let control = try WireCoding.decode(ControlMessage.self, from: plaintext)
+                        // Unknown control messages (newer peer) are ignored, not fatal.
+                        guard let control = try? WireCoding.decode(ControlMessage.self, from: plaintext) else {
+                            continue
+                        }
                         switch control {
                         case .ping(let id, let sentAt):
-                            try? await self.send(.pong(id: id, sentAt: sentAt))
+                            self.sendWithoutWaiting(.pong(id: id, sentAt: sentAt))
                         case .pong(_, let sentAt):
                             let rtt = ProcessInfo.processInfo.systemUptime - sentAt
                             queue.async { handler(.roundTrip(rtt)) }
-                        case .goodbye:
+                        default:
                             break
                         }
                         queue.async { handler(.control(control)) }
@@ -105,7 +151,9 @@ public final class SecureSession: @unchecked Sendable {
                             return
                         }
                     } else {
-                        queue.async { handler(.message(type: wire.rawType, payload: plaintext)) }
+                        queue.async {
+                            handler(.message(type: wire.rawType, payload: plaintext, flags: wire.flags))
+                        }
                     }
                 } catch {
                     self.markClosed(queue: queue, handler: handler, error: error)
@@ -133,4 +181,14 @@ public final class SecureSession: @unchecked Sendable {
         receiveTask?.cancel()
         connection.cancel()
     }
+}
+
+/// Receives the media side of a session (video now, input in Phase 3).
+/// `sessionStarted`/`sessionEnded` run on the main thread; `received…`
+/// run on a dedicated high-priority queue and must not block.
+public protocol SessionMediaSink: AnyObject, Sendable {
+    func sessionStarted(_ session: SecureSession)
+    func sessionEnded()
+    func received(type: UInt8, payload: Data, flags: UInt16)
+    func receivedControl(_ message: ControlMessage)
 }

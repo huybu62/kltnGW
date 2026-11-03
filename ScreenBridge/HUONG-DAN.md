@@ -2,10 +2,10 @@
 
 ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình phụ cho một chiếc Mac khác**, kể cả khi hai máy **đăng nhập hai Apple ID khác nhau**. Sidecar của Apple không làm được việc này.
 
-> **Tình trạng hiện tại: đã xong Giai đoạn 1/4.**
-> Ở giai đoạn này hai máy đã **tự tìm thấy nhau, ghép đôi bằng mã 6 số, kết nối có mã hóa** và hiển thị độ trễ.
-> **Chưa có hình ảnh màn hình.** Phần quay màn hình, nén và hiển thị video là Giai đoạn 2–3.
-> Mã nguồn **chưa được biên dịch thử** (máy làm việc của Claude không có Xcode). Lần build đầu có thể gặp vài lỗi. Xem [mục 9](#9-khi-build-bị-lỗi) để biết cách gửi lỗi cho Claude sửa.
+> **Tình trạng hiện tại: đang ở Giai đoạn 2/4.**
+> - **Giai đoạn 1 (đã chạy thật trên Mac + iPad):** hai máy tự tìm thấy nhau, ghép đôi bằng mã 6 số, kết nối có mã hóa.
+> - **Giai đoạn 2 (mới viết, chờ thử):** hình màn hình Mac hiện lên iPad, ở chế độ **Mở rộng** (iPad thành màn hình thứ hai) hoặc **Phản chiếu**. Cách thử ở [mục 8B](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình).
+> - Phần mới **chưa được biên dịch thử** (máy làm việc của Claude không có Xcode). Lần build đầu có thể gặp vài lỗi. Xem [mục 9](#9-khi-build-bị-lỗi) để biết cách gửi lỗi cho Claude sửa.
 
 ---
 
@@ -19,6 +19,7 @@ ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình ph�
 6. [Chạy trên Mac (máy phát, Host)](#6-chạy-trên-mac-máy-phát-host)
 7. [Chạy trên iPad hoặc Mac thứ hai (máy nhận, Display)](#7-chạy-trên-ipad-hoặc-mac-thứ-hai-máy-nhận-display)
 8. [Kiểm tra Giai đoạn 1 từng bước](#8-kiểm-tra-giai-đoạn-1-từng-bước)
+    - [8B. Kiểm tra Giai đoạn 2 (hình ảnh màn hình)](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình)
 9. [Khi build bị lỗi](#9-khi-build-bị-lỗi)
 10. [Xử lý sự cố khi chạy](#10-xử-lý-sự-cố-khi-chạy)
 11. [Dùng cáp Thunderbolt](#11-dùng-cáp-thunderbolt)
@@ -312,6 +313,77 @@ Kết quả đúng: `x86_64 arm64`.
 
 ---
 
+## 8B. Kiểm tra Giai đoạn 2 (hình ảnh màn hình)
+
+### Cập nhật và cài lại cả hai app
+
+Phiên bản mới đổi giao thức kết nối, nên **phải cài lại cả app Mac lẫn app iPad**. App cũ sẽ hiện *"Update needed"*.
+
+1. Thoát Xcode (**⌘Q**).
+2. Lấy bản mới, tạo lại project, rồi chạy kiểm thử:
+
+   ```bash
+   cd ~/Desktop/kltnGW && git pull
+   ```
+
+   ```bash
+   cd ScreenBridge && xcodegen generate
+   ```
+
+   ```bash
+   cd Packages/ScreenBridgeKit && swift test
+   ```
+
+   Kiểm thử giờ có thêm bài **nén video bằng chip phần cứng rồi giải nén lại** ngay trên Mac. Dòng cuối phải là `with 0 failures`.
+3. Mở project. Chạy **ScreenBridgeDisplay-iOS** lên iPad trước (**⌘R**), sau đó chạy **ScreenBridgeHost** trên **My Mac** (**⌘R**). Khi Xcode hỏi dừng app iPad thì cứ bấm **Stop**, rồi mở app trên iPad bằng tay.
+
+### Lần đầu: ghép đôi lại và cấp quyền quay màn hình
+
+- **Ghép đôi lại một lần:** app Mac giờ không còn chạy trong "hộp cát" (sandbox) nữa, vì chế độ Mở rộng cần như vậy. Do đó Mac lưu dữ liệu ở chỗ mới và quên iPad. iPad sẽ hiện mã kèm **cảnh báo cam** *"đã từng ghép đôi"*. Lần này là bình thường: so mã rồi bấm **Codes Match** trên cả hai máy.
+- **Quyền quay màn hình (Screen Recording):** lần đầu kết nối, macOS hỏi cho phép ScreenBridge quay màn hình.
+  1. Bấm **Mở Cài đặt hệ thống** (hoặc nút **Open Settings** trong menu ScreenBridge).
+  2. Vào **Quyền riêng tư & Bảo mật → Ghi màn hình & âm thanh hệ thống**, bật **ScreenBridge**.
+  3. macOS có thể đòi **thoát và mở lại** app. Làm theo, rồi kết nối lại (hoặc bấm **Try Again**).
+
+### Thử từng chế độ
+
+Khi đã kết nối, menu ScreenBridge trên Mac có thêm phần **Screen sharing**:
+
+| Mục | Lựa chọn |
+|---|---|
+| **Mode** (chế độ) | **Extend** = iPad thành màn hình thứ hai (mặc định) · **Mirror** = iPad hiện y hệt màn hình Mac |
+| **Quality** (chất lượng) | **Battery Saver** (tiết kiệm pin: 30 hình/giây, nửa độ phân giải) · **Balanced** (cân bằng: 60 hình/giây, đủ độ phân giải) · **Best Quality** (nét nhất) |
+
+| Bước | Làm gì | Kết quả đúng |
+|---|---|---|
+| 1 | Kết nối Mac với iPad như Giai đoạn 1. | Menu Mac hiện **Streaming** màu xanh, kèm dòng số liệu dạng `HEVC 2732×2048 · 60 fps · 25.0 Mbps · 15 ms`. |
+| 2 | Nhìn iPad. | iPad chuyển sang **toàn màn hình đen**, rồi hiện hình. Ở chế độ Extend đó là một **màn hình trống** (hình nền macOS). |
+| 3 | Trên Mac, kéo một cửa sổ (ví dụ Safari) **ra mép phải màn hình** và tiếp tục kéo sang. | Cửa sổ "bay" sang iPad. |
+| 4 | Nếu cửa sổ sang sai phía: **Cài đặt hệ thống → Màn hình (Displays) → Sắp xếp (Arrange)**. | Kéo ô màn hình iPad tới vị trí thật của iPad so với Mac. |
+| 5 | Đổi **Mode** sang **Mirror**. | Sau 1–2 giây, iPad hiện **y hệt** màn hình Mac. Màn hình Mac rộng hơn iPad nên có viền đen trên dưới; đây là bình thường. |
+| 6 | Đổi **Quality** sang **Battery Saver**. | Số liệu đổi thành khoảng `30 fps`, Mbps giảm rõ. |
+| 7 | Trên iPad, **chạm nhanh 2 lần** vào màn hình. | Hiện thanh nhỏ phía trên: đường kết nối, số liệu, nút **Hide** (ẩn) và **Disconnect** (ngắt). |
+| 8 | Bấm **Disconnect**. | Màn hình phụ biến mất khỏi Mac; các cửa sổ trên đó tự về màn hình Mac. |
+
+**Ý nghĩa dòng số liệu** `HEVC 2732×2048 · 60 fps · 25.0 Mbps · 15 ms`:
+
+| Phần | Nghĩa |
+|---|---|
+| HEVC / H.264 | Chuẩn nén video. HEVC nét hơn ở cùng dung lượng; Mac đời cũ tự dùng H.264. |
+| 2732×2048 | Độ phân giải đang truyền |
+| 60 fps | Số hình mỗi giây. **Khi màn hình đứng yên, con số này về gần 0**: không có gì thay đổi thì không gửi, nên tiết kiệm pin. |
+| 25.0 Mbps | Lượng dữ liệu đang truyền |
+| 15 ms | Độ trễ từ lúc Mac gửi tới lúc iPad nhận |
+
+### Gửi Claude kết quả
+
+Chụp màn hình gửi Claude:
+1. Menu Mac lúc **Streaming** (có dòng số liệu).
+2. iPad lúc đang hiện hình.
+3. Nếu có: hình bị giật, trễ, mờ, sai màu, hoặc lỗi (chữ đỏ). Mô tả ngắn: *"kéo cửa sổ thì giật"*, *"chữ hơi mờ"*…
+
+---
+
 ## 9. Khi build bị lỗi
 
 Mã nguồn chưa được biên dịch thử, nên lần đầu có thể gặp lỗi. Đây là việc bình thường. Cách gửi lỗi cho Claude sửa:
@@ -348,6 +420,10 @@ Các lỗi hay gặp không phải do mã nguồn:
 | **Hai mã 6 số KHÁC nhau** | Có thể có thiết bị lạ chen giữa. | **Bấm Decline (Từ chối)**, rồi thử lại. Mã khớp mới đồng ý. |
 | *"already connected to someone else"* | Máy kia đang kết nối với máy khác. | Ngắt kết nối bên đó trước. |
 | *"incompatible ScreenBridge version"* | Hai máy cài hai phiên bản app khác nhau. | Build lại cùng một phiên bản mã nguồn cho cả hai. |
+| Menu Mac báo **Screen Recording permission needed** | Chưa cấp quyền quay màn hình. | Bấm **Open Settings**, bật **ScreenBridge**, thoát và mở lại app nếu macOS yêu cầu, rồi bấm **Try Again**. |
+| iPad **đen**, hoặc hiện mãi *"Waiting for the Mac to start sharing…"* | Mac chưa bắt đầu truyền (thiếu quyền, hoặc lỗi). | Mở menu ScreenBridge trên Mac xem dòng trạng thái màu đỏ/cam. Thử đổi Mode sang **Mirror**. |
+| Chế độ **Extend** báo *"Couldn't create the extra display"* | macOS không cho tạo màn hình ảo. | Dùng **Mirror**, rồi gửi Claude ảnh lỗi. |
+| Chữ trên iPad **hơi mờ** ở chế độ Extend | macOS đang chọn độ phân giải thấp cho màn hình ảo. | **Cài đặt hệ thống → Màn hình** → chọn màn hình *ScreenBridge* → chọn độ phân giải lớn nhất, hoặc chế độ có chữ *HiDPI*. Chọn Quality **Best Quality**. |
 | App trên iPad **không mở được sau vài ngày** | Tài khoản miễn phí: hết hạn 7 ngày. | Cắm iPad vào Mac, bấm Run lại. |
 | iPad tự tắt màn hình | — | Khi đã kết nối, app tự giữ màn hình sáng. Lúc chưa kết nối thì iPad tắt màn hình như bình thường. |
 
@@ -455,8 +531,8 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 | Giai đoạn | Nội dung | Trạng thái |
 |---|---|---|
 | **1** | Tìm thiết bị (Bonjour), chọn đường kết nối tốt nhất, ghép đôi khác Apple ID, mã hóa | ✅ Xong |
-| **2** | Quay màn hình (ScreenCaptureKit), nén phần cứng H.264/HEVC (VideoToolbox) trên Mac; giải nén và hiển thị trên iPad/Mac; màn hình ảo cho chế độ mở rộng | ⏳ Tiếp theo |
-| **3** | Truyền video qua kết nối mã hóa, tự điều chỉnh chất lượng theo tốc độ mạng, tối thiểu 1080p 60Hz, tự chuyển sang Thunderbolt, cảm ứng/chuột từ iPad | ⏳ |
+| **2** | Quay màn hình (ScreenCaptureKit), nén phần cứng H.264/HEVC (VideoToolbox) trên Mac; giải nén và hiển thị trên iPad/Mac; màn hình ảo cho chế độ mở rộng; truyền video mã hóa, tự giảm chất lượng khi mạng chậm | 🧪 Đang thử |
+| **3** | Tinh chỉnh độ trễ và chất lượng theo số đo thật, tự chuyển sang Thunderbolt khi cắm cáp, cảm ứng/bút Apple Pencil từ iPad điều khiển Mac, đường cáp USB cho iPad | ⏳ |
 | **4** | Giao diện hoàn chỉnh: bảng điều khiển trên thanh menu, màn hình **radar** hiện thiết bị xung quanh, kết nối 1 chạm, hướng dẫn bằng hình khi không tìm thấy máy | ⏳ |
 
-Khi đã chạy thử xong Giai đoạn 1 (hoặc gặp lỗi), hãy nhắn Claude: **"Bắt đầu Giai đoạn 2"**, hoặc gửi lỗi theo hướng dẫn ở mục 9.
+Khi đã thử xong Giai đoạn 2 (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8B](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình), hoặc gửi lỗi theo hướng dẫn ở mục 9.

@@ -215,4 +215,46 @@ final class LoopbackHandshakeTests: XCTestCase {
         XCTAssertEqual(prompts, 2)
         await s2.close(); await d2.close()
     }
+    /// Many threads sending at once must never reorder the encryption
+    /// counter (the receiver would reject the stream and disconnect).
+    func testConcurrentSendersKeepEncryptionOrder() async throws {
+        let host = Device(role: .host)
+        let display = Device(role: .display)
+        let server = try LoopbackServer(config: display.config { _ in true })
+        let port = try await server.start()
+        defer { server.stop() }
+
+        let connection = try await PeerConnector.connect(host: "127.0.0.1", port: port, callbackQueue: .global())
+        let hostSession = try await SessionHandshake.initiate(over: connection, config: host.config { _ in true })
+        let displaySession = try await server.nextResult().get()
+
+        let senders = 4
+        let perSender = 100
+        let received = expectation(description: "all messages")
+        received.expectedFulfillmentCount = senders * perSender
+        let closedEarly = expectation(description: "closed early")
+        closedEarly.isInverted = true
+        displaySession.startReceiving(on: .global()) { event in
+            switch event {
+            case .message: received.fulfill()
+            case .closed: closedEarly.fulfill()
+            default: break
+            }
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            for sender in 0..<senders {
+                group.addTask {
+                    for index in 0..<perSender {
+                        try? hostSession.sendSealedWithoutWaiting(
+                            .sealedVideoFrame, payload: Data(repeating: UInt8(sender), count: 500 + index))
+                        if index % 10 == 0 { hostSession.sendWithoutWaiting(.frameAck(frameNumber: UInt32(index))) }
+                    }
+                }
+            }
+        }
+        await fulfillment(of: [received, closedEarly], timeout: 5)
+        await hostSession.close()
+        await displaySession.close()
+    }
 }

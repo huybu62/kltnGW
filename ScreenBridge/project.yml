@@ -81,7 +81,10 @@ targets:
     entitlements:
       path: Support/Host.entitlements
       properties:
-        <<: *macSandbox
+        # Not sandboxed: Extend mode creates a virtual display with a private
+        # CoreGraphics API, which a sandboxed app can't rely on. (Display apps
+        # stay sandboxed.)
+        com.apple.security.app-sandbox: false
     settings:
       base:
         PRODUCT_NAME: ScreenBridge

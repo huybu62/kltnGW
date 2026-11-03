@@ -36,8 +36,12 @@ public final class ConnectionCoordinator: ObservableObject {
     public let discovery: DiscoveryService
     public private(set) var localDevice: DeviceInfo
 
-    /// Decrypted non-control messages (video/input), for Phase 2/3.
-    public var onSessionMessage: ((UInt8, Data) -> Void)?
+    /// Receives video/input for the active session (set by the app).
+    public var mediaSink: SessionMediaSink?
+
+    /// Media is handled here, never on the main thread, so UI work can't
+    /// delay frames.
+    private let mediaQueue = DispatchQueue(label: "app.screenbridge.media", qos: .userInteractive)
 
     private var connectTask: Task<Void, Never>?
     private var pingTask: Task<Void, Never>?
@@ -219,15 +223,27 @@ public final class ConnectionCoordinator: ObservableObject {
 
         session.connection.onLinkChange = { [weak self] link in self?.activeLink = link }
         session.connection.onBetterPathAvailable = { [weak self] better in self?.betterLinkAvailable = better }
-        session.startReceiving { [weak self, weak session] event in
-            guard let self, let session, session === self.session else { return }
-            self.handle(event)
+        let sink = mediaSink
+        sink?.sessionStarted(session)  // before any media can arrive
+        session.startReceiving(on: mediaQueue) { @Sendable [weak self, weak session] event in
+            switch event {
+            case .message(let type, let payload, let flags):
+                sink?.received(type: type, payload: payload, flags: flags)
+            case .control(let message):
+                sink?.receivedControl(message)
+            case .roundTrip, .closed:
+                let current = session
+                Task { @MainActor [weak self] in
+                    guard let self, let current, current === self.session else { return }
+                    self.handle(event)
+                }
+            }
         }
         pingTask = Task { [weak session] in
             while !Task.isCancelled {
                 guard let session else { return }
                 try? await session.ping()
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
     }
@@ -244,10 +260,8 @@ public final class ConnectionCoordinator: ObservableObject {
             } else {
                 phase = .idle
             }
-        case .message(let type, let payload):
-            onSessionMessage?(type, payload)
-        case .control:
-            break
+        case .message, .control:
+            break  // routed to mediaSink on the media queue
         }
     }
 
@@ -263,6 +277,7 @@ public final class ConnectionCoordinator: ObservableObject {
     }
 
     private func teardownSession() {
+        if session != nil { mediaSink?.sessionEnded() }
         pingTask?.cancel()
         pingTask = nil
         session = nil

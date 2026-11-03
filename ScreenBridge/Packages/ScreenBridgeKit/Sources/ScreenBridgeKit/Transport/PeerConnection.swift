@@ -153,24 +153,39 @@ public final class PeerConnection: @unchecked Sendable {
 
     /// Sends one framed message; returns once the stack has accepted it.
     public func send(_ type: MessageType, payload: Data, flags: UInt16 = 0) async throws {
-        let context = Self.context(for: type, flags: flags)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            nwConnection.send(content: payload, contentContext: context, isComplete: true,
-                              completion: .contentProcessed { error in
+            enqueue(type, payload: payload, flags: flags) { error in
                 if let error {
-                    continuation.resume(throwing: PeerConnectionError.network(error))
+                    continuation.resume(throwing: error)
                 } else {
                     continuation.resume()
                 }
-            })
+            }
         }
     }
 
-    /// Fire-and-forget send for the high-rate video path (Phase 3): avoids a
-    /// continuation per frame; errors surface through `onTerminated`.
+    /// Fire-and-forget send for the high-rate video path; errors surface
+    /// through `onTerminated`.
     public func sendWithoutWaiting(_ type: MessageType, payload: Data, flags: UInt16 = 0) {
-        nwConnection.send(content: payload, contentContext: Self.context(for: type, flags: flags),
-                          isComplete: true, completion: .idempotent)
+        enqueue(type, payload: payload, flags: flags, completion: nil)
+    }
+
+    /// Hands one message to the network stack synchronously. NWConnection
+    /// keeps call order, so callers that need ordering (encrypted messages
+    /// carry an increasing counter) serialize their calls to this.
+    /// `completion` runs when the stack has processed the data.
+    public func enqueue(_ type: MessageType, payload: Data, flags: UInt16 = 0,
+                        completion: ((Error?) -> Void)?) {
+        let context = Self.context(for: type, flags: flags)
+        guard let completion else {
+            nwConnection.send(content: payload, contentContext: context, isComplete: true,
+                              completion: .idempotent)
+            return
+        }
+        nwConnection.send(content: payload, contentContext: context, isComplete: true,
+                          completion: .contentProcessed { error in
+            completion(error.map { PeerConnectionError.network($0) as Error })
+        })
     }
 
     /// Receives the next whole message. Only one receive may be outstanding.
