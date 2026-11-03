@@ -12,9 +12,11 @@ public enum ScreenBridgeParameters {
     /// handshake (`SessionHandshake`) does ECDH + identity signatures and all
     /// post-handshake traffic is sealed with ChaCha20-Poly1305.
     ///
-    /// - Parameter requiredInterface: pin the connection to one interface,
-    ///   used to force Thunderbolt/Ethernet when the peer is reachable there.
-    public static func make(requiredInterface: NWInterface? = nil) -> NWParameters {
+    /// - Parameters:
+    ///   - requiredInterface: pin the connection to one interface, used to
+    ///     force Thunderbolt/Ethernet when the peer is reachable there.
+    ///   - prohibitWiFi: skip Wi-Fi (incl. AWDL); used to look for a cable path.
+    public static func make(requiredInterface: NWInterface? = nil, prohibitWiFi: Bool = false) -> NWParameters {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true                 // never Nagle a video frame
         tcp.enableKeepalive = true
@@ -28,7 +30,7 @@ public enum ScreenBridgeParameters {
         // networks with client isolation) regardless of Apple ID.
         parameters.includePeerToPeer = true
         parameters.serviceClass = .interactiveVideo
-        parameters.prohibitedInterfaceTypes = [.cellular]
+        parameters.prohibitedInterfaceTypes = prohibitWiFi ? [.cellular, .wifi] : [.cellular]
         if let requiredInterface {
             parameters.requiredInterface = requiredInterface
         }

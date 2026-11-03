@@ -38,9 +38,28 @@ struct HostStreamPanel: View {
             }
 
             status
+
+            if stream.state == .streaming {
+                controlPermission
+            }
         }
         .padding(.horizontal)
         .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private var controlPermission: some View {
+        if stream.canControlMac {
+            Label("Touch & Apple Pencil control: on", systemImage: "hand.tap")
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Allow touch & Apple Pencil control", systemImage: "hand.tap")
+                Text("macOS needs the Accessibility permission for ScreenBridge to move the pointer and click.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Open Accessibility Settings") { stream.requestControlPermission() }
+            }
+        }
     }
 
     @ViewBuilder
@@ -62,6 +81,8 @@ struct HostStreamPanel: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+        case .reconnecting:
+            HStack { ProgressView().controlSize(.small); Text("Connection lost. Reconnecting…") }
         case .needsScreenRecordingPermission:
             VStack(alignment: .leading, spacing: 6) {
                 Label("Screen Recording permission needed", systemImage: "exclamationmark.triangle")

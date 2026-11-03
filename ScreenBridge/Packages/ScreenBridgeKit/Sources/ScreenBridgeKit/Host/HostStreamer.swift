@@ -34,7 +34,13 @@ final class HostStreamer: @unchecked Sendable {
     var onStats: ((StreamStats) -> Void)?
     var onFailure: ((Error) -> Void)?
 
-    private let session: SecureSession
+    /// Swapped when the connection moves to another link (see `attach`).
+    private var session: SecureSession
+    /// The Display this stream is for; a reconnecting session from the same
+    /// device can take the stream over without rebuilding the virtual display.
+    let peerID: String
+    private let peerName: String
+    private var capturedDisplayID: CGDirectDisplayID?
     private let peerDisplay: DisplayCapabilities?
     private let streamID = UInt32.random(in: 1...UInt32.max)
     private let capturer = ScreenCapturer()
@@ -75,6 +81,8 @@ final class HostStreamer: @unchecked Sendable {
     init(session: SecureSession, peerDisplay: DisplayCapabilities?, mode: StreamMode,
          quality: StreamQuality, frameRate: StreamFrameRate) {
         self.session = session
+        self.peerID = session.peer.id
+        self.peerName = session.peer.name
         self.peerDisplay = peerDisplay
         self.mode = mode
         self.quality = quality
@@ -91,6 +99,7 @@ final class HostStreamer: @unchecked Sendable {
         }
 
         let target = try await prepareDisplay()
+        setCapturedDisplay(target.displayID)
         let fps = frameRate.rawValue
         let bitrate = quality.bitrate(width: target.width, height: target.height, framesPerSecond: fps)
         let encoder = try VideoEncoder(configuration: .init(
@@ -127,11 +136,38 @@ final class HostStreamer: @unchecked Sendable {
             pendingFrame = nil
             lastFrame = nil
         }
-        session.sendWithoutWaiting(.streamStopped(reason: reason))
+        currentSession().sendWithoutWaiting(.streamStopped(reason: reason))
         // Remove the virtual display on the main thread.
         if let display {
             DispatchQueue.main.async { withExtendedLifetime(display) {} }
         }
+    }
+
+    // MARK: - Session hand-over
+
+    /// The display being captured (for mapping input), once started.
+    var displayID: CGDirectDisplayID? {
+        lock.lock(); defer { lock.unlock() }
+        return capturedDisplayID
+    }
+
+    /// Continues this stream on a new session from the same Display (link
+    /// switch or reconnect). Flow control restarts and a keyframe follows.
+    func attach(_ newSession: SecureSession) {
+        lock.lock()
+        session = newSession
+        lastAckedFrame = lastSentFrame
+        framesAwaitingEncoder = 0
+        sendTimes.removeAll()
+        latencyMs = nil
+        lastProgress = ProcessInfo.processInfo.systemUptime
+        lock.unlock()
+        requestKeyframe()
+    }
+
+    private func currentSession() -> SecureSession {
+        lock.lock(); defer { lock.unlock() }
+        return session
     }
 
     // Lock helpers are synchronous: NSLock must not be used directly in async code.
@@ -143,6 +179,11 @@ final class HostStreamer: @unchecked Sendable {
         self.height = height
         targetBitrate = bitrate
         currentBitrate = bitrate
+    }
+
+    private func setCapturedDisplay(_ displayID: CGDirectDisplayID) {
+        lock.lock(); defer { lock.unlock() }
+        capturedDisplayID = displayID
     }
 
     private func keep(_ display: VirtualDisplay) {
@@ -170,7 +211,7 @@ final class HostStreamer: @unchecked Sendable {
 
         switch mode {
         case .extend:
-            let name = "ScreenBridge – \(session.peer.name)"
+            let name = "ScreenBridge – \(peerName)"
             let refresh = Double(max(frameRate.rawValue, 60))
             let created = await MainActor.run {
                 VirtualDisplay(name: name, pixelWidth: screenWidth, pixelHeight: screenHeight, refreshRate: refresh)
@@ -256,6 +297,7 @@ final class HostStreamer: @unchecked Sendable {
         framesThisSecond += 1
         bytesThisSecond += frame.data.count
         let format = frame.isKeyframe ? currentFormat(frame) : nil
+        let session = self.session
         lock.unlock()
 
         if let format, let json = try? WireCoding.encode(format) {

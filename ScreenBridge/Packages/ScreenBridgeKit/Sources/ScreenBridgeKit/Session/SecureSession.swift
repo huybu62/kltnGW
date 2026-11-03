@@ -188,7 +188,10 @@ public final class SecureSession: @unchecked Sendable {
 /// run on a dedicated high-priority queue and must not block.
 public protocol SessionMediaSink: AnyObject, Sendable {
     func sessionStarted(_ session: SecureSession)
-    func sessionEnded()
+    /// `willReconnect`: the link dropped or is being switched, and the same
+    /// peer is expected back shortly. Keep state (virtual display, last
+    /// frame) for a while instead of tearing everything down.
+    func sessionEnded(willReconnect: Bool)
     func received(type: UInt8, payload: Data, flags: UInt16)
     func receivedControl(_ message: ControlMessage)
 }

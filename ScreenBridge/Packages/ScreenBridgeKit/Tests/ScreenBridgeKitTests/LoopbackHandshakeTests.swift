@@ -257,4 +257,40 @@ final class LoopbackHandshakeTests: XCTestCase {
         await hostSession.close()
         await displaySession.close()
     }
+    /// A busy Display turns strangers away but lets the device it's already
+    /// connected to back in (link switch / reconnect).
+    func testBusyResponderAdmitsOnlyCurrentPeer() async throws {
+        let host = Device(role: .host)
+        let stranger = Device(role: .host)
+        let display = Device(role: .display)
+        let hostID = host.identity.fingerprint
+        // Pre-pair everyone with the display so no prompts are involved.
+        for device in [host, stranger] {
+            display.trust.trust(TrustedPeer(id: device.identity.fingerprint, name: "x", platform: .mac,
+                                            identityKey: device.identity.publicKeyData))
+            device.trust.trust(TrustedPeer(id: display.identity.fingerprint, name: "d", platform: .iPad,
+                                           identityKey: display.identity.publicKeyData))
+        }
+        var config = display.config { _ in false }
+        config.isBusy = { peer in peer.id != hostID }
+        let server = try LoopbackServer(config: config)
+        let port = try await server.start()
+        defer { server.stop() }
+
+        let c1 = try await PeerConnector.connect(host: "127.0.0.1", port: port, callbackQueue: .global())
+        do {
+            _ = try await SessionHandshake.initiate(over: c1, config: stranger.config { _ in false })
+            XCTFail("stranger should be refused")
+        } catch HandshakeError.remoteFailure(let reason, _) {
+            XCTAssertEqual(reason, .busy)
+        }
+        _ = await server.nextResult()
+
+        let c2 = try await PeerConnector.connect(host: "127.0.0.1", port: port, callbackQueue: .global())
+        let session = try await SessionHandshake.initiate(over: c2, config: host.config { _ in false })
+        let displaySession = try await server.nextResult().get()
+        XCTAssertFalse(session.wasNewlyPaired)
+        await session.close()
+        await displaySession.close()
+    }
 }

@@ -2,10 +2,11 @@
 
 ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình phụ cho một chiếc Mac khác**, kể cả khi hai máy **đăng nhập hai Apple ID khác nhau**. Sidecar của Apple không làm được việc này.
 
-> **Tình trạng hiện tại: đang ở Giai đoạn 2/4.**
-> - **Giai đoạn 1 (đã chạy thật trên Mac + iPad):** hai máy tự tìm thấy nhau, ghép đôi bằng mã 6 số, kết nối có mã hóa.
-> - **Giai đoạn 2 (mới viết, chờ thử):** hình màn hình Mac hiện lên iPad, ở chế độ **Mở rộng** (iPad thành màn hình thứ hai) hoặc **Phản chiếu**. Cách thử ở [mục 8B](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình).
-> - Phần mới **chưa được biên dịch thử** (máy làm việc của Claude không có Xcode). Lần build đầu có thể gặp vài lỗi. Xem [mục 9](#9-khi-build-bị-lỗi) để biết cách gửi lỗi cho Claude sửa.
+> **Tình trạng hiện tại: đang ở Giai đoạn 3/4.**
+> - **Giai đoạn 1 (đã chạy thật):** hai máy tự tìm thấy nhau, ghép đôi bằng mã 6 số, kết nối có mã hóa.
+> - **Giai đoạn 2 (đã chạy thật):** màn hình Mac hiện lên iPad, chế độ Mở rộng / Phản chiếu, 30/60/120 Hz. Đo được ~100 hình/giây, độ trễ mạng 1–2 ms qua cáp, 7–15 ms qua Wi-Fi.
+> - **Giai đoạn 3 (mới viết, chờ thử):** chạm và Apple Pencil trên iPad điều khiển Mac; tự chuyển sang cáp khi cắm vào; tự kết nối lại khi rớt mạng. Cách thử ở [mục 8C](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại).
+> - Phần mới **chưa được biên dịch thử** (máy làm việc của Claude không có Xcode). Xem [mục 9](#9-khi-build-bị-lỗi) để biết cách gửi lỗi cho Claude sửa.
 
 ---
 
@@ -20,6 +21,7 @@ ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình ph�
 7. [Chạy trên iPad hoặc Mac thứ hai (máy nhận, Display)](#7-chạy-trên-ipad-hoặc-mac-thứ-hai-máy-nhận-display)
 8. [Kiểm tra Giai đoạn 1 từng bước](#8-kiểm-tra-giai-đoạn-1-từng-bước)
     - [8B. Kiểm tra Giai đoạn 2 (hình ảnh màn hình)](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình)
+    - [8C. Kiểm tra Giai đoạn 3 (điều khiển bằng cảm ứng, cáp, kết nối lại)](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại)
 9. [Khi build bị lỗi](#9-khi-build-bị-lỗi)
 10. [Xử lý sự cố khi chạy](#10-xử-lý-sự-cố-khi-chạy)
 11. [Dùng cáp Thunderbolt](#11-dùng-cáp-thunderbolt)
@@ -364,7 +366,7 @@ Khi đã kết nối, menu ScreenBridge trên Mac có thêm phần **Screen shar
 | 5 | Đổi **Mode** sang **Mirror**. | Sau 1–2 giây, iPad hiện **y hệt** màn hình Mac. Màn hình Mac rộng hơn iPad nên có viền đen trên dưới; đây là bình thường. |
 | 6 | Đổi **Quality** sang **Battery Saver**. | Độ phân giải trong dòng số liệu giảm một nửa, Mbps giảm rõ. |
 | 6b | Đổi **Refresh** sang **120 Hz**, rồi kéo cửa sổ qua lại trên iPad. | Dòng số liệu lên tới khoảng `120 fps` khi đang kéo; chuyển động mượt hơn rõ. |
-| 7 | Trên iPad, **chạm nhanh 2 lần** vào màn hình. | Hiện thanh nhỏ phía trên: đường kết nối, số liệu, nút **Hide** (ẩn) và **Disconnect** (ngắt). |
+| 7 | Trên iPad, **chạm 3 ngón cùng lúc**. (Trên Mac làm màn hình phụ: **⌘K**.) | Hiện thanh nhỏ phía trên: đường kết nối, số liệu, nút **Hide** (ẩn) và **Disconnect** (ngắt). |
 | 8 | Bấm **Disconnect**. | Màn hình phụ biến mất khỏi Mac; các cửa sổ trên đó tự về màn hình Mac. |
 
 **Ý nghĩa dòng số liệu** `HEVC 2732×2048 · 60 fps · 25.0 Mbps · 15 ms`:
@@ -383,6 +385,64 @@ Chụp màn hình gửi Claude:
 1. Menu Mac lúc **Streaming** (có dòng số liệu).
 2. iPad lúc đang hiện hình.
 3. Nếu có: hình bị giật, trễ, mờ, sai màu, hoặc lỗi (chữ đỏ). Mô tả ngắn: *"kéo cửa sổ thì giật"*, *"chữ hơi mờ"*…
+
+---
+
+## 8C. Kiểm tra Giai đoạn 3 (điều khiển bằng cảm ứng, cáp, kết nối lại)
+
+### Cập nhật
+
+Giao thức không đổi, nhưng **cả hai app đều có code mới**, nên cài lại cả hai:
+
+```bash
+cd ~/Desktop/kltnGW && git pull
+```
+
+```bash
+cd ScreenBridge && xcodegen generate && open ScreenBridge.xcodeproj
+```
+
+Chạy **ScreenBridgeDisplay-iOS** lên iPad, rồi **ScreenBridgeHost** trên **My Mac**.
+
+### Cấp quyền điều khiển (một lần)
+
+Muốn iPad bấm và kéo được trên Mac, macOS cần quyền **Trợ năng (Accessibility)**:
+
+1. Kết nối và để Mac bắt đầu chia sẻ màn hình.
+2. Trong menu ScreenBridge trên Mac, bấm **Open Accessibility Settings**.
+3. Vào **Quyền riêng tư & Bảo mật → Trợ năng**, bật **ScreenBridge**. Nếu chưa có trong danh sách, bấm **+** và chọn app ScreenBridge.
+4. Menu đổi thành **Touch & Apple Pencil control: on**.
+
+> Mỗi lần Xcode build lại app, macOS có thể coi đó là app mới và tắt quyền này. Nếu chạm không còn tác dụng, vào lại Trợ năng: tắt rồi bật lại ScreenBridge (hoặc xóa bằng **−** rồi thêm lại).
+
+### Thao tác trên iPad
+
+| Thao tác trên iPad | Trên Mac |
+|---|---|
+| Chạm 1 ngón | Bấm chuột trái |
+| Chạm nhanh 2 lần | Bấm đúp (mở file, chọn chữ) |
+| Giữ 1 ngón rồi kéo | Kéo (di chuyển cửa sổ, kéo thả file, bôi đen chữ) |
+| **Apple Pencil** chạm / kéo | Như ngón tay, nhưng phản hồi ngay, không có độ trễ chờ |
+| **Apple Pencil để gần màn hình** (chưa chạm) | Con trỏ chuột di chuyển theo bút |
+| Kéo 2 ngón | Cuộn trang |
+| Chạm 2 ngón | Bấm chuột phải (menu ngữ cảnh) |
+| Chạm 3 ngón | Hiện / ẩn thanh điều khiển của ScreenBridge |
+| Bàn di chuột / chuột nối với iPad | Di chuyển con trỏ, bấm, cuộn |
+
+### Bảng thử
+
+| Bước | Làm gì | Kết quả đúng |
+|---|---|---|
+| 1 | Chế độ **Extend**: mở Finder rồi kéo cửa sổ sang iPad. Trên iPad, chạm vào một thư mục, chạm 2 lần để mở. | Chọn được thư mục; chạm 2 lần thì mở ra. |
+| 2 | Kéo thanh tiêu đề cửa sổ bằng 1 ngón. | Cửa sổ di chuyển theo ngón tay. |
+| 3 | Mở Safari trên iPad, kéo 2 ngón lên/xuống. | Trang cuộn **theo hướng ngón tay**, giống cuộn trên iPad. |
+| 4 | Chạm 2 ngón vào màn hình nền. | Hiện menu chuột phải. |
+| 5 | Đưa Apple Pencil lại gần màn hình, chưa chạm. | Con trỏ chuột chạy theo bút. |
+| 6 | **Tự chuyển sang cáp:** kết nối bằng Wi-Fi (rút cáp ra trước), xác nhận menu Mac hiện *Wi-Fi*. Rồi cắm cáp. | Sau vài giây, đường kết nối đổi sang loại có dây và độ trễ (ms) giảm xuống còn 1–2. Hình chỉ đen chớp khoảng 1 giây. |
+| 7 | **Rút cáp khi đang dùng.** | Hình đứng yên 1–3 giây, có chữ *Reconnecting…*, rồi chạy tiếp qua Wi-Fi. Các cửa sổ vẫn nằm trên màn hình iPad. |
+| 8 | **Tắt Wi-Fi trên iPad 5 giây rồi bật lại** (không cắm cáp). | Hiện *Reconnecting…*, rồi tự chạy lại khi Wi-Fi có lại. Nếu quá 20 giây, màn hình phụ mới biến mất. |
+
+Gửi Claude: mục nào chạy, mục nào không, và cảm nhận (ví dụ: *"cuộn bị ngược"*, *"chạm hơi trễ"*, *"Pencil chạy tốt"*).
 
 ---
 
@@ -533,8 +593,8 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 | Giai đoạn | Nội dung | Trạng thái |
 |---|---|---|
 | **1** | Tìm thiết bị (Bonjour), chọn đường kết nối tốt nhất, ghép đôi khác Apple ID, mã hóa | ✅ Xong |
-| **2** | Quay màn hình (ScreenCaptureKit), nén phần cứng H.264/HEVC (VideoToolbox) trên Mac; giải nén và hiển thị trên iPad/Mac; màn hình ảo cho chế độ mở rộng; truyền video mã hóa, tự giảm chất lượng khi mạng chậm | 🧪 Đang thử |
-| **3** | Tinh chỉnh độ trễ và chất lượng theo số đo thật, tự chuyển sang Thunderbolt khi cắm cáp, cảm ứng/bút Apple Pencil từ iPad điều khiển Mac, đường cáp USB cho iPad | ⏳ |
+| **2** | Quay màn hình (ScreenCaptureKit), nén phần cứng H.264/HEVC (VideoToolbox) trên Mac; giải nén và hiển thị trên iPad/Mac; màn hình ảo cho chế độ mở rộng; truyền video mã hóa, tự giảm chất lượng khi mạng chậm; 30/60/120 Hz | ✅ Xong |
+| **3** | Cảm ứng / Apple Pencil (cả khi bút chưa chạm) điều khiển Mac; tự chuyển sang cáp khi cắm vào giữa chừng; tự kết nối lại khi rớt mạng mà vẫn giữ màn hình phụ | 🧪 Đang thử |
 | **4** | Giao diện hoàn chỉnh: bảng điều khiển trên thanh menu, màn hình **radar** hiện thiết bị xung quanh, kết nối 1 chạm, hướng dẫn bằng hình khi không tìm thấy máy | ⏳ |
 
-Khi đã thử xong Giai đoạn 2 (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8B](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình), hoặc gửi lỗi theo hướng dẫn ở mục 9.
+Khi đã thử xong Giai đoạn 3 (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8C](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại), hoặc gửi lỗi theo hướng dẫn ở mục 9.

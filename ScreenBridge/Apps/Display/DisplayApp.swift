@@ -43,15 +43,26 @@ private struct DisplayRootView: View {
     @State private var showControls = false
 
     var body: some View {
-        if coordinator.phase == .connected && stream.isReceiving {
+        if stream.isReceiving {
             ZStack(alignment: .top) {
-                VideoSurfaceView(controller: stream)
+                VideoSurfaceView(controller: stream) { showControls.toggle() }
                     .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { showControls.toggle() }
                 if showControls {
                     controls
                 }
+                if stream.isReconnecting || coordinator.phase != .connected {
+                    Label("Reconnecting…", systemImage: "arrow.triangle.2.circlepath")
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(.top, 40)
+                }
+                #if os(macOS)
+                // ⌘K shows/hides the overlay on a Mac display (no 3-finger tap there).
+                Button("") { showControls.toggle() }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+                #endif
             }
             .background(Color.black)
             #if os(iOS)

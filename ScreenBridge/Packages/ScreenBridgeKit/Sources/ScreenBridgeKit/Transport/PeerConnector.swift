@@ -45,6 +45,51 @@ public enum PeerConnector {
         }
     }
 
+    /// The same Bonjour service without the interface pin a browse result can
+    /// carry, so the OS may pick any path (e.g. a cable plugged in later).
+    public static func unpinned(_ endpoint: NWEndpoint) -> NWEndpoint {
+        if case let .service(name, type, domain, _) = endpoint {
+            return .service(name: name, type: type, domain: domain, interface: nil)
+        }
+        return endpoint
+    }
+
+    /// Opens a second connection to an already-connected peer, but only
+    /// returns it if it runs over a better link than `current` (a cable that
+    /// was just plugged in). Wired paths are tried first.
+    public static func upgrade(to endpoint: NWEndpoint, betterThan current: LinkType,
+                               callbackQueue: DispatchQueue = .main) async -> PeerConnection? {
+        for prohibitWiFi in [true, false] {
+            let connection = PeerConnection(
+                connection: NWConnection(to: endpoint, using: ScreenBridgeParameters.make(prohibitWiFi: prohibitWiFi)),
+                callbackQueue: callbackQueue)
+            do {
+                try await withTimeout(3) { try await connection.start() }
+            } catch {
+                connection.cancel()
+                continue
+            }
+            if connection.link < current { return connection }
+            connection.cancel()
+        }
+        return nil
+    }
+
+    /// Reconnects to a known peer over whatever path works now.
+    public static func reconnect(to endpoint: NWEndpoint,
+                                 callbackQueue: DispatchQueue = .main) async throws -> PeerConnection {
+        let connection = PeerConnection(
+            connection: NWConnection(to: endpoint, using: ScreenBridgeParameters.make()),
+            callbackQueue: callbackQueue)
+        do {
+            try await withTimeout(4) { try await connection.start() }
+            return connection
+        } catch {
+            connection.cancel()
+            throw error
+        }
+    }
+
     /// Connect to an explicit address (manual fallback when multicast is
     /// blocked, e.g. guest/corporate Wi-Fi with client isolation).
     public static func connect(host: String, port: UInt16,

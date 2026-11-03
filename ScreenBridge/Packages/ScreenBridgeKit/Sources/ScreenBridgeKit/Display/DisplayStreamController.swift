@@ -15,6 +15,8 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     /// True while video is arriving; show `VideoSurfaceView` full screen.
     @Published public private(set) var isReceiving = false
     @Published public private(set) var stats: StreamStats?
+    /// The link dropped; the last picture stays up while the Mac reconnects.
+    @Published public private(set) var isReconnecting = false
 
     public let displayLayer: AVSampleBufferDisplayLayer
 
@@ -25,6 +27,7 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     private var framesThisSecond = 0
     private var bytesThisSecond = 0
     private var statsTimer: DispatchSourceTimer?
+    private var clearWork: DispatchWorkItem?
 
     public init() {
         displayLayer = AVSampleBufferDisplayLayer()
@@ -36,12 +39,15 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     // MARK: SessionMediaSink
 
     public func sessionStarted(_ session: SecureSession) {
+        clearWork?.cancel()
+        clearWork = nil
+        isReconnecting = false
         lock.lock(); self.session = session; lock.unlock()
         decoder.reset()
         startStatsTimer()
     }
 
-    public func sessionEnded() {
+    public func sessionEnded(willReconnect: Bool) {
         lock.lock()
         session = nil
         let timer = statsTimer
@@ -49,7 +55,33 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         lock.unlock()
         timer?.cancel()
         decoder.reset()
-        clearScreen()
+        clearWork?.cancel()
+        guard willReconnect, isReceiving else {
+            clearScreen()
+            return
+        }
+        // Keep the frozen last frame; give up after 20 s.
+        isReconnecting = true
+        let work = DispatchWorkItem { [weak self] in
+            self?.isReconnecting = false
+            self?.clearScreen()
+        }
+        clearWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: work)
+    }
+
+    // MARK: Input (any thread)
+
+    /// Size of the incoming picture in pixels, for mapping touches.
+    public var videoSize: CGSize? {
+        decoder.currentFormat.map { CGSize(width: $0.width, height: $0.height) }
+    }
+
+    /// Sends a touch / Pencil / mouse event to the Mac.
+    public func sendInput(_ event: InputEvent) {
+        lock.lock(); let session = self.session; lock.unlock()
+        guard let session, let payload = try? WireCoding.encode(event) else { return }
+        try? session.sendSealedWithoutWaiting(.sealedInput, payload: payload)
     }
 
     /// Media queue.

@@ -26,8 +26,10 @@ public struct HandshakeConfiguration: Sendable {
     public var localDevice: DeviceInfo
     public var trustStore: TrustStore
     public var approvePairing: PairingApprovalHandler
-    /// Responder only: reject with `.busy` if this returns true.
-    public var isBusy: @Sendable () -> Bool
+    /// Responder only: reject with `.busy` if this returns true for the
+    /// connecting device. (A peer we're already connected to is allowed
+    /// through, so it can move the session to a better link or reconnect.)
+    public var isBusy: @Sendable (DeviceInfo) -> Bool
     /// Time allowed for the non-interactive part of the handshake.
     public var handshakeTimeout: TimeInterval
     /// Extra time allowed while users compare codes.
@@ -35,7 +37,7 @@ public struct HandshakeConfiguration: Sendable {
 
     public init(identity: DeviceIdentity, localDevice: DeviceInfo, trustStore: TrustStore,
                 approvePairing: @escaping PairingApprovalHandler,
-                isBusy: @escaping @Sendable () -> Bool = { false },
+                isBusy: @escaping @Sendable (DeviceInfo) -> Bool = { _ in false },
                 handshakeTimeout: TimeInterval = 10, pairingTimeout: TimeInterval = 120) {
         self.identity = identity
         self.localDevice = localDevice
@@ -163,7 +165,7 @@ public enum SessionHandshake {
                 try? await sendFailure(.identityMismatch, on: connection)
                 throw error
             }
-            if config.isBusy() {
+            if config.isBusy(clientHello.device) {
                 try? await sendFailure(.busy, on: connection)
                 throw HandshakeError.busy
             }

@@ -13,6 +13,9 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         case idle
         case starting
         case streaming
+        /// Connection dropped; keeping the extra display for a few seconds
+        /// in case the Display comes back.
+        case reconnecting
         /// Screen Recording permission is missing (see `openScreenRecordingSettings`).
         case needsScreenRecordingPermission
         case failed(String)
@@ -20,6 +23,9 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
 
     @Published public private(set) var state: State = .idle
     @Published public private(set) var stats: StreamStats?
+    /// Accessibility permission granted, so touches/Pencil from the
+    /// Display can control this Mac.
+    @Published public private(set) var canControlMac = InputInjector.isTrusted
 
     @Published public var mode: StreamMode {
         didSet {
@@ -57,6 +63,11 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
     private var session: SecureSession?
     private var streamer: HostStreamer?
     private var generation = 0
+    /// A stream kept alive after an unexpected disconnect (see `sessionEnded`).
+    private var parkedStreamer: HostStreamer?
+    private var parkTimer: DispatchWorkItem?
+    private let injector = InputInjector()
+    private static let reconnectGrace: TimeInterval = 20
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -69,20 +80,71 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
     // MARK: SessionMediaSink
 
     public func sessionStarted(_ session: SecureSession) {
-        lock.lock(); self.session = session; lock.unlock()
+        parkTimer?.cancel()
+        parkTimer = nil
+        lock.lock()
+        self.session = session
+        let parked = parkedStreamer
+        parkedStreamer = nil
+        lock.unlock()
         displayMaxRefreshRate = session.peer.display?.maxRefreshRate ?? 60
+        canControlMac = InputInjector.isTrusted
+
+        if let parked, parked.peerID == session.peer.id {
+            // Same Display came back (link switch / reconnect): continue the
+            // stream; windows stay on the extra display.
+            parked.attach(session)
+            lock.lock(); streamer = parked; lock.unlock()
+            state = .streaming
+            return
+        }
+        if let parked { Task { await parked.stop(reason: "replaced") } }
         restart()
     }
 
-    public func sessionEnded() {
+    public func sessionEnded(willReconnect: Bool) {
         let old = swap(session: nil, streamer: nil)
-        state = .idle
         stats = nil
-        if let old { Task { await old.stop(reason: "disconnected") } }
+        guard let old else {
+            state = .idle
+            return
+        }
+        guard willReconnect else {
+            state = .idle
+            Task { await old.stop(reason: "disconnected") }
+            return
+        }
+        lock.lock(); parkedStreamer = old; lock.unlock()
+        state = .reconnecting
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let parked = self.takeParked() else { return }
+            self.state = .idle
+            Task { await parked.stop(reason: "disconnected") }
+        }
+        parkTimer = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.reconnectGrace, execute: work)
     }
 
+    /// Media queue (serial): touches / Pencil / mouse from the Display.
     public func received(type: UInt8, payload: Data, flags: UInt16) {
-        // Phase 3: pointer/keyboard input from the Display arrives here.
+        guard MessageType(rawValue: type) == .sealedInput,
+              let event = try? WireCoding.decode(InputEvent.self, from: payload) else { return }
+        lock.lock(); let displayID = streamer?.displayID; lock.unlock()
+        guard let displayID else { return }
+        injector.handle(event, on: displayID)
+    }
+
+    /// Opens the Accessibility setting needed for touch control.
+    public func requestControlPermission() {
+        InputInjector.requestTrust()
+        InputInjector.openAccessibilitySettings()
+    }
+
+    private func takeParked() -> HostStreamer? {
+        lock.lock(); defer { lock.unlock() }
+        let parked = parkedStreamer
+        parkedStreamer = nil
+        return parked
     }
 
     public func receivedControl(_ message: ControlMessage) {
@@ -122,7 +184,10 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         guard let streamer else { return }
         state = .starting
         stats = nil
-        streamer.onStats = { [weak self] stats in self?.stats = stats }
+        streamer.onStats = { [weak self] stats in
+            self?.stats = stats
+            self?.canControlMac = InputInjector.isTrusted  // picks up a grant made in Settings
+        }
         streamer.onFailure = { [weak self] error in self?.state = .failed(error.localizedDescription) }
 
         Task { [weak self] in

@@ -9,7 +9,7 @@ Use any Mac or iPad as a second display for a Mac, **even when the devices are s
 | **Host** | macOS 13+ (menu bar app) | Captures the screen with ScreenCaptureKit, encodes it with VideoToolbox (H.264/HEVC), sends it |
 | **Display** | macOS 13+ / iPadOS 16+ | Receives, decodes with VideoToolbox, renders with `AVSampleBufferDisplayLayer`/Metal |
 
-Status: **Phase 1 verified on hardware** (Mac ↔ iPad on different Apple IDs). **Phase 2 (video) is written and awaiting its first on-device test.** Phase 3 tunes latency and adds input and link migration; Phase 4 builds the final UI (radar, onboarding).
+Status: **Phases 1–2 verified on hardware** (Mac ↔ iPad Pro on different Apple IDs: Extend/Mirror at up to 120 Hz, ~100 fps measured while dragging, 1–2 ms network latency over cable, 7–15 ms over Wi-Fi). **Phase 3 (touch/Pencil input, cable hand-over, auto-reconnect) is written and awaiting its first on-device test.** Phase 4 builds the final UI (radar, onboarding).
 
 ---
 
@@ -80,7 +80,13 @@ Host (macOS)                                                   Display (iPadOS /
 - **Extend mode** uses `CGVirtualDisplay` (private CoreGraphics API, declared in the `CGVirtualDisplayPrivate` target). That's why the Host app is not sandboxed; both Display apps still are.
 - **Protocol v2:** both apps must run the same build.
 
-## ⚠️ Constraints to know before Phase 3
+## Input and link switching (Phase 3)
+
+- **Input:** the Display sends normalized pointer/scroll/right-click events (`sealedInput`, JSON). The Host injects them as `CGEvent`s on the captured display, which requires the Accessibility permission. On iPad, a one-finger press is held back 80 ms so that the start of a two-finger scroll never clicks. Apple Pencil skips that delay, and Pencil hover moves the cursor.
+- **Cable hand-over (make-before-break):** while connected, the initiator watches for new wired interfaces (`NWPathMonitor`, `betterPathUpdateHandler`, plus a check every 20 s on wireless). When it sees one, it opens a second session to the peer's unpinned Bonjour name with Wi-Fi prohibited, keeps it only if its link ranks better, and swaps it in. The responder admits a new session from its current peer even while busy.
+- **Cable pulled / drop:** viability loss on a wired link triggers an immediate failover to any path. An unexpected close makes the initiator retry for ~30 s. Both sides keep media state for 20 s (the Host keeps the virtual display and stream, the Display keeps the last frame), so windows don't jump back to the Mac.
+
+## ⚠️ Constraints
 
 1. **Bluetooth can't carry video.** In practice BLE moves well under 1 Mbit/s. A 1080p60 stream needs 15–40 Mbit/s, and Retina needs more. The Network framework also no longer runs Bonjour over Bluetooth. Where Bluetooth helps is waking or finding a device when Wi-Fi is off. That optional CoreBluetooth beacon fits behind the discovery layer later. AWDL already gives a cable-free, router-free path at Wi-Fi speeds.
 2. **iPad over a USB-C cable isn't an IP link.** A Mac ↔ Mac Thunderbolt Bridge is a normal network interface and works now. An iPad cabled to a Mac has no network interface unless you use a USB-C Ethernet adapter. A true wired iPad mode means talking to `usbmuxd` on the Mac, the approach PeerTalk uses. That's planned as an optional Phase 3 transport.
