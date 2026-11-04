@@ -65,7 +65,8 @@ struct HostStreamPanel: View {
                      + "Plug the MacBook into power. Don't put it in a bag while this is on.")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("Asks for your Mac password. Closing the lid then keeps the Mac running on the iPad.")
+                Text("Only needed on battery: while charging, macOS already keeps a closed MacBook running "
+                     + "on the iPad. Turning this on asks for your Mac password.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

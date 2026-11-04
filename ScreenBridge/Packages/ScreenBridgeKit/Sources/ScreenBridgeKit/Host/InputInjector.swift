@@ -135,6 +135,10 @@ final class InputInjector {
         case .macKey(let code, let down):
             handleKey(code, down: down)
 
+        case .mediaKey(let code):
+            postMediaKey(code, down: true)
+            postMediaKey(code, down: false)
+
         case .penProximity(let entering):
             postProximity(entering)
 
@@ -323,6 +327,20 @@ final class InputInjector {
     private func stopMomentum() {
         momentumTimer?.cancel()
         momentumTimer = nil
+    }
+
+    // MARK: - Media keys
+
+    /// Brightness, volume and playback keys aren't key codes on a Mac: the
+    /// keyboard sends them as "system defined" events, so post those.
+    private func postMediaKey(_ code: Int, down: Bool) {
+        let state = down ? 0xA : 0xB
+        guard let event = NSEvent.otherEvent(
+            with: .systemDefined, location: .zero,
+            modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(state << 8)),
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: 0, context: nil,
+            subtype: 8, data1: (code << 16) | (state << 8), data2: -1) else { return }
+        event.cgEvent?.post(tap: .cghidEventTap)
     }
 
     // MARK: - Pen tablet (Apple Pencil)

@@ -38,6 +38,21 @@ public enum InputEvent: Codable, Sendable, Equatable {
     case pen(phase: PointerPhase, x: Double, y: Double, pressure: Double, tiltX: Double, tiltY: Double)
     /// Apple Pencil came near the screen / went away (tablet proximity).
     case penProximity(entering: Bool)
+    /// A Mac media/system key: brightness, volume, play/pause…
+    /// (values are macOS NX_KEYTYPE codes, see `MediaKey`).
+    case mediaKey(code: Int)
+}
+
+/// macOS media key codes (NX_KEYTYPE_*), for `InputEvent.mediaKey`.
+public enum MediaKey {
+    public static let volumeUp = 0
+    public static let volumeDown = 1
+    public static let brightnessUp = 2
+    public static let brightnessDown = 3
+    public static let mute = 7
+    public static let playPause = 16
+    public static let next = 17
+    public static let previous = 18
 }
 
 /// Where the (aspect-fit) video sits inside a view, and conversions to the

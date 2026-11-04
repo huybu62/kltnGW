@@ -191,6 +191,11 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     }
 
     /// Lets go of every latched modifier (e.g. when the session ends).
+    /// Main thread. Brightness / volume / playback key on the Mac.
+    public func pressMediaKey(_ code: Int) {
+        sendInput(.mediaKey(code: code))
+    }
+
     public func releaseModifiers() {
         for usage in latchedModifiers { setModifier(usage, down: false) }
     }

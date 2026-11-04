@@ -40,6 +40,17 @@ public struct ShortcutBar: View {
                 ShortcutKey(symbol: "doc.on.doc", label: "Copy") { controller.press(0x06, with: [Self.command]) }
                 ShortcutKey(symbol: "doc.on.clipboard", label: "Paste") { controller.press(0x19, with: [Self.command]) }
                 ShortcutKey(symbol: "square.and.arrow.down", label: "Save") { controller.press(0x16, with: [Self.command]) }
+
+                Divider().padding(.vertical, 4)
+
+                // The Smart Keyboard Folio has no function row; these are the
+                // Mac's brightness / volume / playback keys.
+                ShortcutKey(symbol: "sun.min", label: "Dimmer") { controller.pressMediaKey(MediaKey.brightnessDown) }
+                ShortcutKey(symbol: "sun.max", label: "Brighter") { controller.pressMediaKey(MediaKey.brightnessUp) }
+                ShortcutKey(symbol: "speaker.wave.1", label: "Vol −") { controller.pressMediaKey(MediaKey.volumeDown) }
+                ShortcutKey(symbol: "speaker.wave.3", label: "Vol +") { controller.pressMediaKey(MediaKey.volumeUp) }
+                ShortcutKey(symbol: "speaker.slash", label: "Mute") { controller.pressMediaKey(MediaKey.mute) }
+                ShortcutKey(symbol: "playpause", label: "Play") { controller.pressMediaKey(MediaKey.playPause) }
             }
             .padding(.vertical, 12)
         }

@@ -519,6 +519,7 @@ Khi iPad đang hiện màn hình Mac, **mọi phím gõ trên Folio đều đi s
 |---|---|
 | **⌘ ⌥ ⌃ ⇧** | **Chạm 1 lần** để khóa phím (nút sáng màu; chạm lại để nhả). **Giữ** để chỉ nhấn trong lúc giữ. Ví dụ: tay trái giữ ⇧, tay phải dùng Pencil chọn nhiều file |
 | **Esc, Undo, Redo, Cut, Copy, Paste, Save** | Chạm 1 lần (Undo = ⌘Z, Redo = ⇧⌘Z, Save = ⌘S…) |
+| **🔅 🔆 · 🔈 🔊 🔇 · ⏯** (kéo thanh xuống dưới) | **Độ sáng** màn hình Mac, **âm lượng** Mac, phát / dừng nhạc. Thay cho hàng phím chức năng mà Folio không có |
 
 Muốn ẩn hoặc hiện thanh này: **chạm 3 ngón** lên màn hình (hoặc bấm **Shortcut bar** trên thanh trạng thái).
 
@@ -543,6 +544,8 @@ Menu ScreenBridge trên Mac (khi đang kết nối) có thêm:
 > **Cần bạn thử:** nếu bật *Mute this Mac's speakers* mà iPad **mất tiếng**, nghĩa là macOS ngừng thu âm khi Mac tắt tiếng. Khi đó tắt mục này và hạ âm lượng Mac xuống thấp. Báo Claude kết quả.
 
 ### Dùng khi gập MacBook
+
+> **Khi MacBook đang cắm sạc, không cần bật gì cả.** macOS có sẵn chế độ dùng khi gập máy (clamshell): MacBook đang sạc và có màn hình ngoài thì gập lại vẫn chạy. Màn hình ScreenBridge được macOS tính là màn hình ngoài. Mục **Use with the lid closed** bên dưới **chỉ cần khi dùng pin**.
 
 1. Cắm sạc cho MacBook (nên làm). Nên cắm cáp giữa Mac và iPad.
 2. Kết nối như bình thường, chọn **Mode: Extend**.
