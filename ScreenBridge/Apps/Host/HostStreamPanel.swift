@@ -37,9 +37,20 @@ struct HostStreamPanel: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            status
+            ForEach(stream.streams) { display in
+                VStack(alignment: .leading, spacing: 2) {
+                    if stream.streams.count > 1 {
+                        Label(display.name, systemImage: display.platform.systemImage).font(.subheadline.bold())
+                    }
+                    status(display)
+                }
+            }
+            if stream.mode == .extend, stream.streams.contains(where: { $0.state == .streaming }) {
+                Text("Drag windows past the edge of your screen. Arrange the extra displays in System Settings → Displays.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
 
-            if stream.state == .streaming {
+            if stream.streams.contains(where: { $0.state == .streaming }) {
                 controlPermission
             }
 
@@ -90,8 +101,8 @@ struct HostStreamPanel: View {
     }
 
     @ViewBuilder
-    private var status: some View {
-        switch stream.state {
+    private func status(_ display: HostStreamController.DisplayStream) -> some View {
+        switch display.state {
         case .idle:
             EmptyView()
         case .starting:
@@ -100,12 +111,8 @@ struct HostStreamPanel: View {
             VStack(alignment: .leading, spacing: 2) {
                 Label("Streaming", systemImage: "dot.radiowaves.left.and.right")
                     .foregroundStyle(.green)
-                if let stats = stream.stats {
+                if let stats = display.stats {
                     Text(stats.summary).font(.caption.monospaced()).foregroundStyle(.secondary)
-                }
-                if stream.mode == .extend {
-                    Text("Drag windows to the right edge of your screen. Arrange the new display in System Settings → Displays.")
-                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
         case .reconnecting:

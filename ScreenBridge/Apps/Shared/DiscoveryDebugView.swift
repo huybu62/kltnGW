@@ -79,36 +79,50 @@ struct DiscoveryDebugView: View {
 
     @ViewBuilder
     private var statusRow: some View {
-        switch coordinator.phase {
-        case .idle:
-            Label(discoveryStatusText, systemImage: "dot.radiowaves.left.and.right")
-        case .connecting(let name):
-            HStack { ProgressView().controlSize(.small); Text(name.isEmpty ? "Finishing…" : "Connecting to \(name)…") }
-        case .awaitingPairing:
-            Label("Compare the codes on both screens", systemImage: "number.square")
-        case .connected:
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
+            // Every connected device, each with its own link and Disconnect.
+            ForEach(coordinator.connections, id: \.sessionID) { session in
+                connectionRow(session)
+            }
+            switch coordinator.phase {
+            case .idle, .connected:
+                if !coordinator.isConnected || coordinator.canConnectMore {
+                    Label(discoveryStatusText, systemImage: "dot.radiowaves.left.and.right")
+                }
+            case .connecting(let name):
+                HStack { ProgressView().controlSize(.small); Text(name.isEmpty ? "Finishing…" : "Connecting to \(name)…") }
+            case .awaitingPairing:
+                Label("Compare the codes on both screens", systemImage: "number.square")
+            case .failed(let message):
                 HStack {
-                    Label("Connected to \(coordinator.session?.peer.name ?? "?")", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                    Label(message, systemImage: "xmark.octagon").foregroundStyle(.red)
                     Spacer()
-                    Button("Disconnect") { coordinator.disconnect() }
-                }
-                if let link = coordinator.activeLink {
-                    Label("\(link.displayName) · RTT \(coordinator.roundTripMs.map { String(format: "%.1f ms", $0) } ?? "…")",
-                          systemImage: link.systemImage)
-                        .font(.callout)
-                }
-                if coordinator.betterLinkAvailable {
-                    Label("A faster link is available (Thunderbolt?)", systemImage: "bolt.horizontal")
-                        .font(.caption).foregroundStyle(.orange)
+                    Button("OK") { coordinator.dismissError() }
                 }
             }
-        case .failed(let message):
+        }
+    }
+
+    private func connectionRow(_ session: SecureSession) -> some View {
+        let id = session.peer.id
+        return VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Label(message, systemImage: "xmark.octagon").foregroundStyle(.red)
+                Label("Connected to \(session.peer.name)", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
                 Spacer()
-                Button("OK") { coordinator.disconnect() }
+                Button("Disconnect") { coordinator.disconnect(peerID: id) }
+            }
+            if let link = coordinator.links[id] {
+                Label("\(link.displayName) · RTT \(coordinator.roundTrips[id].map { String(format: "%.1f ms", $0) } ?? "…")",
+                      systemImage: link.systemImage)
+                    .font(.callout)
+            }
+            if coordinator.switchingLinks.contains(id) {
+                Label("Switching link…", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if coordinator.betterLinks.contains(id) {
+                Label("A faster link is available", systemImage: "bolt.horizontal")
+                    .font(.caption).foregroundStyle(.orange)
             }
         }
     }
@@ -148,15 +162,14 @@ struct DiscoveryDebugView: View {
             } else if !peer.advertisement.isCompatible {
                 Text("Update needed").font(.caption).foregroundStyle(.orange)
             } else {
-                Button("Connect") { coordinator.connect(to: peer) }
-                    .disabled(coordinator.phase != .idle && !isFailed)
+                if coordinator.isConnected(to: peer.id) {
+                    Text("Connected").font(.caption).foregroundStyle(.green)
+                } else {
+                    Button("Connect") { coordinator.connect(to: peer) }
+                        .disabled(!coordinator.canConnectMore)
+                }
             }
         }
-    }
-
-    private var isFailed: Bool {
-        if case .failed = coordinator.phase { return true }
-        return false
     }
 
     /// Dismissing the sheet any way other than the buttons counts as "decline".

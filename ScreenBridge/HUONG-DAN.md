@@ -722,7 +722,8 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 4. Tắt **VPN** trên cả hai máy.
 
 **Hỏi: Một máy phát nối được nhiều màn hình cùng lúc không?**
-Đáp: Hiện tại mỗi lúc chỉ một kết nối. Máy đang bận sẽ hiện **Busy**. Hỗ trợ nhiều màn hình có thể tính sau Giai đoạn 4.
+Đáp: Được, **tối đa 2**. Trong menu ScreenBridge trên Mac, mục **Extra displays**, chọn **2**. Khi đã nối máy thứ nhất, máy thứ hai (iPad hoặc Mac khác) vẫn thấy Mac và kết nối được. Ở chế độ Extend, mỗi máy là **một màn hình riêng**; sắp xếp vị trí trong **Cài đặt hệ thống → Màn hình**. Hai máy dùng chung các thiết lập Mode / Quality / Refresh; mỗi máy có nút Disconnect riêng.
+> Chọn **1** nếu chỉ dùng 1 iPad: khi đã kết nối, Mac ngừng dò tìm thiết bị, nên Wi-Fi bớt trễ. Với **2**, Mac còn dò tìm cho tới khi đủ 2 máy, nên Wi-Fi có thể trễ thêm chút ít trong lúc chỉ có 1 máy.
 
 **Hỏi: Đổi tên máy hiển thị trên radar?**
 Đáp: Mặc định là tên máy trong hệ thống. Trên iPadOS 16 trở lên, app chỉ đọc được chữ "iPad", nên app tự thêm 4 ký tự để phân biệt, ví dụ `iPad (4F2A)`. Mã nguồn đã có hàm `rename(to:)`, và Giai đoạn 4 sẽ thêm ô đổi tên trên giao diện.

@@ -48,7 +48,7 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         startStatsTimer()
     }
 
-    public func sessionEnded(willReconnect: Bool) {
+    public func sessionEnded(_ endedSession: SecureSession, willReconnect: Bool) {
         audio.stop()
         latchedModifiers = []  // the Mac releases everything when a session ends
         latchedFlags.value = 0
@@ -94,7 +94,7 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     }
 
     /// Media queue.
-    public func received(type: UInt8, payload: Data, flags: UInt16) {
+    public func received(type: UInt8, payload: Data, flags: UInt16, from session: SecureSession) {
         switch MessageType(rawValue: type) {
         case .sealedVideoFormat:
             guard let format = try? WireCoding.decode(VideoFormat.self, from: payload) else { return }
@@ -128,7 +128,7 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         }
     }
 
-    public func receivedControl(_ message: ControlMessage) {
+    public func receivedControl(_ message: ControlMessage, from session: SecureSession) {
         switch message {
         case .streamStopped:
             audio.stop()

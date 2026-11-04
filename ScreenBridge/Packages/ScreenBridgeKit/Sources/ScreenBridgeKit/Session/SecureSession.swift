@@ -190,7 +190,8 @@ public final class SecureSession: @unchecked Sendable {
     }
 }
 
-/// Receives the media side of a session (video now, input in Phase 3).
+/// Receives the media side of sessions (video, audio, input). A Host can
+/// have several sessions at once (one per Display); every call says which.
 /// `sessionStarted`/`sessionEnded` run on the main thread; `received…`
 /// run on a dedicated high-priority queue and must not block.
 public protocol SessionMediaSink: AnyObject, Sendable {
@@ -198,7 +199,7 @@ public protocol SessionMediaSink: AnyObject, Sendable {
     /// `willReconnect`: the link dropped or is being switched, and the same
     /// peer is expected back shortly. Keep state (virtual display, last
     /// frame) for a while instead of tearing everything down.
-    func sessionEnded(willReconnect: Bool)
-    func received(type: UInt8, payload: Data, flags: UInt16)
-    func receivedControl(_ message: ControlMessage)
+    func sessionEnded(_ session: SecureSession, willReconnect: Bool)
+    func received(type: UInt8, payload: Data, flags: UInt16, from session: SecureSession)
+    func receivedControl(_ message: ControlMessage, from session: SecureSession)
 }

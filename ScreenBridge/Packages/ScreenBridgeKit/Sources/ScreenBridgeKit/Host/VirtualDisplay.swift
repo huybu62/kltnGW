@@ -19,8 +19,10 @@ final class VirtualDisplay: @unchecked Sendable {
     ///     makes text sharp on an iPad.
     ///   - pixelsPerInch: used only to report a plausible physical size.
     /// Must be called on the main thread.
+    ///   - serialNumber: distinct per receiving device, so two extra screens
+    ///     are told apart and each keeps its place in Displays → Arrange.
     init?(name: String, pixelWidth: Int, pixelHeight: Int, refreshRate: Double = 60,
-          hiDPI: Bool = true, pixelsPerInch: Double = 264) {
+          hiDPI: Bool = true, pixelsPerInch: Double = 264, serialNumber: UInt32 = 1) {
         dispatchPrecondition(condition: .onQueue(.main))
         let descriptor = CGVirtualDisplayDescriptor()
         descriptor.setDispatchQueue(DispatchQueue.main)
@@ -32,7 +34,7 @@ final class VirtualDisplay: @unchecked Sendable {
         // Arbitrary but stable IDs so macOS remembers the arrangement.
         descriptor.vendorID = 0x5342   // "SB"
         descriptor.productID = 0x0001
-        descriptor.serialNum = 0x0001
+        descriptor.serialNum = serialNumber
         descriptor.terminationHandler = { _, _ in }
 
         guard let display = CGVirtualDisplay(descriptor: descriptor) else { return nil }

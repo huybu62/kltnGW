@@ -45,14 +45,27 @@ private struct HostMenuContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if stream.lidClosedModeEnabled && coordinator.phase != .connected {
+            if stream.lidClosedModeEnabled && !coordinator.isConnected {
                 lidModeReminder
             }
             DiscoveryDebugView(coordinator: coordinator)
-            if coordinator.phase == .connected || stream.state == .reconnecting {
+            displayCountPicker
+            if coordinator.isConnected || !stream.streams.isEmpty {
                 HostStreamPanel(stream: stream)
             }
         }
+    }
+
+    /// How many iPads / Macs may extend this Mac at once.
+    private var displayCountPicker: some View {
+        Picker("Extra displays", selection: $coordinator.maxConnections) {
+            Text("1").tag(1)
+            Text("2").tag(2)
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal)
+        .padding(.bottom, 6)
+        .help("With 2, a second iPad or Mac can connect while the first is in use.")
     }
 
     /// Reminder that the Mac won't sleep when closed, shown while not connected.
@@ -74,7 +87,7 @@ private struct MenuBarIcon: View {
     @ObservedObject var coordinator: ConnectionCoordinator
 
     var body: some View {
-        Image(systemName: coordinator.phase == .connected
+        Image(systemName: coordinator.isConnected
               ? "rectangle.connected.to.line.below"
               : "rectangle.on.rectangle")
     }

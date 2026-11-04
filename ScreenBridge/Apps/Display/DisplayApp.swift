@@ -29,8 +29,8 @@ struct ScreenBridgeDisplayApp: App {
                 }
                 #if os(iOS)
                 // A display must not dim/lock mid-session.
-                .onChange(of: coordinator.phase) { phase in
-                    UIApplication.shared.isIdleTimerDisabled = (phase == .connected)
+                .onChange(of: coordinator.isConnected) { connected in
+                    UIApplication.shared.isIdleTimerDisabled = connected
                 }
                 #endif
         }
@@ -62,7 +62,7 @@ private struct DisplayRootView: View {
                 if showControls {
                     controls
                 }
-                if stream.isReconnecting || coordinator.phase != .connected {
+                if stream.isReconnecting || !coordinator.isConnected {
                     Label("Reconnecting…", systemImage: "arrow.triangle.2.circlepath")
                         .padding(10)
                         .background(.ultraThinMaterial, in: Capsule())
@@ -89,7 +89,7 @@ private struct DisplayRootView: View {
             ScrollView {
                 DiscoveryDebugView(coordinator: coordinator)
                     .frame(maxWidth: 560)
-                if coordinator.phase == .connected {
+                if coordinator.isConnected {
                     Label("Connected. Waiting for the Mac to start sharing…", systemImage: "hourglass")
                         .padding()
                 }

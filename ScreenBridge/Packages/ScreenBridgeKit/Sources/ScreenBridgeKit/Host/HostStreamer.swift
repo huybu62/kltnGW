@@ -161,6 +161,17 @@ final class HostStreamer: @unchecked Sendable {
         }
     }
 
+    /// A per-device serial (FNV-1a of its id) that stays the same across
+    /// launches, unlike `hashValue`.
+    static func stableSerial(for peerID: String) -> UInt32 {
+        var hash: UInt32 = 2_166_136_261
+        for byte in peerID.utf8 {
+            hash ^= UInt32(byte)
+            hash = hash &* 16_777_619
+        }
+        return max(hash, 2)
+    }
+
     // MARK: - Session hand-over
 
     /// The display being captured (for mapping input), once started.
@@ -231,8 +242,10 @@ final class HostStreamer: @unchecked Sendable {
         case .extend:
             let name = "ScreenBridge – \(peerName)"
             let refresh = Double(max(frameRate.rawValue, 60))
+            let serial = Self.stableSerial(for: peerID)
             let created = await MainActor.run {
-                VirtualDisplay(name: name, pixelWidth: screenWidth, pixelHeight: screenHeight, refreshRate: refresh)
+                VirtualDisplay(name: name, pixelWidth: screenWidth, pixelHeight: screenHeight,
+                               refreshRate: refresh, serialNumber: serial)
             }
             guard let display = created else { throw StreamError.virtualDisplayFailed }
             keep(display)
