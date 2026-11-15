@@ -50,7 +50,10 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         configuration.height = height
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(framesPerSecond))
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-        configuration.queueDepth = 5
+        // Frames ScreenCaptureKit keeps in its pool. Each is a full-size
+        // surface (~8 MB at iPad Pro resolution); 3 is the minimum and plenty,
+        // because frames are handed straight to the encoder.
+        configuration.queueDepth = 3
         configuration.showsCursor = showsCursor
         configuration.capturesAudio = captureAudio
         if captureAudio {

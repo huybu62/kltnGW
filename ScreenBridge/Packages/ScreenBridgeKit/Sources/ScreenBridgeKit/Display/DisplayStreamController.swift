@@ -238,13 +238,15 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         enqueue(sample)
     }
 
+    /// If the renderer still has frames waiting, they are already out of
+    /// date: drop them rather than let a backlog grow (memory and latency).
     private func enqueue(_ sample: CMSampleBuffer) {
         if #available(iOS 17.0, macOS 14.0, *) {
             let renderer = displayLayer.sampleBufferRenderer
-            if renderer.status == .failed { renderer.flush() }
+            if renderer.status == .failed || !renderer.isReadyForMoreMediaData { renderer.flush() }
             renderer.enqueue(sample)
         } else {
-            if displayLayer.status == .failed { displayLayer.flush() }
+            if displayLayer.status == .failed || !displayLayer.isReadyForMoreMediaData { displayLayer.flush() }
             displayLayer.enqueue(sample)
         }
     }

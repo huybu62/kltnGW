@@ -41,11 +41,19 @@ final class VirtualDisplay: @unchecked Sendable {
 
         let settings = CGVirtualDisplaySettings()
         settings.hiDPI = hiDPI ? 1 : 0
-        var modes = [CGVirtualDisplayMode(width: UInt32(pixelWidth), height: UInt32(pixelHeight),
-                                          refreshRate: refreshRate)]
-        if hiDPI {
-            modes.insert(CGVirtualDisplayMode(width: UInt32(pixelWidth / 2), height: UInt32(pixelHeight / 2),
-                                              refreshRate: refreshRate), at: 0)
+        // The first mode is the one macOS uses: the Retina ("looks like" half
+        // size) mode at the requested refresh rate. 60 Hz variants follow so
+        // System Settings → Displays offers both.
+        var rates = [refreshRate]
+        if refreshRate > 60 { rates.append(60) }
+        var modes: [CGVirtualDisplayMode] = []
+        for rate in rates {
+            if hiDPI {
+                modes.append(CGVirtualDisplayMode(width: UInt32(pixelWidth / 2), height: UInt32(pixelHeight / 2),
+                                                  refreshRate: rate))
+            }
+            modes.append(CGVirtualDisplayMode(width: UInt32(pixelWidth), height: UInt32(pixelHeight),
+                                              refreshRate: rate))
         }
         settings.modes = modes
         guard display.apply(settings) else { return nil }
