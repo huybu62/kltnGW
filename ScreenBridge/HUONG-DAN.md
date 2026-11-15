@@ -575,6 +575,36 @@ Menu ScreenBridge trên Mac (khi đang kết nối) có thêm:
 
 ---
 
+## 8E. Dùng hằng ngày không cần mở Xcode
+
+Xcode chỉ cần **để build app**. Sau khi cài xong, app chạy như mọi app khác. Vẫn phải để Xcode **có trên máy** (không cần mở) và đã đăng nhập Apple ID trong Xcode.
+
+### App Mac: cài một lần vào Applications
+
+```bash
+cd ~/Desktop/kltnGW/ScreenBridge && ./scripts/install-mac.sh
+```
+
+- Script build bản **Release** (nhẹ và nhanh hơn bản chạy từ Xcode), chép vào **/Applications**, rồi mở app.
+- Trong menu ScreenBridge, bật **Open at login** để app tự chạy mỗi khi bật Mac.
+- App Mac **không hết hạn**. Chỉ cần chạy lại script khi bạn `git pull` bản mới.
+- Sau mỗi lần cài lại, nếu chạm từ iPad không còn tác dụng: vào **Trợ năng**, tắt rồi bật lại ScreenBridge.
+
+### App iPad: cài lại bằng một lệnh
+
+Cắm iPad vào Mac, mở khóa iPad, rồi chạy:
+
+```bash
+cd ~/Desktop/kltnGW/ScreenBridge && ./scripts/install-ipad.sh
+```
+
+- Với **Apple ID miễn phí**, app iPad **hết hạn sau 7 ngày**. Đây là quy định của Apple, app nào cài kiểu này cũng vậy. Hết hạn thì chạy lại lệnh trên, mất khoảng 1 phút; dữ liệu ghép đôi vẫn giữ nguyên.
+- Muốn không phải cài lại mỗi tuần, có hai cách:
+  - **Tài khoản Apple Developer trả phí** (99 USD/năm): app dùng được **1 năm**.
+  - **AltStore / SideStore** (miễn phí, bên thứ ba): tự gia hạn app qua Wi-Fi mỗi tuần.
+
+---
+
 ## 9. Khi build bị lỗi
 
 Mã nguồn chưa được biên dịch thử, nên lần đầu có thể gặp lỗi. Đây là việc bình thường. Cách gửi lỗi cho Claude sửa:

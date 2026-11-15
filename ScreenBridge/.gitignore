@@ -7,3 +7,4 @@ Support/
 .swiftpm/
 DerivedData/
 xcuserdata/
+build/

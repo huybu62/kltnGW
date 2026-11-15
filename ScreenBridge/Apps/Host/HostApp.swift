@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 import ScreenBridgeKit
 
 /// Host = the Mac whose screen is shared. Lives in the menu bar (LSUIElement).
@@ -11,6 +12,9 @@ struct ScreenBridgeHostApp: App {
             HostMenuContent(coordinator: appDelegate.coordinator, stream: appDelegate.stream)
                 .frame(width: 380)
             Divider()
+            OpenAtLoginToggle()
+                .padding(.horizontal)
+                .padding(.top, 4)
             Button("Quit ScreenBridge") { NSApplication.shared.terminate(nil) }
                 .padding(.bottom, 8)
         } label: {
@@ -80,6 +84,36 @@ private struct HostMenuContent: View {
         .padding()
         .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         .padding([.horizontal, .top])
+    }
+}
+
+/// Starts ScreenBridge automatically when you log in to this Mac.
+private struct OpenAtLoginToggle: View {
+    @State private var enabled = SMAppService.mainApp.status == .enabled
+    @State private var error: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Toggle("Open at login", isOn: Binding(
+                get: { enabled },
+                set: { newValue in
+                    do {
+                        if newValue {
+                            try SMAppService.mainApp.register()
+                        } else {
+                            try SMAppService.mainApp.unregister()
+                        }
+                        error = nil
+                    } catch {
+                        self.error = error.localizedDescription
+                    }
+                    enabled = SMAppService.mainApp.status == .enabled
+                }))
+            if let error {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .onAppear { enabled = SMAppService.mainApp.status == .enabled }
     }
 }
 
