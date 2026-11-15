@@ -48,7 +48,15 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         let configuration = SCStreamConfiguration()
         configuration.width = width
         configuration.height = height
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(framesPerSecond))
+        // macOS doesn't render frames at perfectly even intervals; one that
+        // arrives a little before 1/fps would be dropped. At the display's own
+        // rate there's nothing to throttle (0 = every frame the display
+        // draws); below it, allow ~15 % slack.
+        if framesPerSecond >= 120 {
+            configuration.minimumFrameInterval = .zero
+        } else {
+            configuration.minimumFrameInterval = CMTime(value: 100, timescale: CMTimeScale(framesPerSecond * 115))
+        }
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         // Frames ScreenCaptureKit keeps in its pool. Each is a full-size
         // surface (~8 MB at iPad Pro resolution); 3 is the minimum and plenty,

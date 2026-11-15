@@ -30,7 +30,7 @@ public final class DiscoveryService: ObservableObject {
     private var advertiserHealth: DiscoveryHealth = .idle
     private var isBusy = false
     /// Connected and not looking for more devices (see `setQuiet`).
-    public private(set) var isQuiet = false
+    @Published public private(set) var isQuiet = false
 
     /// - Parameters:
     ///   - browseRoles: which roles to show; defaults to the counterpart role.

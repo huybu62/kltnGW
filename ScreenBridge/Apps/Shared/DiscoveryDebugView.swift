@@ -26,7 +26,9 @@ struct DiscoveryDebugView: View {
             Text(coordinator.role == .host ? "Nearby displays" : "Nearby Macs")
                 .font(.headline)
             if discovery.peers.isEmpty {
-                Text("Searching… Make sure ScreenBridge is open on the other device.")
+                Text(discovery.isQuiet
+                     ? "Not searching while connected (keeps Wi-Fi latency low)."
+                     : "Searching… Make sure ScreenBridge is open on the other device.")
                     .font(.callout).foregroundStyle(.secondary)
             } else {
                 ForEach(discovery.peers) { peer in
