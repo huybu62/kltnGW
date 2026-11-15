@@ -20,6 +20,10 @@ final class BonjourAdvertiser {
     /// we let the OS pick one.
     static let preferredPort: UInt16 = 52790
     private var usePreferredPort = true
+    /// Advertise / accept over AWDL too. Turned off while connected (see
+    /// `DiscoveryService.setQuiet`): AWDL adds latency to the stream, but the
+    /// listener must stay up so a link switch or reconnect can come in.
+    private var peerToPeer = true
 
     private var listener: NWListener?
     private var advertisement: PeerAdvertisement
@@ -37,10 +41,11 @@ final class BonjourAdvertiser {
 
         let listener: NWListener
         do {
+            let parameters = ScreenBridgeParameters.make(includePeerToPeer: peerToPeer)
             if usePreferredPort, let port = NWEndpoint.Port(rawValue: Self.preferredPort) {
-                listener = try NWListener(using: ScreenBridgeParameters.make(), on: port)
+                listener = try NWListener(using: parameters, on: port)
             } else {
-                listener = try NWListener(using: ScreenBridgeParameters.make())
+                listener = try NWListener(using: parameters)
             }
         } catch {
             // Almost always a missing `com.apple.security.network.server`
@@ -118,6 +123,15 @@ final class BonjourAdvertiser {
     func restart() {
         stop()
         start()
+    }
+
+    /// Recreates the listener with or without peer-to-peer. Connections it
+    /// already accepted are not affected.
+    func setPeerToPeer(_ enabled: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard enabled != peerToPeer else { return }
+        peerToPeer = enabled
+        if listener != nil { restart() }
     }
 
     /// Re-publishes the TXT record (e.g. busy flag or name changed).

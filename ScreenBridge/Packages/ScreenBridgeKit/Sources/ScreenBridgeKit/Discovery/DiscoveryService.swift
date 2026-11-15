@@ -29,6 +29,8 @@ public final class DiscoveryService: ObservableObject {
     private var browserHealth: DiscoveryHealth = .idle
     private var advertiserHealth: DiscoveryHealth = .idle
     private var isBusy = false
+    /// Connected and not looking for more devices (see `setQuiet`).
+    public private(set) var isQuiet = false
 
     /// - Parameters:
     ///   - browseRoles: which roles to show; defaults to the counterpart role.
@@ -71,8 +73,10 @@ public final class DiscoveryService: ObservableObject {
         dispatchPrecondition(condition: .onQueue(.main))
         guard isRunning else { return }
         isRunning = false
+        isQuiet = false
         browser.stop()
         advertiser?.stop()
+        advertiser?.setPeerToPeer(true)  // listener is down, so this only resets the flag
     }
 
     /// Tear down and re-create the listener and browser. Call when an iPad app
@@ -82,6 +86,24 @@ public final class DiscoveryService: ObservableObject {
         guard isRunning else { return start() }
         advertiser?.restart()
         browser.restart()
+    }
+
+    /// While connected: stop browsing and stop using device-to-device Wi-Fi
+    /// (AWDL), which makes the Wi-Fi radio hop channels and adds tens of ms
+    /// of latency to the stream. Keeps listening and advertising on the
+    /// normal network and cables, so the connected device can still switch
+    /// links or reconnect.
+    public func setQuiet(_ quiet: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard isRunning, quiet != isQuiet else { return }
+        isQuiet = quiet
+        if quiet {
+            browser.stop()
+            advertiser?.setPeerToPeer(false)
+        } else {
+            advertiser?.setPeerToPeer(true)
+            browser.start()
+        }
     }
 
     /// Advertise busy so other radars grey this device out during a session.

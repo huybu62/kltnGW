@@ -101,7 +101,6 @@ public final class ConnectionCoordinator: ObservableObject {
     /// No room for another device (read by the responder's busy check off the main actor).
     private let atCapacity = AtomicFlag()
     private let activePeerIDs = LockedValue<Set<String>>([])
-    private var discoveryPausedForSessions = false
 
     public init(role: PeerRole, identity: DeviceIdentity? = nil, trustStore: TrustStore = TrustStore()) {
         var warning: String?
@@ -146,13 +145,12 @@ public final class ConnectionCoordinator: ObservableObject {
 
     public func stop() {
         disconnect()
-        discoveryPausedForSessions = false
         discovery.stop()
     }
 
     /// Call from `scenePhase == .active` on iPadOS (listeners die in background).
     public func appDidBecomeActive() {
-        // While connected, discovery may be paused on purpose (see `updateCapacity`).
+        // While connected, discovery is quiet on purpose (see `updateCapacity`).
         if connections.isEmpty { discovery.restart() }
     }
 
@@ -308,15 +306,7 @@ public final class ConnectionCoordinator: ObservableObject {
         activePeerIDs.value = Set(connections.map(\.peer.id))
         let full = !connections.isEmpty && connections.count >= maxConnections
         discovery.setBusy(full)
-        if full {
-            if discovery.isRunning {
-                discovery.stop()
-                discoveryPausedForSessions = true
-            }
-        } else if discoveryPausedForSessions {
-            discoveryPausedForSessions = false
-            discovery.start()
-        }
+        discovery.setQuiet(full)
     }
 
     // MARK: - Sessions
@@ -487,7 +477,9 @@ public final class ConnectionCoordinator: ObservableObject {
         let current = session.link
         switch kind {
         case .upgrade: guard current != .thunderbolt else { return }
-        case .failover: guard current.isWired else { return }  // Wi-Fi blips recover on their own
+        // Wi-Fi blips recover on their own; any other link (cable, USB) going
+        // away means moving to Wi-Fi now.
+        case .failover: guard current != .wifi, current != .peerToPeerWiFi else { return }
         }
         let endpoint = PeerConnector.unpinned(session.connection.remoteEndpoint)
         if kind == .failover { switchingLinks.insert(peerID) }

@@ -47,6 +47,12 @@ public final class PeerConnection: @unchecked Sendable {
     private var _link: LinkType = .other
     private var didBecomeReady = false
     private var didTerminate = false
+    /// Connection queue only.
+    private var stallWork: DispatchWorkItem?
+    /// An established connection that loses its path (cable pulled, Wi-Fi
+    /// gone) goes to `.waiting` instead of failing, and would wait forever.
+    /// After this long it is closed, so the session ends and reconnects.
+    private static let stallTimeout: TimeInterval = 2.5
 
     public var link: LinkType {
         lock.lock(); defer { lock.unlock() }
@@ -104,6 +110,8 @@ public final class PeerConnection: @unchecked Sendable {
         switch state {
         case .ready:
             lock.lock(); didBecomeReady = true; lock.unlock()
+            stallWork?.cancel()
+            stallWork = nil
             refreshLink()
             startup.resume(with: .success(()))
         case .waiting(let error):
@@ -111,6 +119,14 @@ public final class PeerConnection: @unchecked Sendable {
             if !ready {
                 startup.resume(with: .failure(PeerConnectionError.network(error)))
                 nwConnection.cancel()
+            } else if stallWork == nil {
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self else { return }
+                    self.stallWork = nil
+                    if case .waiting = self.nwConnection.state { self.nwConnection.cancel() }
+                }
+                stallWork = work
+                queue.asyncAfter(deadline: .now() + Self.stallTimeout, execute: work)
             }
         case .failed(let error):
             startup.resume(with: .failure(PeerConnectionError.network(error)))

@@ -16,7 +16,9 @@ public enum ScreenBridgeParameters {
     ///   - requiredInterface: pin the connection to one interface, used to
     ///     force Thunderbolt/Ethernet when the peer is reachable there.
     ///   - prohibitWiFi: skip Wi-Fi (incl. AWDL); used to look for a cable path.
-    public static func make(requiredInterface: NWInterface? = nil, prohibitWiFi: Bool = false) -> NWParameters {
+    ///   - includePeerToPeer: also use Apple's device-to-device Wi-Fi (AWDL).
+    public static func make(requiredInterface: NWInterface? = nil, prohibitWiFi: Bool = false,
+                            includePeerToPeer: Bool = true) -> NWParameters {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true                 // never Nagle a video frame
         tcp.enableKeepalive = true
@@ -28,7 +30,7 @@ public enum ScreenBridgeParameters {
         let parameters = NWParameters(tls: nil, tcp: tcp)
         // AWDL: lets two devices connect with no shared Wi-Fi network (or on
         // networks with client isolation) regardless of Apple ID.
-        parameters.includePeerToPeer = true
+        parameters.includePeerToPeer = includePeerToPeer
         parameters.serviceClass = .interactiveVideo
         parameters.prohibitedInterfaceTypes = prohibitWiFi ? [.cellular, .wifi] : [.cellular]
         if let requiredInterface {

@@ -156,12 +156,16 @@ public struct StreamStats: Equatable, Sendable {
     public var latencyMs: Double?
     /// Host: frames skipped because the link was busy (flow control).
     public var skippedFrames: Int
+    /// Host: screen updates skipped in the last second (link or encoder
+    /// busy). Shown so a frame-rate ceiling can be told apart from idling.
+    public var skippedPerSecond: Int = 0
 
     public var summary: String {
         var parts = ["\(codec.displayName) \(width)×\(height)",
                      String(format: "%.0f fps", framesPerSecond),
                      String(format: "%.1f Mbps", megabitsPerSecond)]
         if let latencyMs { parts.append(String(format: "%.0f ms", latencyMs)) }
+        if skippedPerSecond > 0 { parts.append("skip \(skippedPerSecond)/s") }
         return parts.joined(separator: " · ")
     }
 }

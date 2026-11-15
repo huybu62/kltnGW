@@ -434,7 +434,8 @@ final class HostStreamer: @unchecked Sendable {
         let stats = StreamStats(codec: encoder.codec, width: width, height: height,
                                 framesPerSecond: Double(framesThisSecond),
                                 megabitsPerSecond: Double(bytesThisSecond) * 8 / 1_000_000,
-                                latencyMs: latencyMs, skippedFrames: skippedTotal)
+                                latencyMs: latencyMs, skippedFrames: skippedTotal,
+                                skippedPerSecond: skippedThisSecond)
         // Simple adaptation: back off quickly when the link is struggling,
         // recover slowly when it has been calm for a while.
         let struggling = skippedThisSecond > 2 || (latencyMs ?? 0) > 120
