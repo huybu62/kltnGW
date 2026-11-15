@@ -11,14 +11,14 @@ struct HostStreamPanel: View {
 
             Picker("Mode", selection: $stream.mode) {
                 ForEach(StreamMode.allCases) { mode in
-                    Text(mode.displayName).tag(mode)
+                    Text(LocalizedStringKey(mode.displayName)).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
 
             Picker("Quality", selection: $stream.quality) {
                 ForEach(StreamQuality.allCases) { quality in
-                    Text(quality.displayName).tag(quality)
+                    Text(LocalizedStringKey(quality.displayName)).tag(quality)
                 }
             }
 
@@ -54,16 +54,25 @@ struct HostStreamPanel: View {
                 controlPermission
             }
 
-            Divider()
+            DisclosureGroup("More settings") {
+                moreSettings
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
 
+    @ViewBuilder
+    private var moreSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
             Toggle("Full color (sharper colored text)", isOn: $stream.fullColor)
             Text("10-bit 4:2:2 color: colored text and thin lines stay crisp. Uses about 1.5× the bandwidth, best over a cable. Devices that can't do it switch back automatically.")
                 .font(.caption).foregroundStyle(.secondary)
 
             Toggle("Draw pointer on iPad (less lag)", isOn: $stream.drawPointerOnDisplay)
             Text(stream.drawPointerOnDisplay
-                 ? "The pointer moves instantly on the iPad but is always a plain arrow."
-                 : "The pointer is part of the video: it changes shape (text, resize…) but lags slightly.")
+                 ? LocalizedStringKey("The pointer moves instantly on the iPad but is always a plain arrow.")
+                 : LocalizedStringKey("The pointer is part of the video: it changes shape (text, resize…) but lags slightly."))
                 .font(.caption).foregroundStyle(.secondary)
 
             Toggle("Play sound on iPad", isOn: $stream.soundOnDisplay)
@@ -76,17 +85,14 @@ struct HostStreamPanel: View {
                 get: { stream.lidClosedModeEnabled },
                 set: { stream.setLidClosedMode($0) }))
             if stream.lidClosedModeEnabled {
-                Text("The Mac stays awake when closed and the iPad becomes its main screen. "
-                     + "Plug the MacBook into power. Don't put it in a bag while this is on.")
+                Text("The Mac stays awake when closed and the iPad becomes its main screen. Plug the MacBook into power. Don't put it in a bag while this is on.")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("Only needed on battery: while charging, macOS already keeps a closed MacBook running "
-                     + "on the iPad. Turning this on asks for your Mac password.")
+                Text("Only needed on battery: while charging, macOS already keeps a closed MacBook running on the iPad. Turning this on asks for your Mac password.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        .padding(.top, 6)
     }
 
     @ViewBuilder

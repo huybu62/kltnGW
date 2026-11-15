@@ -24,6 +24,8 @@ ScreenBridge biến một chiếc Mac, iMac hoặc iPad thành **màn hình ph�
     - [8B. Kiểm tra Giai đoạn 2 (hình ảnh màn hình)](#8b-kiểm-tra-giai-đoạn-2-hình-ảnh-màn-hình)
     - [8C. Kiểm tra Giai đoạn 3 (điều khiển bằng cảm ứng, cáp, kết nối lại)](#8c-kiểm-tra-giai-đoạn-3-điều-khiển-bằng-cảm-ứng-cáp-kết-nối-lại)
     - [8D. Bàn phím, trackpad, âm thanh và dùng khi gập MacBook](#8d-bàn-phím-trackpad-âm-thanh-và-dùng-khi-gập-macbook)
+    - [8E. Dùng hằng ngày không cần mở Xcode](#8e-dùng-hằng-ngày-không-cần-mở-xcode)
+    - [8F. Giai đoạn 4: giao diện radar, trợ giúp, tiếng Việt, màu đầy đủ](#8f-giai-đoạn-4-giao-diện-radar-trợ-giúp-tiếng-việt-màu-đầy-đủ)
 9. [Khi build bị lỗi](#9-khi-build-bị-lỗi)
 10. [Xử lý sự cố khi chạy](#10-xử-lý-sự-cố-khi-chạy)
 11. [Dùng cáp Thunderbolt](#11-dùng-cáp-thunderbolt)
@@ -605,6 +607,63 @@ cd ~/Desktop/kltnGW/ScreenBridge && ./scripts/install-ipad.sh
 
 ---
 
+## 8F. Giai đoạn 4: giao diện radar, trợ giúp, tiếng Việt, màu đầy đủ
+
+### Cập nhật
+
+Cài lại **cả hai** app:
+
+```bash
+cd ~/Desktop/kltnGW/ScreenBridge && git pull && ./scripts/install-mac.sh
+```
+
+```bash
+cd ~/Desktop/kltnGW/ScreenBridge && ./scripts/install-ipad.sh
+```
+
+### Giao diện mới
+
+- **Radar**: máy của bạn nằm giữa, các máy tìm thấy hiện thành bong bóng xung quanh. Máy càng gần tâm thì đường kết nối càng nhanh (cáp ở trong, Wi-Fi ở giữa, Wi-Fi trực tiếp ở ngoài). Màu bong bóng:
+  - **Xanh dương**: đã ghép đôi, chạm 1 lần là kết nối.
+  - **Cam**: chưa ghép đôi, chạm để ghép (so mã 6 số như trước).
+  - **Xanh lá**: đang kết nối.
+  - **Xám**: máy đang bận hoặc cần cập nhật app.
+- **Thẻ kết nối**: mỗi máy đang nối hiện một thẻ riêng: loại kết nối, độ trễ (ms), nút **Ngắt kết nối** riêng. Khi dùng 2 màn hình phụ sẽ có 2 thẻ.
+- **Menu trên Mac gọn hơn**: các tùy chọn phụ (màu đầy đủ, vẽ con trỏ, âm thanh, dùng khi gập máy) nằm trong mục **Cài đặt thêm**, bấm vào để mở.
+- **Tiếng Việt**: app tự hiện tiếng Việt nếu máy đang đặt ngôn ngữ tiếng Việt. Nếu máy đặt tiếng Anh mà bạn chỉ muốn riêng ScreenBridge là tiếng Việt:
+  - **iPad**: Cài đặt → Ứng dụng → ScreenBridge → Ngôn ngữ → Tiếng Việt.
+  - **Mac**: Cài đặt hệ thống → Cài đặt chung → Ngôn ngữ & Vùng → mục **Ứng dụng** → bấm **+** → chọn ScreenBridge → Tiếng Việt. Thoát và mở lại ScreenBridge.
+
+### Khi không tìm thấy máy
+
+Sau khoảng 8 giây không thấy máy nào, nút **Không thấy thiết bị?** hiện ra. Bấm vào để xem 6 bước kiểm tra có hình minh họa (bước nào đang lỗi, ví dụ quyền Mạng cục bộ bị tắt, sẽ tô đỏ, kèm nút **Mở Cài đặt**).
+
+Cuối trang trợ giúp có **Kết nối bằng địa chỉ**, dùng khi mạng (công ty, trường học, khách sạn) chặn các máy thấy nhau:
+
+1. Trên một máy, đọc dòng **Địa chỉ của máy này**, ví dụ `192.168.1.20 : 52790`.
+2. Trên máy kia, nhập địa chỉ đó vào ô, rồi bấm **Kết nối**.
+
+### Màu đầy đủ (Full color)
+
+Trong menu Mac → **Cài đặt thêm** → **Màu đầy đủ (chữ màu sắc nét hơn)**.
+
+- Bình thường video nén màu kiểu 4:2:0: chữ đen trên nền trắng vẫn nét, nhưng **chữ màu nhỏ** (link xanh, code có tô màu) hơi nhòe viền. Màu đầy đủ dùng HEVC **10-bit 4:2:2** nên chữ màu và nét mảnh sắc hơn.
+- Màu luôn theo dải **Display P3** (đúng với màn hình MacBook Pro và iPad Pro), nên ảnh và video có màu tươi như trên Mac.
+- Tốn khoảng **1,5× băng thông**, nên dùng khi cắm cáp hoặc Wi-Fi mạnh.
+- Nếu chip không hỗ trợ, app **tự chuyển về chế độ thường** và hiện thông báo trong menu. Hãy báo Claude bạn thấy gì.
+
+### Bảng thử
+
+| Thử | Kết quả mong đợi |
+|---|---|
+| Mở app trên iPad khi Mac đang chạy | Mac hiện trên radar, chạm 1 lần là kết nối |
+| Bật chế độ máy bay trên iPad 10 giây | Sau ~8 giây hiện nút **Không thấy thiết bị?** |
+| Kết nối bằng địa chỉ IP | Kết nối được như khi chạm trên radar |
+| Đặt iPad sang tiếng Việt | Toàn bộ chữ trong app là tiếng Việt |
+| Bật **Màu đầy đủ**, mở trang web có chữ màu | Chữ màu nét hơn; trạng thái vẫn ~100 fps khi cắm cáp |
+
+---
+
 ## 9. Khi build bị lỗi
 
 Mã nguồn chưa được biên dịch thử, nên lần đầu có thể gặp lỗi. Đây là việc bình thường. Cách gửi lỗi cho Claude sửa:
@@ -762,7 +821,7 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 Đáp: Bấm **Forget** từng máy trong mục *Paired devices*. Gỡ app cũng xóa danh sách này.
 
 **Hỏi: Giao diện có tiếng Việt không?**
-Đáp: Giao diện hiện tại chỉ để thử nghiệm và đang dùng tiếng Anh. Giao diện chính thức ở Giai đoạn 4 có thể làm song ngữ Việt/Anh. Hãy nhắn Claude nếu bạn muốn.
+Đáp: Có. Từ Giai đoạn 4, app tự hiện tiếng Việt khi máy đặt ngôn ngữ tiếng Việt. Xem cách đặt riêng cho ScreenBridge ở [mục 8F](#8f-giai-đoạn-4-giao-diện-radar-trợ-giúp-tiếng-việt-màu-đầy-đủ).
 
 ---
 
@@ -773,7 +832,7 @@ Muốn hiểu luồng chạy, nên đọc theo thứ tự:
 | **1** | Tìm thiết bị (Bonjour), chọn đường kết nối tốt nhất, ghép đôi khác Apple ID, mã hóa | ✅ Xong |
 | **2** | Quay màn hình (ScreenCaptureKit), nén phần cứng H.264/HEVC (VideoToolbox) trên Mac; giải nén và hiển thị trên iPad/Mac; màn hình ảo cho chế độ mở rộng; truyền video mã hóa, tự giảm chất lượng khi mạng chậm; 30/60/120 Hz | ✅ Xong |
 | **3** | Cảm ứng / Apple Pencil (cả khi bút chưa chạm) điều khiển Mac; tự chuyển sang cáp khi cắm vào giữa chừng; tự kết nối lại khi rớt mạng mà vẫn giữ màn hình phụ | ✅ Xong |
-| **3b** | Bàn phím Folio + Magic Trackpad điều khiển Mac, âm thanh trên iPad, dùng khi gập MacBook | 🧪 Đang thử |
-| **4** | Giao diện hoàn chỉnh: bảng điều khiển trên thanh menu, màn hình **radar** hiện thiết bị xung quanh, kết nối 1 chạm, hướng dẫn bằng hình khi không tìm thấy máy | ⏳ |
+| **3b** | Bàn phím Folio + Magic Trackpad điều khiển Mac, âm thanh trên iPad, dùng khi gập MacBook | ✅ Xong |
+| **4** | Giao diện hoàn chỉnh: bảng điều khiển trên thanh menu, màn hình **radar** hiện thiết bị xung quanh, kết nối 1 chạm, hướng dẫn bằng hình khi không tìm thấy máy, kết nối bằng địa chỉ IP, giao diện tiếng Việt, màu đầy đủ + Display P3 | 🧪 Đang thử |
 
-Khi đã thử xong (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8D](#8d-bàn-phím-trackpad-âm-thanh-và-dùng-khi-gập-macbook), hoặc gửi lỗi theo hướng dẫn ở mục 9.
+Khi đã thử xong (hoặc gặp lỗi), gửi Claude kết quả theo [mục 8F](#8f-giai-đoạn-4-giao-diện-radar-trợ-giúp-tiếng-việt-màu-đầy-đủ), hoặc gửi lỗi theo hướng dẫn ở mục 9.

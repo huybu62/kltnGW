@@ -52,7 +52,7 @@ private struct HostMenuContent: View {
             if stream.lidClosedModeEnabled && !coordinator.isConnected {
                 lidModeReminder
             }
-            DiscoveryDebugView(coordinator: coordinator)
+            ConnectionHomeView(coordinator: coordinator, compact: true)
             displayCountPicker
             if coordinator.isConnected || !stream.streams.isEmpty {
                 HostStreamPanel(stream: stream)

@@ -87,13 +87,21 @@ private struct DisplayRootView: View {
             #endif
         } else {
             ScrollView {
-                DiscoveryDebugView(coordinator: coordinator)
-                    .frame(maxWidth: 560)
-                if coordinator.isConnected {
-                    Label("Connected. Waiting for the Mac to start sharing…", systemImage: "hourglass")
-                        .padding()
+                VStack {
+                    ConnectionHomeView(coordinator: coordinator)
+                        .frame(maxWidth: 620)
+                    if coordinator.isConnected {
+                        Label("Connected. Waiting for the Mac to start sharing…", systemImage: "hourglass")
+                            .padding()
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
+            .background(
+                LinearGradient(colors: [Color.accentColor.opacity(0.12), Color.clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+            )
         }
     }
 

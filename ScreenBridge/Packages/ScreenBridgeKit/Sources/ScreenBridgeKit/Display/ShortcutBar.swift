@@ -100,7 +100,7 @@ private struct ModifierKey: View {
 
 private struct ShortcutKey: View {
     let symbol: String
-    let label: String
+    let label: LocalizedStringKey
     let action: () -> Void
 
     var body: some View {

@@ -9,7 +9,7 @@ Use any Mac or iPad as a second display for a Mac, **even when the devices are s
 | **Host** | macOS 13+ (menu bar app) | Captures the screen with ScreenCaptureKit, encodes it with VideoToolbox (H.264/HEVC), sends it |
 | **Display** | macOS 13+ / iPadOS 16+ | Receives, decodes with VideoToolbox, renders with `AVSampleBufferDisplayLayer`/Metal |
 
-Status: **Phases 1–2 verified on hardware** (Mac ↔ iPad Pro on different Apple IDs: Extend/Mirror at up to 120 Hz, ~100 fps measured while dragging, 1–2 ms network latency over cable, 7–15 ms over Wi-Fi). **Phase 3 (touch/Pencil, cable hand-over, auto-reconnect) verified on hardware; Phase 3b (keyboard, trackpad, audio, lid-closed use) awaiting its first on-device test.** Phase 4 builds the final UI (radar, onboarding).
+Status: **Phases 1–2 verified on hardware** (Mac ↔ iPad Pro on different Apple IDs: Extend/Mirror at up to 120 Hz, ~100 fps measured while dragging, 1–2 ms network latency over cable, 7–15 ms over Wi-Fi). **Phase 3 (touch/Pencil, cable hand-over, auto-reconnect) verified on hardware; Phase 3b (keyboard, trackpad, audio, lid-closed use) verified.** Phase 4 (radar UI, connection help, manual connect by IP, Vietnamese localization, full color + Display P3) awaiting its first on-device test.
 
 ---
 
@@ -93,6 +93,13 @@ Host (macOS)                                                   Display (iPadOS /
 - **Audio:** ScreenCaptureKit system audio (own process excluded), sent as 48 kHz stereo 16-bit PCM (`sealedAudio`, ~1.5 Mbit/s). It plays through `AVAudioEngine` with a 40 ms start buffer, and packets are dropped once 120 ms is queued. "Mute this Mac's speakers" uses `set volume with output muted`. It still needs testing whether capture survives the mute.
 - **Lid closed:** a virtual display doesn't qualify for clamshell mode, so "Use with the lid closed" toggles `pmset -a disablesleep` (admin prompt). A display-sleep assertion is held while sharing. If the built-in screen goes inactive while in Mirror, the Host switches to Extend.
 
+## Final UI and color (Phase 4)
+
+- **Home screen** (`ConnectionHomeView`, shared by both apps; `compact` in the menu bar): one card per live session (link, RTT, its own Disconnect), a radar of discovered peers (radius by best link, stable angle per peer id, color by paired/unpaired/busy), and the pairing sheet.
+- **Help** (`ConnectionHelpView`): appears after 8 s with no peers; ordered checks with the failing one highlighted (Local Network denied), and a manual connect by IP:port, listing this device's IPv4 addresses (`LocalAddresses`) for networks that block mDNS.
+- **Localization:** English source strings, Vietnamese in `Apps/Shared/vi.lproj/Localizable.strings`; `CFBundleLocalizations` = en, vi.
+- **Color:** capture is tagged Display P3. "Full color" captures BGRA and encodes HEVC Main 4:2:2 10-bit, falling back to 4:2:0 (and telling the Host) when the encoder or decoder can't.
+
 ## ⚠️ Constraints
 
 1. **Bluetooth can't carry video.** In practice BLE moves well under 1 Mbit/s. A 1080p60 stream needs 15–40 Mbit/s, and Retina needs more. The Network framework also no longer runs Bonjour over Bluetooth. Where Bluetooth helps is waking or finding a device when Wi-Fi is off. That optional CoreBluetooth beacon fits behind the discovery layer later. AWDL already gives a cable-free, router-free path at Wi-Fi speeds.
@@ -122,7 +129,7 @@ ScreenBridge/
 └── Apps/
     ├── Host/            Menu bar app (MenuBarExtra)
     ├── Display/         macOS + iPadOS app
-    └── Shared/          Phase 1 debug UI (replaced by the radar UI in Phase 4)
+    └── Shared/          Radar home screen, connection help, pairing sheet, vi.lproj strings
 ```
 
 ## Build & run

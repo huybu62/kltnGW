@@ -50,6 +50,7 @@ x-network-info: &networkInfo
   CFBundleVersion: $(CURRENT_PROJECT_VERSION)
   CFBundleInfoDictionaryVersion: "6.0"
   CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
+  CFBundleLocalizations: [en, vi]          # UI in Vietnamese when the device is set to Vietnamese
   NSLocalNetworkUsageDescription: >-
     ScreenBridge finds your Mac and iPad on the local network and over a
     Thunderbolt cable so one can be used as a display for the other.
