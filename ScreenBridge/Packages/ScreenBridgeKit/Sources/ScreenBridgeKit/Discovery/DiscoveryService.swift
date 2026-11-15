@@ -85,7 +85,7 @@ public final class DiscoveryService: ObservableObject {
         dispatchPrecondition(condition: .onQueue(.main))
         guard isRunning else { return start() }
         advertiser?.restart()
-        browser.restart()
+        if !isQuiet { browser.restart() }
     }
 
     /// While connected: stop browsing and stop using device-to-device Wi-Fi

@@ -131,6 +131,9 @@ targets:
         <<: *networkInfo
         CFBundleDisplayName: ScreenBridge
         LSRequiresIPhoneOS: true
+        # Picture in Picture of the Mac screen when you switch apps (also keeps
+        # the connection alive in the background).
+        UIBackgroundModes: [audio]
         UILaunchScreen: {}
         UIRequiresFullScreen: false
         UIApplicationSceneManifest:

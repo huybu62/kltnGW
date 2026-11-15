@@ -35,6 +35,10 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         displayLayer = AVSampleBufferDisplayLayer()
         displayLayer.videoGravity = .resizeAspect
         decoder.onDecoded = { [weak self] pixelBuffer in self?.show(pixelBuffer) }
+        decoder.onCompressed = { [weak self] sample in
+            Self.markDisplayImmediately(sample)
+            self?.enqueue(sample)
+        }
         decoder.onNeedsKeyframe = { [weak self] in
             guard let self else { return }
             // A full-color stream this iPad can open but not decode: give up on it.
@@ -76,14 +80,14 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
             clearScreen()
             return
         }
-        // Keep the frozen last frame; give up after 20 s.
+        // Keep the frozen last frame; give up when the Mac does.
         isReconnecting = true
         let work = DispatchWorkItem { [weak self] in
             self?.isReconnecting = false
             self?.clearScreen()
         }
         clearWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + ConnectionCoordinator.reconnectWindow, execute: work)
     }
 
     // MARK: Input (any thread)
@@ -218,6 +222,19 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         for usage in latchedModifiers { setModifier(usage, down: false) }
     }
 
+    /// iPad app moved to / from the background. In the background (Picture
+    /// in Picture) the layer decodes the video itself, since VideoToolbox
+    /// sessions aren't allowed there.
+    public func setInBackground(_ background: Bool) {
+        decoder.setPassthrough(background)
+        if #available(iOS 17.0, macOS 14.0, *) {
+            displayLayer.sampleBufferRenderer.flush()
+        } else {
+            displayLayer.flush()
+        }
+        requestKeyframe(force: true)
+    }
+
     /// Call when the app returns to the foreground (iPadOS may have reset
     /// the decoder and the layer while in the background).
     public func refresh() {
@@ -235,11 +252,11 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         session?.sendWithoutWaiting(.fullColorUnsupported)
     }
 
-    private func requestKeyframe() {
+    private func requestKeyframe(force: Bool = false) {
         lock.lock()
         let now = ProcessInfo.processInfo.systemUptime
         let session = self.session
-        let tooSoon = now - lastKeyframeRequest < 0.3
+        let tooSoon = !force && now - lastKeyframeRequest < 0.3
         if !tooSoon { lastKeyframeRequest = now }
         lock.unlock()
         guard !tooSoon else { return }

@@ -652,6 +652,14 @@ Trong menu Mac → **Cài đặt thêm** → **Màu đầy đủ (chữ màu s�
 - Tốn khoảng **1,5× băng thông**, nên dùng khi cắm cáp hoặc Wi-Fi mạnh.
 - Nếu chip không hỗ trợ, app **tự chuyển về chế độ thường** và hiện thông báo trong menu. Hãy báo Claude bạn thấy gì.
 
+### Chuyển sang app khác trên iPad (Hình trong hình)
+
+- Khi đang hiện màn hình Mac mà bạn vuốt về màn hình chính hoặc mở app khác, màn hình Mac **thu nhỏ thành cửa sổ nổi** và vẫn chạy. Cửa sổ này chỉ để xem, không chạm điều khiển Mac được.
+- Chạm vào cửa sổ nổi → nút mở rộng để quay lại toàn màn hình. Kéo cửa sổ vào cạnh màn hình để giấu tạm.
+- Nếu không thấy cửa sổ nổi: Cài đặt → Cài đặt chung → **Hình trong hình** → bật **Tự động bắt đầu Hình trong hình**.
+- Nếu tắt cửa sổ nổi, app sẽ tạm dừng. Mac **giữ màn hình phụ 2 phút**: mở lại ScreenBridge trong 2 phút thì hình hiện lại, cửa sổ vẫn nằm nguyên chỗ cũ.
+- Khi đang dùng, nhạc từ app khác trên iPad có thể bị tạm dừng: iPadOS yêu cầu app có Hình trong hình phải giữ phần âm thanh.
+
 ### Bảng thử
 
 | Thử | Kết quả mong đợi |
@@ -660,6 +668,8 @@ Trong menu Mac → **Cài đặt thêm** → **Màu đầy đủ (chữ màu s�
 | Bật chế độ máy bay trên iPad 10 giây | Sau ~8 giây hiện nút **Không thấy thiết bị?** |
 | Kết nối bằng địa chỉ IP | Kết nối được như khi chạm trên radar |
 | Đặt iPad sang tiếng Việt | Toàn bộ chữ trong app là tiếng Việt |
+| Đang hiện màn hình Mac, vuốt về màn hình chính | Màn hình Mac thu thành cửa sổ nổi, vẫn chạy |
+| Tắt cửa sổ nổi, 1 phút sau mở lại app | Hình hiện lại, cửa sổ trên màn hình phụ không bị dời về Mac |
 | Bật **Màu đầy đủ**, mở trang web có chữ màu | Chữ màu nét hơn; trạng thái vẫn ~100 fps khi cắm cáp |
 
 ---

@@ -137,7 +137,7 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
     // Main thread.
     private var parkTimers: [String: DispatchWorkItem] = [:]
     private let injector = InputInjector()
-    private static let reconnectGrace: TimeInterval = 20
+    private static let reconnectGrace: TimeInterval = ConnectionCoordinator.reconnectWindow
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

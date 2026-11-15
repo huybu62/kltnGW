@@ -84,6 +84,9 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     private let cursorLayer = CAShapeLayer()
     private var lastLocalPointerTime: CFTimeInterval = 0
 
+    /// Floating window of the Mac screen when you leave the app.
+    private var pictureInPicture: PictureInPicture?
+
     // Apple Pencil as a pen tablet + palm rejection
     private weak var pressRecognizer: UILongPressGestureRecognizer?
     private var pencilTouch: UITouch?
@@ -321,9 +324,14 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
         if window != nil {
             DispatchQueue.main.async { [weak self] in _ = self?.becomeFirstResponder() }
             startHighRefreshRate()
+            if pictureInPicture == nil, let hosted = hosted as? AVSampleBufferDisplayLayer {
+                pictureInPicture = PictureInPicture(layer: hosted)
+            }
         } else {
             releaseHeldKeys()
             stopHighRefreshRate()
+            pictureInPicture?.stop()
+            pictureInPicture = nil
         }
     }
 

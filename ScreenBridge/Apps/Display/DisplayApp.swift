@@ -21,9 +21,16 @@ struct ScreenBridgeDisplayApp: App {
                 .onChange(of: scenePhase) { phase in
                     #if os(iOS)
                     // iPadOS tears listeners and decoders down in the background.
-                    if phase == .active {
+                    switch phase {
+                    case .active:
+                        stream.setInBackground(false)
                         coordinator.appDidBecomeActive()
                         stream.refresh()
+                    case .background:
+                        // Picture in Picture keeps the picture going.
+                        stream.setInBackground(true)
+                    default:
+                        break
                     }
                     #endif
                 }

@@ -38,9 +38,6 @@ final class AudioPlayer {
             self.engine.stop()
             self.engineReady = false
             self.lock.lock(); self.queuedFrames = 0; self.lock.unlock()
-            #if os(iOS)
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            #endif
         }
     }
 
@@ -94,10 +91,8 @@ final class AudioPlayer {
     private func startEngineIfNeeded() -> Bool {
         if engineReady { return true }
         #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .default)
-        try? session.setPreferredIOBufferDuration(0.005)
-        try? session.setActive(true)
+        PictureInPicture.activateAudioSession()
+        try? AVAudioSession.sharedInstance().setPreferredIOBufferDuration(0.005)
         #endif
         if engine.attachedNodes.contains(player) == false {
             engine.attach(player)

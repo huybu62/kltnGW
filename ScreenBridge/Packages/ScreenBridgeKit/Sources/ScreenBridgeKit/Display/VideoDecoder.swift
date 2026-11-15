@@ -18,6 +18,20 @@ final class VideoDecoder {
     private var formatDescription: CMVideoFormatDescription?
     private var session: VTDecompressionSession?
     private var waitingForKeyframe = true
+    /// While true, frames skip VideoToolbox and go to `onCompressed`: the
+    /// display layer decodes them itself, which keeps working while the
+    /// iPad app is in the background (Picture in Picture).
+    private var passthrough = false
+    var onCompressed: ((CMSampleBuffer) -> Void)?
+
+    func setPassthrough(_ on: Bool) {
+        lock.lock()
+        let changed = passthrough != on
+        passthrough = on
+        if changed { waitingForKeyframe = true }
+        lock.unlock()
+        if !on, changed { rebuildSession() }  // may have died in the background
+    }
 
     var currentFormat: VideoFormat? {
         lock.lock(); defer { lock.unlock() }
@@ -47,7 +61,17 @@ final class VideoDecoder {
         if isKeyframe { waitingForKeyframe = false }
         let session = self.session
         let description = formatDescription
+        let passthrough = self.passthrough
         lock.unlock()
+
+        if passthrough {
+            guard let description, let sample = Self.makeSampleBuffer(data, format: description) else {
+                needKeyframe()
+                return
+            }
+            onCompressed?(sample)
+            return
+        }
 
         guard let session, let description,
               let sample = Self.makeSampleBuffer(data, format: description) else {

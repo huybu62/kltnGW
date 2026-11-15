@@ -150,8 +150,9 @@ public final class ConnectionCoordinator: ObservableObject {
 
     /// Call from `scenePhase == .active` on iPadOS (listeners die in background).
     public func appDidBecomeActive() {
-        // While connected, discovery is quiet on purpose (see `updateCapacity`).
-        if connections.isEmpty { discovery.restart() }
+        // Always re-create the listener (the Mac may be trying to reconnect
+        // to it); browsing stays off while quiet (see `updateCapacity`).
+        discovery.restart()
     }
 
     /// Rename this device everywhere (TXT record, future handshakes).
@@ -531,12 +532,17 @@ public final class ConnectionCoordinator: ObservableObject {
     }
 
     /// The connection dropped unexpectedly and we initiated it: keep trying
-    /// for ~30 s (Wi-Fi roaming, Mac waking up, cable pulled…).
+    /// for ~2 min (Wi-Fi roaming, Mac waking up, cable pulled, iPad app
+    /// in the background…).
+    /// How long a dropped session is retried (and kept on both sides).
+    public static let reconnectWindow: TimeInterval = 120
+
     private func startReconnect(to endpoint: NWEndpoint, peer: DeviceInfo) {
         let id = peer.id
         phase = .connecting(peerName: "\(peer.name) (reconnecting)")
         reconnectTasks[id] = Task { [weak self] in
-            for _ in 0..<10 {
+            let deadline = Date().addingTimeInterval(Self.reconnectWindow)
+            while Date() < deadline {
                 if Task.isCancelled { return }
                 if let connection = try? await PeerConnector.reconnect(to: endpoint) {
                     guard let self else { connection.cancel(); return }
