@@ -13,6 +13,10 @@ final class VideoEncoder {
         var height: Int
         var framesPerSecond: Int
         var bitrate: Int
+        /// HEVC Main 4:2:2 10-bit: twice the color resolution of 4:2:0, so
+        /// colored text and thin colored lines stay sharp. Hardware only;
+        /// falls back to 4:2:0 if this Mac can't.
+        var fullColor = false
     }
 
     struct EncodedFrame {
@@ -47,20 +51,33 @@ final class VideoEncoder {
 
     /// Tries the requested codec first, then falls back to H.264 (e.g. older
     /// Intel Macs without an HEVC hardware encoder).
+    /// Tries the requested settings, then falls back step by step:
+    /// HEVC 4:2:2 10-bit → HEVC 4:2:0 → H.264 (e.g. older Intel Macs).
     init(configuration: Configuration) throws {
-        var config = configuration
-        if let session = Self.makeSession(config) {
-            self.session = session
-        } else if config.codec == .hevc {
-            config.codec = .h264
-            guard let session = Self.makeSession(config) else { throw EncoderError.cannotCreate(-1) }
-            self.session = session
-        } else {
-            throw EncoderError.cannotCreate(-1)
+        var attempts: [Configuration] = []
+        var attempt = configuration
+        if attempt.fullColor, attempt.codec == .hevc { attempts.append(attempt) }
+        attempt.fullColor = false
+        attempts.append(attempt)
+        if attempt.codec == .hevc {
+            attempt.codec = .h264
+            attempts.append(attempt)
         }
-        self.configuration = config
-        self.codec = config.codec
+        var chosen: (VTCompressionSession, Configuration)?
+        for candidate in attempts {
+            if let session = Self.makeSession(candidate) {
+                chosen = (session, candidate)
+                break
+            }
+        }
+        guard let chosen else { throw EncoderError.cannotCreate(-1) }
+        self.session = chosen.0
+        self.configuration = chosen.1
+        self.codec = chosen.1.codec
     }
+
+    /// Whether this session really encodes 4:2:2 10-bit.
+    var isFullColor: Bool { configuration.fullColor }
 
     deinit { invalidate() }
 
@@ -70,6 +87,10 @@ final class VideoEncoder {
         ]
         if config.codec == .h264 {
             specification[kVTVideoEncoderSpecification_EnableLowLatencyRateControl] = true
+        }
+        if config.fullColor {
+            // Never let 4:2:2 fall back to a (far too slow) software encoder.
+            specification[kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder] = true
         }
         var created: VTCompressionSession?
         let status = VTCompressionSessionCreate(
@@ -82,7 +103,8 @@ final class VideoEncoder {
             compressionSessionOut: &created)
         guard status == noErr, let session = created else { return nil }
 
-        func set(_ key: CFString, _ value: Any) {
+        @discardableResult
+        func set(_ key: CFString, _ value: Any) -> OSStatus {
             VTSessionSetProperty(session, key: key, value: value as CFTypeRef)
         }
         set(kVTCompressionPropertyKey_RealTime, true)
@@ -91,8 +113,21 @@ final class VideoEncoder {
         // Speed over a few % of compression efficiency.
         set(kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, true)
         set(kVTCompressionPropertyKey_AllowFrameReordering, false)
-        set(kVTCompressionPropertyKey_ProfileLevel,
-            config.codec == .hevc ? kVTProfileLevel_HEVC_Main_AutoLevel : kVTProfileLevel_H264_High_AutoLevel)
+        let profile: CFString
+        switch (config.codec, config.fullColor) {
+        case (.hevc, true): profile = kVTProfileLevel_HEVC_Main42210_AutoLevel
+        case (.hevc, false): profile = kVTProfileLevel_HEVC_Main_AutoLevel
+        case (.h264, _): profile = kVTProfileLevel_H264_High_AutoLevel
+        }
+        if set(kVTCompressionPropertyKey_ProfileLevel, profile) != noErr, config.fullColor {
+            VTCompressionSessionInvalidate(session)
+            return nil  // this encoder can't do 4:2:2; caller falls back
+        }
+        // Mac screens are Display P3: tag the stream so the iPad (also P3)
+        // shows the same colors instead of squeezing them into sRGB.
+        set(kVTCompressionPropertyKey_ColorPrimaries, kCVImageBufferColorPrimaries_P3_D65)
+        set(kVTCompressionPropertyKey_TransferFunction, kCVImageBufferTransferFunction_ITU_R_709_2)
+        set(kVTCompressionPropertyKey_YCbCrMatrix, kCVImageBufferYCbCrMatrix_ITU_R_709_2)
         set(kVTCompressionPropertyKey_ExpectedFrameRate, config.framesPerSecond)
         // Keyframes are requested explicitly; this is only a safety net.
         set(kVTCompressionPropertyKey_MaxKeyFrameInterval, config.framesPerSecond * 30)

@@ -96,9 +96,23 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         }
     }
 
+    /// Full color (HEVC 4:2:2 10-bit): sharper colored text, ~1.5× the
+    /// bandwidth. Devices that can't do it fall back to 4:2:0 on their own.
+    @Published public var fullColor: Bool {
+        didSet {
+            guard fullColor != oldValue else { return }
+            defaults.set(fullColor, forKey: Self.fullColorKey)
+            fullColorUnsupported.value = []
+            restartAll()
+        }
+    }
+
     /// The Mac stays awake with its lid closed (see `LidClosedMode`).
     @Published public private(set) var lidClosedModeEnabled = LidClosedMode.isEnabled
 
+    private static let fullColorKey = "ScreenBridge.fullColor"
+    /// Displays that reported they can't decode full color.
+    private let fullColorUnsupported = LockedValue<Set<String>>([])
     private static let pointerKey = "ScreenBridge.drawPointerOnDisplay"
     private static let soundKey = "ScreenBridge.soundOnDisplay"
     private static let muteKey = "ScreenBridge.muteMacWhileSharing"
@@ -134,6 +148,7 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         soundOnDisplay = defaults.object(forKey: Self.soundKey) as? Bool ?? true
         muteMacWhileSharing = defaults.object(forKey: Self.muteKey) as? Bool ?? true
         drawPointerOnDisplay = defaults.object(forKey: Self.pointerKey) as? Bool ?? true
+        fullColor = defaults.bool(forKey: Self.fullColorKey)
     }
 
     // MARK: Lid closed, staying awake, sound
@@ -272,6 +287,11 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
         switch message {
         case .frameAck(let number): streamer?.acknowledge(frameNumber: number)
         case .requestKeyframe: streamer?.requestKeyframe()
+        case .fullColorUnsupported:
+            let id = session.peer.id
+            guard !fullColorUnsupported.value.contains(id) else { return }
+            fullColorUnsupported.value.insert(id)
+            DispatchQueue.main.async { [weak self] in self?.restart(id) }
         default: break
         }
     }
@@ -310,7 +330,8 @@ public final class HostStreamController: ObservableObject, SessionMediaSink, @un
             session: session, peerDisplay: session.peer.display, mode: mode, quality: quality,
             frameRate: frameRate, sendsAudio: soundOnDisplay,
             // A Mac display has its own pointer over the window; only iPads draw one.
-            localCursor: drawPointerOnDisplay && session.peer.platform != .mac)
+            localCursor: drawPointerOnDisplay && session.peer.platform != .mac,
+            fullColor: fullColor && !fullColorUnsupported.value.contains(id))
         streamers[id] = streamer
         lock.unlock()
 

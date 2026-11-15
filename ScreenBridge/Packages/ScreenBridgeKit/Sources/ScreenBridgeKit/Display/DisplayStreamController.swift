@@ -29,12 +29,24 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     private var bytesThisSecond = 0
     private var statsTimer: DispatchSourceTimer?
     private var clearWork: DispatchWorkItem?
+    private var fullColorFailures = 0
 
     public init() {
         displayLayer = AVSampleBufferDisplayLayer()
         displayLayer.videoGravity = .resizeAspect
         decoder.onDecoded = { [weak self] pixelBuffer in self?.show(pixelBuffer) }
-        decoder.onNeedsKeyframe = { [weak self] in self?.requestKeyframe() }
+        decoder.onNeedsKeyframe = { [weak self] in
+            guard let self else { return }
+            // A full-color stream this iPad can open but not decode: give up on it.
+            if self.decoder.currentFormat?.fullColor == true {
+                self.lock.lock()
+                self.fullColorFailures += 1
+                let failures = self.fullColorFailures
+                self.lock.unlock()
+                if failures >= 5 { self.reportFullColorUnsupported() }
+            }
+            self.requestKeyframe()
+        }
     }
 
     // MARK: SessionMediaSink
@@ -98,7 +110,13 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
         switch MessageType(rawValue: type) {
         case .sealedVideoFormat:
             guard let format = try? WireCoding.decode(VideoFormat.self, from: payload) else { return }
-            if !decoder.configure(format) { requestKeyframe() }
+            if !decoder.configure(format) {
+                if format.fullColor == true {
+                    reportFullColorUnsupported()  // the Mac restarts this stream in 4:2:0
+                } else {
+                    requestKeyframe()
+                }
+            }
 
         case .sealedVideoFrame:
             guard let header = VideoFrameHeader(payload) else { return }
@@ -208,6 +226,14 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     }
 
     // MARK: - Internals
+
+    private func reportFullColorUnsupported() {
+        lock.lock()
+        let session = self.session
+        fullColorFailures = 0
+        lock.unlock()
+        session?.sendWithoutWaiting(.fullColorUnsupported)
+    }
 
     private func requestKeyframe() {
         lock.lock()

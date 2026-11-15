@@ -14,6 +14,8 @@ public enum ControlMessage: Codable, Sendable, Equatable {
     /// Host → Display: where the Mac's pointer is (normalized to the
     /// captured screen), when the Display draws the pointer itself.
     case cursor(x: Double, y: Double, visible: Bool)
+    /// Display → Host: this device can't decode full color (4:2:2); send 4:2:0.
+    case fullColorUnsupported
 }
 
 public enum SessionEvent: @unchecked Sendable {

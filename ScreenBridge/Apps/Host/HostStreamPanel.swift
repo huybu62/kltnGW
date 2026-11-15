@@ -56,6 +56,10 @@ struct HostStreamPanel: View {
 
             Divider()
 
+            Toggle("Full color (sharper colored text)", isOn: $stream.fullColor)
+            Text("10-bit 4:2:2 color: colored text and thin lines stay crisp. Uses about 1.5× the bandwidth, best over a cable. Devices that can't do it switch back automatically.")
+                .font(.caption).foregroundStyle(.secondary)
+
             Toggle("Draw pointer on iPad (less lag)", isOn: $stream.drawPointerOnDisplay)
             Text(stream.drawPointerOnDisplay
                  ? "The pointer moves instantly on the iPad but is always a plain arrow."

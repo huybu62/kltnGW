@@ -2,6 +2,7 @@
 import Foundation
 import CoreMedia
 import CoreVideo
+import CoreGraphics
 import ScreenCaptureKit
 
 /// Captures one display with ScreenCaptureKit, straight into the encoder's
@@ -41,7 +42,7 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
     static func requestPermission() -> Bool { CGRequestScreenCaptureAccess() }
 
     func start(displayID: CGDirectDisplayID, width: Int, height: Int, framesPerSecond: Int,
-               captureAudio: Bool, showsCursor: Bool = true) async throws {
+               captureAudio: Bool, showsCursor: Bool = true, fullColor: Bool = false) async throws {
         let display = try await Self.findDisplay(displayID)
 
         let filter = SCContentFilter(display: display, excludingWindows: [])
@@ -57,7 +58,11 @@ final class ScreenCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
         } else {
             configuration.minimumFrameInterval = CMTime(value: 100, timescale: CMTimeScale(framesPerSecond * 115))
         }
-        configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+        // 4:2:0 frames go straight into the encoder. For full color, capture
+        // 4:4:4 BGRA and let the encoder convert to 4:2:2 (no 4:2:0 step).
+        configuration.pixelFormat = fullColor ? kCVPixelFormatType_32BGRA : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+        configuration.colorSpaceName = CGColorSpace.displayP3
+        configuration.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2
         // Frames ScreenCaptureKit keeps in its pool. Each is a full-size
         // surface (~8 MB at iPad Pro resolution); 3 is the minimum and plenty,
         // because frames are handed straight to the encoder.

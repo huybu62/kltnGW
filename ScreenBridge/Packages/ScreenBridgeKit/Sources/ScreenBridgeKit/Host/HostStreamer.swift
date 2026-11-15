@@ -34,6 +34,8 @@ final class HostStreamer: @unchecked Sendable {
     /// Leave the pointer out of the video and let the Display draw it
     /// (instant response to touch/trackpad; see `.cursor` messages).
     let localCursor: Bool
+    /// Asked for 4:2:2 10-bit; `encoder.isFullColor` says whether it's in use.
+    let wantsFullColor: Bool
     private var cursorTimer: DispatchSourceTimer?
     private var lastCursor: (x: Double, y: Double, visible: Bool)?
     private var cursorKeepAlive = 0
@@ -88,10 +90,13 @@ final class HostStreamer: @unchecked Sendable {
     private var statsTimer: DispatchSourceTimer?
 
     init(session: SecureSession, peerDisplay: DisplayCapabilities?, mode: StreamMode,
-         quality: StreamQuality, frameRate: StreamFrameRate, sendsAudio: Bool, localCursor: Bool) {
+         quality: StreamQuality, frameRate: StreamFrameRate, sendsAudio: Bool, localCursor: Bool,
+         fullColor: Bool = false) {
         self.session = session
         self.sendsAudio = sendsAudio
         self.localCursor = localCursor
+        // 4:2:2 needs HEVC on both ends.
+        self.wantsFullColor = fullColor && (peerDisplay?.supportsHEVC ?? false)
         self.peerID = session.peer.id
         self.peerName = session.peer.name
         self.peerDisplay = peerDisplay
@@ -112,11 +117,12 @@ final class HostStreamer: @unchecked Sendable {
         let target = try await prepareDisplay()
         setCapturedDisplay(target.displayID)
         let fps = frameRate.rawValue
-        let bitrate = quality.bitrate(width: target.width, height: target.height, framesPerSecond: fps)
+        var bitrate = quality.bitrate(width: target.width, height: target.height, framesPerSecond: fps)
+        if wantsFullColor { bitrate = bitrate * 3 / 2 }  // twice the color samples, 10-bit
         let encoder = try VideoEncoder(configuration: .init(
             codec: (peerDisplay?.supportsHEVC ?? false) ? .hevc : .h264,
             width: target.width, height: target.height,
-            framesPerSecond: fps, bitrate: bitrate))
+            framesPerSecond: fps, bitrate: bitrate, fullColor: wantsFullColor))
         encoder.onOutput = { [weak self] frame in self?.handleEncoded(frame) }
         install(encoder, width: target.width, height: target.height, bitrate: bitrate)
 
@@ -134,7 +140,7 @@ final class HostStreamer: @unchecked Sendable {
         do {
             try await capturer.start(displayID: target.displayID, width: target.width,
                                      height: target.height, framesPerSecond: fps, captureAudio: sendsAudio,
-                                     showsCursor: !localCursor)
+                                     showsCursor: !localCursor, fullColor: encoder.isFullColor)
         } catch ScreenCapturer.CaptureError.permissionDenied {
             throw StreamError.screenRecordingDenied
         }
@@ -346,7 +352,8 @@ final class HostStreamer: @unchecked Sendable {
         guard let sets = frame.parameterSets, !sets.isEmpty, let encoder else { return nil }
         return VideoFormat(streamID: streamID, codec: encoder.codec, width: width, height: height,
                            parameterSets: sets, nalUnitHeaderLength: frame.nalUnitHeaderLength,
-                           framesPerSecond: frameRate.rawValue, drawsCursor: localCursor)
+                           framesPerSecond: frameRate.rawValue, drawsCursor: localCursor,
+                           fullColor: encoder.isFullColor)
     }
 
     // MARK: - Feedback from the Display (media queue)

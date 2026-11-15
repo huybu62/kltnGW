@@ -30,7 +30,7 @@ final class VideoDecoder {
         if newFormat == format, session != nil { return true }
         guard let description = Self.makeFormatDescription(newFormat) else { return false }
         invalidateLocked()
-        guard let session = Self.makeSession(description) else { return false }
+        guard let session = Self.makeSession(description, fullColor: newFormat.fullColor == true) else { return false }
         format = newFormat
         formatDescription = description
         self.session = session
@@ -90,7 +90,7 @@ final class VideoDecoder {
         lock.lock(); defer { lock.unlock() }
         guard let description = formatDescription else { return }
         invalidateLocked()
-        session = Self.makeSession(description)
+        session = Self.makeSession(description, fullColor: format?.fullColor == true)
     }
 
     private func invalidateLocked() {
@@ -138,9 +138,12 @@ final class VideoDecoder {
         return status == noErr ? description : nil
     }
 
-    static func makeSession(_ description: CMVideoFormatDescription) -> VTDecompressionSession? {
+    /// Full-color (4:2:2) streams are decoded straight to RGB so the extra
+    /// color detail isn't thrown away again on the way to the screen.
+    static func makeSession(_ description: CMVideoFormatDescription, fullColor: Bool = false) -> VTDecompressionSession? {
         let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            kCVPixelBufferPixelFormatTypeKey: fullColor ? kCVPixelFormatType_32BGRA
+                                                        : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
             kCVPixelBufferIOSurfacePropertiesKey: [String: Any](),
             kCVPixelBufferMetalCompatibilityKey: true,
         ]

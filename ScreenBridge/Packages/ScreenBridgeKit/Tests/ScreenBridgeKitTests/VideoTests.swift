@@ -65,10 +65,11 @@ final class VideoPipelineTests: XCTestCase {
         return buffer
     }
 
-    private func roundTrip(_ codec: VideoCodec) throws {
+    private func roundTrip(_ codec: VideoCodec, fullColor: Bool = false) throws {
         let width = 640, height = 360
         let encoder = try VideoEncoder(configuration: .init(codec: codec, width: width, height: height,
-                                                            framesPerSecond: 30, bitrate: 2_000_000))
+                                                            framesPerSecond: 30, bitrate: 2_000_000,
+                                                            fullColor: fullColor))
         let lock = NSLock()
         var frames: [VideoEncoder.EncodedFrame] = []
         encoder.onOutput = { frame in
@@ -89,7 +90,8 @@ final class VideoPipelineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(sets.count, encoder.codec == .hevc ? 3 : 2)
 
         let format = VideoFormat(streamID: 1, codec: encoder.codec, width: width, height: height,
-                                 parameterSets: sets, nalUnitHeaderLength: first.nalUnitHeaderLength)
+                                 parameterSets: sets, nalUnitHeaderLength: first.nalUnitHeaderLength,
+                                 fullColor: encoder.isFullColor)
         // Survives the JSON trip it takes over the network.
         let wireFormat = try WireCoding.decode(VideoFormat.self, from: WireCoding.encode(format))
         let decoder = VideoDecoder()
@@ -113,5 +115,9 @@ final class VideoPipelineTests: XCTestCase {
 
     /// Falls back to H.264 automatically on Macs without an HEVC encoder.
     func testHEVCRoundTrip() throws { try roundTrip(.hevc) }
+
+    /// 4:2:2 10-bit where the hardware has it, otherwise the automatic
+    /// fallback to 4:2:0 — either way it must encode and decode.
+    func testFullColorRoundTripOrFallback() throws { try roundTrip(.hevc, fullColor: true) }
 }
 #endif

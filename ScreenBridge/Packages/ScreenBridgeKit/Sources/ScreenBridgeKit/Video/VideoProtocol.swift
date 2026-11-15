@@ -97,6 +97,8 @@ public struct VideoFormat: Codable, Sendable, Equatable {
     /// The pointer is left out of the video; the Display draws it locally
     /// (instantly, at the touch/trackpad position) from `.cursor` updates.
     public var drawsCursor: Bool? = nil
+    /// HEVC 4:2:2 10-bit ("full color"); the Display decodes to RGB.
+    public var fullColor: Bool? = nil
 }
 
 /// Prefix of every `sealedVideoFrame` payload; the rest is one encoded
