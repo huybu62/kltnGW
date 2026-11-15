@@ -30,6 +30,8 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     private var statsTimer: DispatchSourceTimer?
     private var clearWork: DispatchWorkItem?
     private var fullColorFailures = 0
+    /// Compressed frames go straight to the layer (background / PiP).
+    private let layerDecodes = AtomicFlag()
 
     public init() {
         displayLayer = AVSampleBufferDisplayLayer()
@@ -226,6 +228,8 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
     /// in Picture) the layer decodes the video itself, since VideoToolbox
     /// sessions aren't allowed there.
     public func setInBackground(_ background: Bool) {
+        guard layerDecodes.value != background else { return }
+        layerDecodes.set(background)
         decoder.setPassthrough(background)
         if #available(iOS 17.0, macOS 14.0, *) {
             displayLayer.sampleBufferRenderer.flush()
@@ -283,7 +287,28 @@ public final class DisplayStreamController: ObservableObject, SessionMediaSink, 
 
     /// If the renderer still has frames waiting, they are already out of
     /// date: drop them rather than let a backlog grow (memory and latency).
+    ///
+    /// Not for compressed frames (layer decodes): dropping one breaks every
+    /// frame after it until the next keyframe, which froze Picture in Picture.
     private func enqueue(_ sample: CMSampleBuffer) {
+        if layerDecodes.value {
+            let failed: Bool
+            if #available(iOS 17.0, macOS 14.0, *) {
+                let renderer = displayLayer.sampleBufferRenderer
+                failed = renderer.status == .failed
+                if failed { renderer.flush() }
+                renderer.enqueue(sample)
+            } else {
+                failed = displayLayer.status == .failed
+                if failed { displayLayer.flush() }
+                displayLayer.enqueue(sample)
+            }
+            if failed {
+                decoder.waitForKeyframe()
+                requestKeyframe()
+            }
+            return
+        }
         if #available(iOS 17.0, macOS 14.0, *) {
             let renderer = displayLayer.sampleBufferRenderer
             if renderer.status == .failed || !renderer.isReadyForMoreMediaData { renderer.flush() }

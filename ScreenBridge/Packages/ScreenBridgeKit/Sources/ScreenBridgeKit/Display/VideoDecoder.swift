@@ -24,6 +24,11 @@ final class VideoDecoder {
     private var passthrough = false
     var onCompressed: ((CMSampleBuffer) -> Void)?
 
+    /// Drop frames until the next keyframe (the layer lost its references).
+    func waitForKeyframe() {
+        lock.lock(); waitingForKeyframe = true; lock.unlock()
+    }
+
     func setPassthrough(_ on: Bool) {
         lock.lock()
         let changed = passthrough != on

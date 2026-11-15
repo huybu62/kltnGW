@@ -51,6 +51,7 @@ public struct VideoSurfaceView {
         view.onToggleShortcutBar = onToggleShortcutBar
         view.drawsCursor = { controller.drawsCursor }
         view.extraModifierFlags = { controller.shortcutBarModifierFlags }
+        view.onPictureInPicture = { controller.setInBackground($0) }
         controller.onCursorUpdate = { [weak view] point, visible in
             view?.remoteCursorMoved(to: point, visible: visible)
         }
@@ -77,6 +78,8 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
     var drawsCursor: () -> Bool = { false }
     /// Modifiers held on the shortcut bar, reported along with the keyboard's.
     var extraModifierFlags: () -> UInt32 = { 0 }
+    /// Picture in Picture opened (iOS).
+    var onPictureInPicture: (Bool) -> Void = { _ in }
 
     /// The pointer drawn locally (when the Mac leaves it out of the video):
     /// it follows touch/trackpad/Pencil instantly instead of a network
@@ -325,7 +328,9 @@ public final class LayerHostingView: UIView, UIGestureRecognizerDelegate, UIPoin
             DispatchQueue.main.async { [weak self] in _ = self?.becomeFirstResponder() }
             startHighRefreshRate()
             if pictureInPicture == nil, let hosted = hosted as? AVSampleBufferDisplayLayer {
-                pictureInPicture = PictureInPicture(layer: hosted)
+                let pip = PictureInPicture(layer: hosted)
+                pip.onActiveChanged = { [weak self] active in self?.onPictureInPicture(active) }
+                pictureInPicture = pip
             }
         } else {
             releaseHeldKeys()
@@ -715,6 +720,8 @@ public final class LayerHostingView: NSView {
     /// leaves the pointer out of the video for it; kept for a shared `configure`.
     var drawsCursor: () -> Bool = { false }
     var extraModifierFlags: () -> UInt32 = { 0 }
+    /// Picture in Picture opened (iOS).
+    var onPictureInPicture: (Bool) -> Void = { _ in }
     func remoteCursorMoved(to normalizedPoint: CGPoint, visible: Bool) {}
     /// Unused on macOS (Mac displays don't drop their refresh rate the way
     /// ProMotion does); present so `configure` is the same on both platforms.

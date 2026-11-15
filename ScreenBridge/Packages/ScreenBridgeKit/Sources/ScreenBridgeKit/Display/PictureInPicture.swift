@@ -12,6 +12,8 @@ import CoreMedia
 final class PictureInPicture: NSObject, AVPictureInPictureSampleBufferPlaybackDelegate,
                               AVPictureInPictureControllerDelegate {
     private var controller: AVPictureInPictureController?
+    /// True when the floating window opens, false when it closes.
+    var onActiveChanged: ((Bool) -> Void)?
 
     /// The category Picture in Picture requires. Shared with `AudioPlayer`.
     static func activateAudioSession() {
@@ -61,6 +63,10 @@ final class PictureInPicture: NSObject, AVPictureInPictureSampleBufferPlaybackDe
     }
 
     // MARK: AVPictureInPictureControllerDelegate
+
+    func pictureInPictureControllerWillStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        onActiveChanged?(true)
+    }
 
     func pictureInPictureController(
         _ pictureInPictureController: AVPictureInPictureController,
