@@ -605,6 +605,25 @@ cd ~/Desktop/kltnGW/ScreenBridge && ./scripts/install-ipad.sh
   - **Tài khoản Apple Developer trả phí** (99 USD/năm): app dùng được **1 năm**.
   - **AltStore / SideStore** (miễn phí, bên thứ ba): tự gia hạn app qua Wi-Fi mỗi tuần.
 
+### Dùng iMac (hoặc Mac khác) làm màn hình mở rộng
+
+**Cách A, iMac không cần Xcode:** build trên MacBook rồi chép sang.
+
+1. Trên MacBook:
+   ```bash
+   cd ~/Desktop/kltnGW/ScreenBridge && git pull && ./scripts/install-mac-display.sh --zip
+   ```
+2. Gửi file **ScreenBridge-Display.zip** trên Desktop sang iMac (AirDrop hoặc USB).
+3. Trên iMac, mở Terminal và chạy:
+   ```bash
+   cd ~/Downloads && unzip -o ScreenBridge-Display.zip && rm -rf "/Applications/ScreenBridge Display.app" && mv "ScreenBridge Display.app" /Applications/ && xattr -dr com.apple.quarantine "/Applications/ScreenBridge Display.app" && open "/Applications/ScreenBridge Display.app"
+   ```
+   Lệnh `xattr` gỡ cờ "tải từ nơi khác" để macOS không chặn app.
+
+**Cách B, iMac có Xcode:** tải mã nguồn về iMac rồi chạy `./scripts/install-mac-display.sh`.
+
+**Lần đầu mở:** bấm **Cho phép** khi iMac hỏi quyền Mạng cục bộ. Trên radar của MacBook, chạm iMac rồi so mã 6 số. Bấm nút xanh trên thanh tiêu đề (hoặc ⌃⌘F) để toàn màn hình, ⌘K để hiện/ẩn thanh trạng thái. Chuột và bàn phím của iMac điều khiển được MacBook khi con trỏ nằm trong cửa sổ.
+
 ---
 
 ## 8F. Giai đoạn 4: giao diện radar, trợ giúp, tiếng Việt, màu đầy đủ
