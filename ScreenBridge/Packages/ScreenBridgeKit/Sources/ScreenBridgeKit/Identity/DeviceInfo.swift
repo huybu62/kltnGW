@@ -15,12 +15,17 @@ public struct DisplayCapabilities: Codable, Hashable, Sendable {
     public var pixelHeight: Int
     public var maxRefreshRate: Int
     public var supportsHEVC: Bool
+    /// False on Intel Macs: their decoders can't do 10-bit 4:2:2 in hardware
+    /// and struggle above 4K. Nil from older builds (treated as true).
+    public var isAppleSilicon: Bool?
 
-    public init(pixelWidth: Int, pixelHeight: Int, maxRefreshRate: Int, supportsHEVC: Bool) {
+    public init(pixelWidth: Int, pixelHeight: Int, maxRefreshRate: Int, supportsHEVC: Bool,
+                isAppleSilicon: Bool? = nil) {
         self.pixelWidth = pixelWidth
         self.pixelHeight = pixelHeight
         self.maxRefreshRate = maxRefreshRate
         self.supportsHEVC = supportsHEVC
+        self.isAppleSilicon = isAppleSilicon
     }
 
     /// "2732×2048"
@@ -127,6 +132,13 @@ public struct DeviceInfo: Codable, Hashable, Sendable, Identifiable {
         return String(cString: buffer)
     }
 
+    /// True on Apple silicon, even if this copy runs under Rosetta.
+    static var isAppleSiliconMac: Bool {
+        var value: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        return sysctlbyname("hw.optional.arm64", &value, &size, nil, 0) == 0 && value == 1
+    }
+
     @MainActor
     static func currentDisplayCapabilities() -> DisplayCapabilities? {
         let hevc = VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC)
@@ -137,7 +149,8 @@ public struct DeviceInfo: Codable, Hashable, Sendable, Identifiable {
             pixelWidth: Int(screen.frame.width * scale),
             pixelHeight: Int(screen.frame.height * scale),
             maxRefreshRate: max(screen.maximumFramesPerSecond, 60),
-            supportsHEVC: hevc
+            supportsHEVC: hevc,
+            isAppleSilicon: isAppleSiliconMac
         )
         #elseif os(iOS)
         let screen = UIScreen.main

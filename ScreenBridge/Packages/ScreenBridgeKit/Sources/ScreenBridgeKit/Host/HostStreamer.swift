@@ -95,8 +95,10 @@ final class HostStreamer: @unchecked Sendable {
         self.session = session
         self.sendsAudio = sendsAudio
         self.localCursor = localCursor
-        // 4:2:2 needs HEVC on both ends.
+        // 4:2:2 needs HEVC on both ends, and an Apple-silicon decoder (Intel
+        // Macs would decode it in software: far too slow).
         self.wantsFullColor = fullColor && (peerDisplay?.supportsHEVC ?? false)
+            && peerDisplay?.isAppleSilicon != false
         self.peerID = session.peer.id
         self.peerName = session.peer.name
         self.peerDisplay = peerDisplay
@@ -264,9 +266,10 @@ final class HostStreamer: @unchecked Sendable {
                 }
                 try await Task.sleep(nanoseconds: 100_000_000)
             }
+            let fit = scale * streamFit(width: size.0, height: size.1)
             return (display.displayID,
-                    evenDimension(Double(size.0) * scale),
-                    evenDimension(Double(size.1) * scale))
+                    evenDimension(Double(size.0) * fit),
+                    evenDimension(Double(size.1) * fit))
 
         case .mirror:
             let displayID = CGMainDisplayID()
@@ -274,9 +277,20 @@ final class HostStreamer: @unchecked Sendable {
             let sourceWidth = Double(mode?.pixelWidth ?? 1920)
             let sourceHeight = Double(mode?.pixelHeight ?? 1080)
             // Keep the Mac's aspect ratio; never upscale beyond the source.
-            let fit = min(Double(screenWidth) / sourceWidth, Double(screenHeight) / sourceHeight, 1) * scale
+            var fit = min(Double(screenWidth) / sourceWidth, Double(screenHeight) / sourceHeight, 1)
+            fit *= streamFit(width: Int(sourceWidth * fit), height: Int(sourceHeight * fit)) * scale
             return (displayID, evenDimension(sourceWidth * fit), evenDimension(sourceHeight * fit))
         }
+    }
+
+    /// Scale that keeps the stream within what the display can decode in
+    /// real time. A 5K iMac would otherwise get 14.7 MP per frame: its decoder
+    /// falls behind, frames queue up (100+ ms) and the Mac skips frames.
+    /// Apple silicon: up to 4K pixels (8.3 MP). Intel: up to 1440p-class (5 MP).
+    private func streamFit(width: Int, height: Int) -> Double {
+        let limit: Double = peerDisplay?.isAppleSilicon == false ? 2880 * 1620 : 3840 * 2160
+        let pixels = Double(width * height)
+        return pixels > limit ? (limit / pixels).squareRoot() : 1
     }
 
     // MARK: - Frames in
