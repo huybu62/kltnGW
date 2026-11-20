@@ -3,6 +3,7 @@ import json
 import os
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -238,17 +239,16 @@ class App:
         self.bots[serial] = b
         b.start()
 
-    def nhan_khu_moi(self, ds):
+    def nhan_khu_moi(self, ds, moc):
         if not ds:
             messagebox.showinfo("Dò khu", "Không tìm thấy khu nào.", parent=self.root)
             return
         cq = self.cfg.setdefault("can_quet", {})
-        thay = not cq.get("khu") or messagebox.askyesno(
-            "Dò khu", f"Tìm thấy {len(ds)} khu.\n\nCó = thay danh sách khu hiện tại\nKhông = thêm vào cuối danh sách",
-            parent=self.root)
-        cq["khu"] = ds if thay else cq.get("khu", []) + ds
+        cq["khu"] = ds  # vị trí khu gắn với mốc của lần dò này nên thay cả danh sách
+        cq["moc"] = moc
         self.save_config()
         self.build_cq()
+        messagebox.showinfo("Dò khu", f"Tìm thấy {len(ds)} khu ({len(moc)} mốc bản đồ).", parent=self.root)
 
     def xoa_khu(self, khu, loai="khu"):
         if messagebox.askyesno("Xoá", f"Xoá '{khu.get('ten')}' khỏi danh sách?", parent=self.root):
@@ -260,6 +260,7 @@ class App:
         if messagebox.askyesno("Dò lại", f"Xoá các khu đã dò của ải '{ai.get('ten')}'? Lần chạy sau tool sẽ dò lại.",
                                parent=self.root):
             ai["khu"] = []
+            ai["moc"] = []
             self.save_config()
             self.build_cq()
 
@@ -445,7 +446,7 @@ class App:
                     self.save_config()
                     self.build_cq()
                 elif kieu == "khu_moi":
-                    self.nhan_khu_moi(msg[2])
+                    self.nhan_khu_moi(msg[2], msg[3] if len(msg) > 3 else [])
                 elif kieu == "stop_all":
                     self.stop_all()
                 elif kieu == "state":
@@ -464,6 +465,11 @@ class App:
 
     def log(self, serial, text):
         dong = f"[{serial}] {text}\n" if serial else f"{text}\n"
+        try:  # ghi thêm ra file nhat_ky.txt để gửi khi cần hỗ trợ
+            with open(os.path.join(GOC, "nhat_ky.txt"), "a", encoding="utf-8") as f:
+                f.write(time.strftime("%H:%M:%S ") + dong)
+        except OSError:
+            pass
         self.txt.config(state="normal")
         self.txt.insert("end", dong)
         so_dong = int(self.txt.index("end-1c").split(".")[0])

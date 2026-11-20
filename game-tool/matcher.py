@@ -67,7 +67,8 @@ class Templates:
         os.makedirs(folder, exist_ok=True)
         self._cache = {}  # path -> (mtime, img)
         self._co_gian = {}  # (path, scale) -> img
-        self._vung = (None, None)  # (id màn hình, vùng game)
+        self._vung = (None, None)  # (màn hình, vùng game)
+        self._vung_theo_co = {}  # (rộng, cao) màn hình → vùng game
         self._ti_le_path = os.path.join(folder, "_ti_le.json")
         self._ti_le = (None, {})
 
@@ -92,9 +93,27 @@ class Templates:
             json.dump(d, f, ensure_ascii=False, indent=1, sort_keys=True)
 
     def vung(self, screen):
-        if self._vung[0] is not screen:
-            self._vung = (screen, vung_game(screen))
-        return self._vung[1]
+        """Vùng game, cố định theo độ phân giải: không đo lại mỗi ảnh, vì mép bản đồ đen
+        (hoặc màn tối khi có popup) sẽ làm đo sai."""
+        if self._vung[0] is screen:
+            return self._vung[1]
+        sh, sw = screen.shape[:2]
+        v = self._vung_theo_co.get((sw, sh))
+        if v is None:
+            if abs(sw / sh - 16 / 9) < 0.03:
+                v = (0, 0, sw, sh)  # màn 16:9 → cả màn là game
+                self._vung_theo_co[(sw, sh)] = v
+            else:
+                d = vung_game(screen)
+                if abs(d[2] / d[3] - 16 / 9) < 0.03:
+                    v = d  # có viền đen đúng kiểu khung 16:9 → nhớ luôn
+                    self._vung_theo_co[(sw, sh)] = v
+                else:  # chưa chắc: tạm lấy khung 16:9 ở giữa, không nhớ
+                    w = min(sw, round(sh * 16 / 9))
+                    h = round(w * 9 / 16)
+                    v = ((sw - w) // 2, (sh - h) // 2, w, h)
+        self._vung = (screen, v)
+        return v
 
     def _files(self, name):
         chinh = os.path.join(self.folder, f"{name}.png")

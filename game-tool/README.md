@@ -166,6 +166,14 @@ Khi bị kẹt (lâu không nhận ra màn hình nào), đặt `"khi_ket"` để
 - `"back"`: bấm Quay lại;
 - `"cham_xy"`: chạm vào toạ độ `"xy_khi_ket"`.
 
+## Khi gặp lỗi
+- Mọi dòng log trên overlay cũng được ghi vào file **`nhat_ky.txt`** trong thư mục `game-tool`.
+- Khi gặp lỗi (không thấy bản đồ, không định vị được…), tool lưu ảnh màn hình vào thư mục **`anh_loi/`**.
+- Gửi 2 thứ này cho người hỗ trợ là đủ để biết chuyện gì đã xảy ra.
+
+## Cách tool nhớ vị trí trên bản đồ
+Lúc dò, mỗi màn tool lưu một **mốc**: một mảnh ảnh bản đồ nhiều chi tiết, nằm trong `mau/moc/`. Lúc quét, tool tìm các mốc đó trên màn hình để biết đang ở đâu, nên không cần kéo về góc. Tool cũng **không kéo vào vùng đen** ngoài mép bản đồ. Ải hoặc khu dò bằng bản cũ chưa có mốc sẽ được tự dò lại.
+
 ## Kiểm tra phần nhận diện
 ```
 python test_bot.py

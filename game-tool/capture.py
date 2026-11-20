@@ -152,7 +152,7 @@ class CaptureWindow(tk.Toplevel):
         ten = simpledialog.askstring("Thêm khu", "Tên khu (ví dụ Công xưởng):", parent=self)
         if not ten:
             return
-        gx, gy, gw, gh = vung_game(self.img)
+        gx, gy, gw, gh = self.templates.vung(self.img)
         x, y = self.diem_chon
         if self.on_khu:
             self.on_khu(ten.strip(), (x - gx) / gw, (y - gy) / gh)
@@ -173,7 +173,7 @@ class CaptureWindow(tk.Toplevel):
         x1, y1, x2, y2 = self.sel
         path = os.path.join(self.templates.folder, f"{ma}.png")
         ghi_anh(path, self.img[y1:y2, x1:x2])
-        self.templates.ghi_ti_le(path, vung_game(self.img)[2])
+        self.templates.ghi_ti_le(path, self.templates.vung(self.img)[2])
         if self.on_ai:
             self.on_ai(ten.strip(), ma)
         self.lbl_xy.config(text=f"Đã thêm ải '{ten.strip()}' (mẫu {ma}.png)")
@@ -201,7 +201,7 @@ class CaptureWindow(tk.Toplevel):
             if tl is False:
                 path = self.templates.next_variant_path(ten)
         ghi_anh(path, cat)
-        self.templates.ghi_ti_le(path, vung_game(self.img)[2])
+        self.templates.ghi_ti_le(path, self.templates.vung(self.img)[2])
         self.lbl_xy.config(text=f"Đã lưu {os.path.basename(path)} ({x2 - x1}×{y2 - y1})")
         if ten not in self.cb["values"]:
             self.cb["values"] = list(self.cb["values"]) + [ten]

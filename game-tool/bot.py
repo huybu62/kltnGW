@@ -14,6 +14,7 @@ Luật nằm trong config.json, mục "luat", xét theo thứ tự từ trên xu
   dem           (tuỳ chọn) tên bộ đếm tăng lên mỗi lần luật chạy
   nghi_sau      số giây nghỉ sau khi làm (mặc định "nghi_giua_vong")
 """
+import os
 import random
 import threading
 import time
@@ -48,6 +49,18 @@ class Bot(threading.Thread):
 
     def log(self, msg):
         self.emit(("log", self.device.serial, msg))
+
+    def luu_anh_loi(self, s, ly_do):
+        """Lưu ảnh màn hình lúc gặp lỗi vào thư mục anh_loi/ để gửi cho người hỗ trợ."""
+        try:
+            import cv2
+            thu_muc = os.path.join(os.path.dirname(os.path.abspath(__file__)), "anh_loi")
+            os.makedirs(thu_muc, exist_ok=True)
+            ten = time.strftime("%m%d_%H%M%S") + ".png"
+            cv2.imwrite(os.path.join(thu_muc, ten), s)
+            self.log(f"  📷 {ly_do} → đã lưu ảnh anh_loi/{ten}")
+        except Exception:
+            pass
 
     def sleep(self, giay):
         if self.stop_event.wait(max(0.0, float(giay))):

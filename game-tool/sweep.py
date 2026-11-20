@@ -80,6 +80,9 @@ class SweepBot(BanDoMixin, Bot):
     def ds_khu(self):
         return [k for k in self.cq.get("khu", []) if k.get("bat", True)]
 
+    def ds_moc(self):
+        return self.cq.get("moc", [])
+
     def khu_hien_tai(self):
         ds = self.ds_khu()
         return ds[self.khu_i % len(ds)] if ds else None
@@ -331,7 +334,13 @@ class SweepBot(BanDoMixin, Bot):
 
     def vi_tri_khu(self, s, khu):
         if "xy_map" in khu:
-            if not self.cam_ok:
+            if not self.cq.get("cuon_map", True):
+                self.cam, self.cam_ok = [0.0, 0.0], True  # không lướt: dùng đúng màn đang thấy
+            elif self.ds_moc():
+                s = self.dinh_vi(s)  # tìm mốc trên màn hình: biết chính xác đang ở đâu
+                if not self.cam_ok:
+                    return None
+            elif not self.cam_ok:
                 self.log("  Vuốt về góc bản đồ để lấy mốc...")
                 s = self.ve_goc()
             kq = self.toi_diem(s, *khu["xy_map"])

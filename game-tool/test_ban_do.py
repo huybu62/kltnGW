@@ -37,7 +37,8 @@ def tao_ban_do_lon():
     a = cv2.imread(os.path.join(ANH, "ban_do.jpg"))[TREN:DUOI]  # 480 dòng, không có giao diện
     hang0 = np.hstack([a, a[:, ::-1]])
     hang1 = np.hstack([a[::-1], a[::-1, ::-1]])
-    hang2 = np.roll(np.hstack([a[:, ::-1], a]), 640, axis=1)[:, :, [2, 0, 1]]
+    c = cv2.imread(os.path.join(ANH, "chuong.jpg"))[TREN:DUOI]  # hàng dưới: ảnh khác cho đỡ lặp
+    hang2 = np.hstack([c, c[:, ::-1]])
     return np.vstack([hang0, hang1, hang2])  # 2560 × 1440
 
 
@@ -131,6 +132,19 @@ class NhanhSweep(Nhanh, SweepBot):
 
 class TestBanDo(unittest.TestCase):
     def test_do_va_quet_ca_ban_do(self):
+        self._chay(tao_ban_do_lon(), dich=(0, 0))
+
+    def test_ban_do_hinh_thoi_vien_den(self):
+        # bản đồ hình thoi (góc đen) và game cho kéo lố ra vùng đen 600 điểm ảnh
+        lon = tao_ban_do_lon()
+        h, w = lon.shape[:2]
+        mat_na = np.zeros((h, w), np.uint8)
+        cv2.fillPoly(mat_na, [np.array([[w // 2, -400], [w + 600, h // 2], [w // 2, h + 400], [-600, h // 2]])], 1)
+        lon = cv2.copyMakeBorder(lon * mat_na[..., None], 600, 0, 600, 0, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+        self._chay(lon, dich=(600, 600))
+
+    def _chay(self, lon, dich):
+        khu = [((x1 + dich[0], y1 + dich[1], x2 + dich[0], y2 + dich[1]), ten) for (x1, y1, x2, y2), ten in KHU]
         with open(os.path.join(GOC, "config.json"), encoding="utf-8") as f:
             cfg = json.load(f)
         tmp = tempfile.mkdtemp()
@@ -142,30 +156,39 @@ class TestBanDo(unittest.TestCase):
             tpl = Templates(tmp)
 
             # 1) Dò khu, bắt đầu ở giữa bản đồ
-            g = FakeScrollGame(cam=(700, 400))
+            g = FakeScrollGame(cam=(700 + dich[0], 400 + dich[1]), khu=khu, lon=lon)
             q = queue.Queue()
             b = NhanhDiscover(g, cfg, tpl, q.put)
+            goc = {}
+            ve_goc_cu = b.ve_goc
+
+            def ve_goc_ghi():  # ghi lại camera thật lúc tool lấy gốc (0, 0)
+                kq = ve_goc_cu()
+                goc["xy"] = (g.cx, g.cy)
+                return kq
+
+            b.ve_goc = ve_goc_ghi
             b.start()
             b.join(600)
             self.assertFalse(b.is_alive())
             msgs = list(q.queue)
             logs = [m[2] for m in msgs if m[0] == "log"]
             print("\n  " + "\n  ".join(l for l in logs if "Màn" in l or "Khu" in l or "✔" in l or "Mất" in l))
-            ds = next(m[2] for m in msgs if m[0] == "khu_moi")
+            ds, moc = next((m[2], m[3]) for m in msgs if m[0] == "khu_moi")
             self.assertEqual(len(ds), len(KHU), ds)
             print(f"  dò: {g.so_vuot} lần vuốt; khu = {[k['xy_map'] for k in ds]}")
 
             # toạ độ bản đồ phải trỏ đúng vào khu (đổi ra điểm ảnh bản đồ lớn)
-            for khu in ds:
-                bx, by = khu["xy_map"][0] * W, khu["xy_map"][1] * W
-                # mốc (0,0) là góc trên-trái bản đồ, toạ độ theo chiều rộng màn hình
-                self.assertTrue(any(x1 <= bx <= x2 and y1 <= by <= y2 for (x1, y1, x2, y2), _ in KHU),
-                                (khu, bx, by))
+            ox, oy = goc["xy"]
+            for k in ds:
+                bx, by = k["xy_map"][0] * W + ox, k["xy_map"][1] * W + oy
+                self.assertTrue(any(x1 <= bx <= x2 and y1 <= by <= y2 for (x1, y1, x2, y2), _ in khu), (k, bx, by))
 
             # 2) Quét: camera đã bị người dùng kéo đi chỗ khác
             cfg2 = copy.deepcopy(cfg)
             cfg2["can_quet"]["khu"] = ds
-            g2 = FakeScrollGame(cam=(1100, 150), luot=3)
+            cfg2["can_quet"]["moc"] = moc  # như overlay lưu sau khi dò
+            g2 = FakeScrollGame(cam=(1100 + dich[0], 150 + dich[1]), luot=3, khu=khu, lon=lon)
             q2 = queue.Queue()
             b2 = NhanhSweep(g2, cfg2, tpl, q2.put)
             b2.start()

@@ -53,6 +53,7 @@ class DiscoverBot(SweepBot):
                 self.sleep(1.0)
             else:
                 self.sleep(1.2)
+        self.luu_anh_loi(s, "không thấy bản đồ (thanh Thể lực)")
         self.log("Không thấy bản đồ (thanh Thể lực). Hãy mở bản đồ khu rồi dò lại.")
         raise StopBot
 
@@ -70,14 +71,17 @@ class DiscoverBot(SweepBot):
         return "la", s, None, False
 
     def loop(self):
-        self.emit(("khu_moi", self.device.serial, self.do_ca_ban_do()))
+        ds = self.do_ca_ban_do()
+        self.emit(("khu_moi", self.device.serial, ds, self.moc_ket_qua))
 
     def do_ca_ban_do(self, tien_to=""):
         """Dò hết bản đồ hiện tại, trả về danh sách khu (ảnh tiêu đề lưu với tên tien_to + khu_j.png)."""
         s = self.ve_ban_do()
         cuon = self.cq.get("cuon_map", True)
+        self.dang_do = True
+        self.moc_moi, self.anh_moc_moi = [], []
         if cuon:
-            self.log("🔎 Vuốt về góc trên-trái bản đồ...")
+            self.log("🔎 Vuốt về góc trên-trái bản đồ (dừng ở mép, không vào vùng đen)...")
             s = self.ve_goc()
         else:
             self.cam, self.cam_ok = [0.0, 0.0], True
@@ -87,35 +91,64 @@ class DiscoverBot(SweepBot):
         huong, so_man = 1, 0
         while so_man < TOI_DA_MAN:
             so_man += 1
-            s = self.do_mot_man(s, luoi, so_man)
+            s = self.do_mot_man(s, luoi, so_man, tien_to)
             if not cuon:
                 break
             if not self.cam_ok:
+                self.luu_anh_loi(s, "mất vị trí bản đồ khi dò")
                 self.log("  Mất vị trí bản đồ → dừng dò, giữ các khu đã tìm được")
                 break
             gx, gy, gw, gh = self.templates.vung(s)
-            # sang màn bên cạnh trong cùng hàng
-            dich, s = self.vuot_camera(huong * 0.6 * gw, 0, s)
-            if dich is not None and abs(dich[0]) > 0.1 * gw:
-                continue
+            # sang màn bên cạnh trong cùng hàng (trừ khi phía đó đã là mép đen)
+            if not self.mep(s, "phai" if huong > 0 else "trai"):
+                dich, s = self.vuot_camera(huong * 0.6 * gw, 0, s)
+                if dich is not None and abs(dich[0]) > 0.1 * gw:
+                    continue
             # hết hàng → xuống hàng dưới, đổi chiều
+            if self.mep(s, "duoi"):
+                break
             dich, s = self.vuot_camera(0, 0.6 * gh, s)
             if dich is None or abs(dich[1]) < 0.1 * gh:
                 break
             huong = -huong
         if not self.map_cuon and cuon:
             self.log("  (Bản đồ không kéo được, chỉ có 1 màn)")
+        self.dang_do = False
         return self.xong(tien_to)
 
-    def do_mot_man(self, s, luoi, so_man):
+    def ds_moc(self):
+        if getattr(self, "dang_do", False):
+            return self.moc_moi
+        return super().ds_moc()
+
+    def them_moc(self, s, tien_to):
+        """Lưu một mốc cho màn hiện tại (bỏ qua nếu đã có mốc gần đó)."""
+        if not self.cam_ok:
+            return
         gx, gy, gw, gh = self.templates.vung(s)
+        ax, ay = self.sang_map(s, gx + 0.5 * gw, gy + 0.5 * gh)
+        if any(abs(m["xy"][0] - ax) < 0.15 and abs(m["xy"][1] - ay) < 0.15 * gh / gw for m in self.moc_moi):
+            return
+        kq = self.tao_moc(s, f"{tien_to}moc_{len(self.moc_moi) + 1}.png")
+        if kq:
+            self.moc_moi.append(kq[0])
+            self.anh_moc_moi.append(kq[1])
+
+    def do_mot_man(self, s, luoi, so_man, tien_to=""):
+        gx, gy, gw, gh = self.templates.vung(s)
+        self.them_moc(s, tien_to)
         can_cham = []
         for fx, fy in luoi:
             ax, ay = self.sang_map(s, gx + fx * gw, gy + fy * gh)
             gan = any(abs(ax - bx) < BUOC_X * 0.5 and abs(ay - by) < BUOC_Y * 0.5 * gh / gw
                       for bx, by in self.da_cham)
-            if not gan:
-                can_cham.append((fx, fy, ax, ay))
+            if gan:
+                continue
+            x, y = int(gx + fx * gw), int(gy + fy * gh)
+            if s[max(0, y - 6):y + 7, max(0, x - 6):x + 7].max() < 30:
+                self.da_cham.append((ax, ay))  # vùng đen ngoài bản đồ: không chạm
+                continue
+            can_cham.append((fx, fy, ax, ay))
         self.log(f"🔎 Màn {so_man}: chạm {len(can_cham)} điểm (đã có {len(self.tim)} khu)")
         for i, (fx, fy, ax, ay) in enumerate(can_cham, 1):
             self.da_cham.append((ax, ay))
@@ -155,5 +188,10 @@ class DiscoverBot(SweepBot):
             ghi_anh(os.path.join(thu_muc, ten_anh), t["tieu_de"])
             ten = f"Khu {j}" + ("" if t["can_quet"] else " (chưa quét được)")
             ket_qua.append({"ten": ten, "bat": t["can_quet"], "xy_map": [ax, ay], "tieu_de": ten_anh})
-        self.log(f"✔ Dò xong: {len(ket_qua)} khu. Ảnh tiêu đề từng khu ở mau/tieu_de_khu/")
+        thu_muc_moc = self.thu_muc_moc()
+        os.makedirs(thu_muc_moc, exist_ok=True)
+        for moc, anh in zip(self.moc_moi, self.anh_moc_moi):
+            ghi_anh(os.path.join(thu_muc_moc, moc["anh"]), anh)
+        self.moc_ket_qua = [dict(m) for m in self.moc_moi]
+        self.log(f"✔ Dò xong: {len(ket_qua)} khu, {len(self.moc_ket_qua)} mốc bản đồ.")
         return ket_qua

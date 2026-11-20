@@ -37,6 +37,11 @@ class ChuongBot(DiscoverBot):
             return super().ds_khu()
         return [k for k in self.ai_dang.get("khu", []) if k.get("bat", True)]
 
+    def ds_moc(self):
+        if getattr(self, "dang_do", False):
+            return self.moc_moi
+        return (self.ai_dang or {}).get("moc", [])
+
     def la_chuong(self, s):
         return self.find(s, "cq_chuong") is not None
 
@@ -52,9 +57,10 @@ class ChuongBot(DiscoverBot):
                 continue
             self.ai_dang = ai
             self.reset_khu()
-            if not ai.get("khu"):
-                self.log("  Ải này chưa dò khu → dò trước (chỉ dò một lần, sau đó nhớ luôn)")
+            if not ai.get("khu") or (self.cq.get("cuon_map", True) and not ai.get("moc")):
+                self.log("  Ải này chưa dò khu (hoặc dò bằng bản cũ chưa có mốc) → dò trước, sau đó nhớ luôn")
                 ai["khu"] = self.do_ca_ban_do(tien_to=re.sub(r"[^a-z0-9_]", "", ai["mau"]) + "_")
+                ai["moc"] = self.moc_ket_qua
                 self.emit(("luu_cfg",))
                 self.reset_khu()
             if self.ds_khu():
