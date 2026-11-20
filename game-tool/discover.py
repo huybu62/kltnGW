@@ -70,6 +70,10 @@ class DiscoverBot(SweepBot):
         return "la", s, None, False
 
     def loop(self):
+        self.emit(("khu_moi", self.device.serial, self.do_ca_ban_do()))
+
+    def do_ca_ban_do(self, tien_to=""):
+        """Dò hết bản đồ hiện tại, trả về danh sách khu (ảnh tiêu đề lưu với tên tien_to + khu_j.png)."""
         s = self.ve_ban_do()
         cuon = self.cq.get("cuon_map", True)
         if cuon:
@@ -101,7 +105,7 @@ class DiscoverBot(SweepBot):
             huong = -huong
         if not self.map_cuon and cuon:
             self.log("  (Bản đồ không kéo được, chỉ có 1 màn)")
-        self.xong()
+        return self.xong(tien_to)
 
     def do_mot_man(self, s, luoi, so_man):
         gx, gy, gw, gh = self.templates.vung(s)
@@ -138,7 +142,7 @@ class DiscoverBot(SweepBot):
                        {"do": f"màn {so_man} {i}/{len(can_cham)}", "khu": len(self.tim)}))
         return self.ve_ban_do()
 
-    def xong(self):
+    def xong(self, tien_to=""):
         ket_qua = []
         thu_muc = os.path.join(self.templates.folder, "tieu_de_khu")
         os.makedirs(thu_muc, exist_ok=True)
@@ -147,9 +151,9 @@ class DiscoverBot(SweepBot):
             cx = sum(p[0] for p in ds) / len(ds)
             cy = sum(p[1] for p in ds) / len(ds)
             ax, ay = min(ds, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cy) ** 2)  # điểm thật gần giữa nhất
-            ten_anh = f"khu_{j}.png"
+            ten_anh = f"{tien_to}khu_{j}.png"
             ghi_anh(os.path.join(thu_muc, ten_anh), t["tieu_de"])
             ten = f"Khu {j}" + ("" if t["can_quet"] else " (chưa quét được)")
             ket_qua.append({"ten": ten, "bat": t["can_quet"], "xy_map": [ax, ay], "tieu_de": ten_anh})
         self.log(f"✔ Dò xong: {len(ket_qua)} khu. Ảnh tiêu đề từng khu ở mau/tieu_de_khu/")
-        self.emit(("khu_moi", self.device.serial, ket_qua))
+        return ket_qua

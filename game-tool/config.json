@@ -10,7 +10,11 @@
     "cq_x_popup": 0.8,
     "cq_lan_nua": 0.8,
     "cq_dong": 0.8,
-    "kv_cong_xuong": 0.8
+    "kv_cong_xuong": 0.8,
+    "cq_chuong": 0.8,
+    "cq_ai_thuong": 0.8,
+    "cq_mui_ten_phai": 0.8,
+    "cq_mui_ten_trai": 0.8
   },
   "nghi_giua_vong": 0.8,
   "nghi_khi_khong_thay": 1.0,
@@ -42,7 +46,34 @@
     "nhip_lan_nua": 0.35,
     "cho_khong_doi_giay": 4,
     "cuon_map": true,
-    "toc_do_vuot_ms": 700
+    "toc_do_vuot_ms": 700,
+    "qua_ai": true,
+    "ai": [
+      {
+        "ten": "1-1 Vùng Đất Kì Lạ",
+        "bat": true,
+        "mau": "ai_1_1",
+        "khu": []
+      },
+      {
+        "ten": "1-2 Thành Phố Bỏ Hoang",
+        "bat": true,
+        "mau": "ai_1_2",
+        "khu": []
+      },
+      {
+        "ten": "1-3 Thắng Cảnh Thần Bí",
+        "bat": true,
+        "mau": "ai_1_3",
+        "khu": []
+      },
+      {
+        "ten": "1-4 Thành Phố Hoa Viên",
+        "bat": true,
+        "mau": "ai_1_4",
+        "khu": []
+      }
+    ]
   },
   "mo_ta_mau": {
     "cq_the_luc": "[Càn quét] Chữ 'Thể lực' cạnh thanh thể lực trên bản đồ",
@@ -73,7 +104,11 @@
     "nut_tiep_tuc": "Nút Tiếp tục / Nhận ở màn kết quả, phần thưởng",
     "cham_de_tiep_tuc": "Chữ 'chạm để tiếp tục' (nếu có)",
     "nut_xac_nhan": "Nút Xác nhận / OK chung",
-    "nut_dong": "Nút X đóng popup"
+    "nut_dong": "Nút X đóng popup",
+    "cq_chuong": "[Qua ải] Biểu tượng 'Chương' góc phải trên màn chương",
+    "cq_ai_thuong": "[Qua ải] Thẻ 'Ải Thường' bên trái màn chương",
+    "cq_mui_ten_phai": "[Qua ải] Mũi tên ▶ sang chương sau",
+    "cq_mui_ten_trai": "[Qua ải] Mũi tên ◀ về chương trước"
   },
   "luat": [
     {

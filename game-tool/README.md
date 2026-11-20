@@ -72,6 +72,23 @@ Cách tool tiêu thể lực:
 - Nếu game hiện popup báo **không đủ thể lực**, bạn nên cắt mẫu đó đặt tên `cq_khong_du`. Gặp popup này tool sẽ bấm X rồi dừng, **không bao giờ bấm mua**.
 - Gặp màn lạ quá 90 giây thì tool dừng.
 
+### Quét qua nhiều ải (1-1 → 1-2 → 1-3 → …)
+Tick **"Hết khu thì Trở lại, sang ải kế"** (bật sẵn). Danh sách khu trên overlay sẽ đổi thành **danh sách ải**. Chương 1 (Singapore, từ 1-1 tới 1-4) đã có sẵn mẫu nhãn ải.
+
+Bấm **▶ Chạy**, đứng ở màn nào cũng được. Tool sẽ:
+1. Về **màn chương**, bấm vào ải đầu tiên đang được tick, ví dụ *1-1 Vùng Đất Kì Lạ*.
+2. Nếu ải đó **chưa dò khu**, tự **dò hết bản đồ của ải** rồi nhớ luôn, lần sau không phải dò lại.
+3. Quét từng khu tới hết 99 lượt.
+4. Hết khu thì bấm **Trở lại**, rồi bấm ải kế, ví dụ *1-2 Thành Phố Bỏ Hoang*.
+5. Không thấy ải trên màn chương thì bấm mũi tên **▶** để tìm ở chương sau.
+6. Dừng khi hết thể lực, hoặc khi xong mọi ải.
+
+Quản lý ải:
+- Bỏ tick một ải để bỏ qua. Dùng **↑** để đổi thứ tự.
+- Bấm **Dò lại** để xoá các khu đã dò của ải đó; lần chạy sau tool dò lại. Nên dùng khi game thêm khu mới.
+- **Thêm ải ở chương khác:** mở màn chương đó, bấm **✂**, **kéo chuột khoanh phần chữ** của nhãn ải (ví dụ *2-1 …*), bấm **➕ Thêm ải** rồi đặt tên.
+- Ảnh tiêu đề các khu của từng ải lưu tên dạng `mau/tieu_de_khu/ai_1_2_khu_3.png`.
+
 ## 4. Cắt ảnh mẫu (cho chế độ Xúc xắc, hoặc khi cần cắt lại)
 Tool nhận ra nút nhờ ảnh mẫu do **bạn cắt từ chính game của mình**.
 
@@ -155,5 +172,6 @@ python test_bot.py
 python test_sweep.py
 python test_discover.py
 python test_ban_do.py
+python test_chuong.py
 ```
 Hai lệnh này chạy thử bộ luật xúc xắc trên màn hình tổng hợp, và chế độ càn quét trên ảnh chụp thật của game trong `anh_test/`. Không cần giả lập.

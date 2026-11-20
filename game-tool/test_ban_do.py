@@ -44,15 +44,16 @@ def tao_ban_do_lon():
 class FakeScrollGame:
     serial = "fake"
 
-    def __init__(self, cam=(700, 400), luot=3):
-        self.lon = tao_ban_do_lon()
+    def __init__(self, cam=(700, 400), luot=3, khu=None, lon=None):
+        self.khu = khu if khu is not None else KHU
+        self.lon = lon if lon is not None else tao_ban_do_lon()
         self.hud = cv2.imread(os.path.join(ANH, "ban_do.jpg"))
         self.anh_popup = cv2.imread(os.path.join(ANH, "popup_khu.jpg"))
         self.anh_kq = cv2.imread(os.path.join(ANH, "ket_qua.jpg"))
         self.cx, self.cy = cam
         self.man = "ban_do"
         self.mo = None
-        self.luot = {k[1]: luot for k in KHU}
+        self.luot = {k[1]: luot for k in self.khu}
         self.lich_su = []
         self.so_vuot = 0
 
@@ -88,7 +89,7 @@ class FakeScrollGame:
             if any(x1 <= x <= x2 and y1 <= y <= y2 for x1, y1, x2, y2 in HUD):
                 return
             bx, by = x + self.cx, y + self.cy
-            for (x1, y1, x2, y2), ten in KHU:
+            for (x1, y1, x2, y2), ten in self.khu:
                 if x1 <= bx <= x2 and y1 <= by <= y2:
                     self.man, self.mo = "popup", ten
                     return

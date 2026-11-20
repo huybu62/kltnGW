@@ -43,9 +43,18 @@ def doc_thanh_the_luc(screen, m):
     return min(1.0, (cot[-1] + 1) / (x1 - x0))
 
 
+class XongKhu(StopBot):
+    """Mọi khu của bản đồ hiện tại đã quét xong (chế độ qua ải sẽ sang ải kế)."""
+
+
 class SweepBot(BanDoMixin, Bot):
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
+        self.the_luc = None  # ước tính thể lực còn lại
+        self.reset_khu()
+
+    def reset_khu(self):
+        """Trạng thái riêng của một bản đồ (gọi lại khi sang ải khác)."""
         self._init_ban_do()
         self.kq_anh = None  # ảnh vùng "Số lần" lần cuối thấy đổi
         self.kq_doi = 0.0
@@ -54,7 +63,6 @@ class SweepBot(BanDoMixin, Bot):
         self.khu_i = 0
         self.da_quet = {}  # tên khu → số lần đã quét trong vòng này
         self.het_luot = set()  # khu không quét được nữa
-        self.the_luc = None  # ước tính thể lực còn lại
         self.cham_khu_lien = 0
         self.dang_mo_khu = None
         self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
@@ -318,8 +326,8 @@ class SweepBot(BanDoMixin, Bot):
             self.da_quet.clear()
             self.khu_i = 0
             return self.chon_khu()
-        self.log("✔ Đã quét xong mọi khu → dừng")
-        raise StopBot
+        self.log("✔ Đã quét xong mọi khu")
+        raise XongKhu
 
     def vi_tri_khu(self, s, khu):
         if "xy_map" in khu:

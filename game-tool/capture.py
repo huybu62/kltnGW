@@ -17,9 +17,10 @@ CAO_TOI_DA = 620
 
 
 class CaptureWindow(tk.Toplevel):
-    def __init__(self, master, device, templates, cfg, on_khu=None):
+    def __init__(self, master, device, templates, cfg, on_khu=None, on_ai=None):
         super().__init__(master)
         self.on_khu = on_khu
+        self.on_ai = on_ai
         self.device = device
         self.templates = templates
         self.cfg = cfg
@@ -58,6 +59,7 @@ class CaptureWindow(tk.Toplevel):
         ttk.Button(bot, text="💾 Lưu mẫu", command=self.save).pack(side="left")
         ttk.Button(bot, text="Sao chép toạ độ", command=self.copy_xy).pack(side="left", padx=4)
         ttk.Button(bot, text="➕ Thêm khu", command=self.them_khu).pack(side="left")
+        ttk.Button(bot, text="➕ Thêm ải", command=self.them_ai).pack(side="left", padx=4)
         self.lbl_desc = ttk.Label(bot, text="", foreground="#666")
         self.lbl_desc.pack(side="left", padx=6)
 
@@ -155,6 +157,26 @@ class CaptureWindow(tk.Toplevel):
         if self.on_khu:
             self.on_khu(ten.strip(), (x - gx) / gw, (y - gy) / gh)
         self.lbl_xy.config(text=f"Đã thêm khu '{ten.strip()}'")
+
+    def them_ai(self):
+        """Khoanh chữ nhãn ải trên màn chương (ví dụ "2-1 ...") → lưu mẫu và thêm vào danh sách ải."""
+        if self.img is None or not self.sel:
+            messagebox.showinfo("Chưa chọn vùng", "Ở màn chương, kéo chuột khoanh phần CHỮ của nhãn ải "
+                                "(ví dụ '2-1 Tên ải') rồi bấm lại.", parent=self)
+            return
+        ten = simpledialog.askstring("Thêm ải", "Tên ải (ví dụ 2-1 Sa Mạc):", parent=self)
+        if not ten:
+            return
+        ma = "ai_" + (re.sub(r"[^0-9a-z]+", "_", ten.strip().lower().split(" ")[0]).strip("_") or "moi")
+        while self.templates.exists(ma):
+            ma += "_"
+        x1, y1, x2, y2 = self.sel
+        path = os.path.join(self.templates.folder, f"{ma}.png")
+        ghi_anh(path, self.img[y1:y2, x1:x2])
+        self.templates.ghi_ti_le(path, vung_game(self.img)[2])
+        if self.on_ai:
+            self.on_ai(ten.strip(), ma)
+        self.lbl_xy.config(text=f"Đã thêm ải '{ten.strip()}' (mẫu {ma}.png)")
 
     # ---------- lưu ----------
     def save(self):

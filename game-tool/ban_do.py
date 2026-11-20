@@ -28,8 +28,9 @@ def cat_tieu_de(s, m_x):
 def giong_nhau(a, b):
     if a is None or b is None or a.shape != b.shape or a.size == 0:
         return False
-    diem = cv2.matchTemplate(a, b, cv2.TM_CCOEFF_NORMED)[0][0]
-    return diem > 0.9 or np.abs(a.astype(np.int16) - b.astype(np.int16)).mean() < 6
+    # cùng một tiêu đề thì gần như trùng từng điểm ảnh; khác một chữ thôi cũng đủ phân biệt
+    khac = (np.abs(a.astype(np.int16) - b.astype(np.int16)).max(axis=2) > 60).mean()
+    return khac < 0.004
 
 
 def do_lech(a, b, vung):

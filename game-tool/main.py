@@ -10,6 +10,7 @@ from adb import Adb, Device, find_adb
 from bot import Bot
 from capture import CaptureWindow, mo_thu_muc
 from matcher import Templates
+from chuong import ChuongBot
 from discover import DiscoverBot
 from sweep import SweepBot
 
@@ -122,10 +123,16 @@ class App:
         ttk.Checkbutton(h4, text="Lướt cả bản đồ", variable=self.v_cuon, command=self.luu_cq).pack(side="left", padx=(12, 0))
         for e in (self.e_moi_khu, self.e_tl_max, self.e_chi_phi, self.e_nhip):
             e.bind("<FocusOut>", lambda _e: self.luu_cq())
+        h5 = ttk.Frame(self.f_cq)
+        h5.pack(fill="x", pady=(3, 0))
+        self.v_qua_ai = tk.BooleanVar(value=True)
+        ttk.Checkbutton(h5, text="Hết khu thì Trở lại, sang ải kế (1-1 → 1-2 → …)", variable=self.v_qua_ai,
+                        command=self.doi_qua_ai).pack(side="left")
         h3 = ttk.Frame(self.f_cq)
         h3.pack(fill="x", pady=(4, 0))
-        ttk.Label(h3, text="Các khu (quét theo thứ tự):", foreground="#555").pack(side="left")
-        ttk.Button(h3, text="🔎 Dò khu tự động", command=self.do_khu).pack(side="right")
+        self.lbl_ds = ttk.Label(h3, text="", foreground="#555")
+        self.lbl_ds.pack(side="left")
+        self.btn_do = ttk.Button(h3, text="🔎 Dò khu tự động", command=self.do_khu)
         self.f_khu = ttk.Frame(self.f_cq)
         self.f_khu.pack(fill="x")
 
@@ -177,8 +184,31 @@ class App:
             e.set(cq.get(k, md))
         self.e_nhip.set(cq.get("nhip_lan_nua", 0.35))
         self.v_cuon.set(cq.get("cuon_map", True))
+        self.v_qua_ai.set(cq.get("qua_ai", True))
         for w in self.f_khu.winfo_children():
             w.destroy()
+        if cq.get("qua_ai", True):
+            self.btn_do.pack_forget()
+            self.lbl_ds.config(text="Các ải (quét theo thứ tự; ải chưa dò sẽ tự dò khu lần đầu):")
+            ds_ai = cq.get("ai", [])
+            if not ds_ai:
+                ttk.Label(self.f_khu, text="(chưa có ải nào: ✂ → khoanh nhãn ải → ➕ Thêm ải)",
+                          foreground="#888").pack(anchor="w")
+            for i, ai in enumerate(ds_ai):
+                hang = ttk.Frame(self.f_khu)
+                hang.pack(fill="x")
+                v = tk.BooleanVar(value=ai.get("bat", True))
+                so = len(ai.get("khu") or [])
+                ttk.Checkbutton(hang, text=f"{ai.get('ten', '?')}  ({so} khu)" if so else f"{ai.get('ten', '?')}  (chưa dò)",
+                                variable=v, command=lambda aa=ai, vv=v: self.toggle_rule(aa, vv)).pack(side="left")
+                ttk.Button(hang, text="✕", width=2, command=lambda aa=ai: self.xoa_khu(aa, "ai")).pack(side="right")
+                if i:
+                    ttk.Button(hang, text="↑", width=2, command=lambda j=i: self.len_khu(j, "ai")).pack(side="right")
+                if so:
+                    ttk.Button(hang, text="Dò lại", width=6, command=lambda aa=ai: self.do_lai_ai(aa)).pack(side="right")
+            return
+        self.btn_do.pack(side="right")
+        self.lbl_ds.config(text="Các khu (quét theo thứ tự):")
         ds = cq.get("khu", [])
         if not ds:
             ttk.Label(self.f_khu, text="(chưa có khu nào)", foreground="#888").pack(anchor="w")
@@ -220,14 +250,32 @@ class App:
         self.save_config()
         self.build_cq()
 
-    def xoa_khu(self, khu):
-        if messagebox.askyesno("Xoá khu", f"Xoá khu '{khu.get('ten')}' khỏi danh sách?", parent=self.root):
-            self.cfg["can_quet"]["khu"].remove(khu)
+    def xoa_khu(self, khu, loai="khu"):
+        if messagebox.askyesno("Xoá", f"Xoá '{khu.get('ten')}' khỏi danh sách?", parent=self.root):
+            self.cfg["can_quet"][loai].remove(khu)
             self.save_config()
             self.build_cq()
 
-    def len_khu(self, i):
-        ds = self.cfg["can_quet"]["khu"]
+    def do_lai_ai(self, ai):
+        if messagebox.askyesno("Dò lại", f"Xoá các khu đã dò của ải '{ai.get('ten')}'? Lần chạy sau tool sẽ dò lại.",
+                               parent=self.root):
+            ai["khu"] = []
+            self.save_config()
+            self.build_cq()
+
+    def doi_qua_ai(self):
+        self.cfg.setdefault("can_quet", {})["qua_ai"] = bool(self.v_qua_ai.get())
+        self.save_config()
+        self.build_cq()
+
+    def them_ai(self, ten, mau):
+        self.cfg.setdefault("can_quet", {}).setdefault("ai", []).append({"ten": ten, "bat": True, "mau": mau, "khu": []})
+        self.save_config()
+        self.build_cq()
+        self.log("", f"Đã thêm ải '{ten}'")
+
+    def len_khu(self, i, loai="khu"):
+        ds = self.cfg["can_quet"][loai]
         ds[i - 1], ds[i] = ds[i], ds[i - 1]
         self.save_config()
         self.build_cq()
@@ -326,7 +374,8 @@ class App:
     def open_capture(self, serial=None):
         serial = serial or self.chon_serial()
         if serial:
-            CaptureWindow(self.root, Device(self.adb, serial), self.templates, self.cfg, on_khu=self.them_khu)
+            CaptureWindow(self.root, Device(self.adb, serial), self.templates, self.cfg, on_khu=self.them_khu,
+                          on_ai=self.them_ai)
 
     def them_khu(self, ten, fx, fy):
         self.cfg.setdefault("can_quet", {}).setdefault("khu", []).append(
@@ -347,7 +396,12 @@ class App:
         except ValueError:
             luot = 0
         self.luu_cq()
-        lop = SweepBot if self.cfg.get("che_do", "can_quet") == "can_quet" else Bot
+        if self.cfg.get("che_do", "can_quet") != "can_quet":
+            lop = Bot
+        elif self.cfg.get("can_quet", {}).get("qua_ai", True):
+            lop = ChuongBot
+        else:
+            lop = SweepBot
         b = lop(Device(self.adb, serial), self.cfg, self.templates, self.q.put, stop_after=luot)
         self.bots[serial] = b
         self.rows[serial]["dem"].config(text="")
@@ -387,6 +441,9 @@ class App:
                     self.log(msg[1], msg[2])
                 elif kieu == "devices":
                     self.set_devices(msg[1])
+                elif kieu == "luu_cfg":
+                    self.save_config()
+                    self.build_cq()
                 elif kieu == "khu_moi":
                     self.nhan_khu_moi(msg[2])
                 elif kieu == "stop_all":
