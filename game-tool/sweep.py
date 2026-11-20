@@ -71,6 +71,9 @@ class SweepBot(BanDoMixin, Bot):
         self.da_quet = {}  # tên khu → số lần đã quét trong vòng này
         self.het_luot = set()  # khu không quét được nữa
         self.cham_khu_lien = 0
+        self.dinh_vi_hong = 0
+        self.bo_vong = set()  # khu tạm bỏ qua trong vòng này (thử lại ở vòng sau)
+        self.so_lan_tam_bo = {}
         self.dang_mo_khu = None
         self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
         self.popup_hong = 0
@@ -96,7 +99,7 @@ class SweepBot(BanDoMixin, Bot):
 
     def du_chi_tieu(self, khu):
         n = self.cq.get("so_lan_moi_khu", 0)
-        return khu["ten"] in self.het_luot or khu["ten"] == self.nghi_het or (n > 0 and self.da_quet.get(khu["ten"], 0) >= n)
+        return khu["ten"] in self.het_luot or khu["ten"] in self.bo_vong or khu["ten"] == self.nghi_het or (n > 0 and self.da_quet.get(khu["ten"], 0) >= n)
 
     def du_the_luc(self, khu):
         return self.the_luc is None or self.the_luc >= self.chi_phi(khu)
@@ -183,7 +186,7 @@ class SweepBot(BanDoMixin, Bot):
             self.kq_anh, self.kq_doi = so_lan, now
             if self.kq_da_cham:
                 self.dem(khu)
-        elif self.kq_da_cham and now - self.kq_doi > self.cq.get("cho_khong_doi_giay", 4):
+        elif self.kq_da_cham and now - self.kq_doi > self.cq.get("cho_khong_doi_giay", 8):
             # bấm liên tục mà "Số lần" không đổi → khu hết lượt hoặc hết thể lực
             self.log("  'Càn quét lần nữa' không còn tác dụng")
             self.nghi_het = khu["ten"]
@@ -226,8 +229,8 @@ class SweepBot(BanDoMixin, Bot):
             # bản đồ lệch so với lúc dò → mở nhầm khu khác: đóng lại, lấy mốc lại
             self.mo_nham[khu["ten"]] = self.mo_nham.get(khu["ten"], 0) + 1
             if self.mo_nham[khu["ten"]] >= 3:
-                self.log(f"  Không mở đúng được {khu['ten']} → bỏ qua khu này")
-                self.het_luot.add(khu["ten"])
+                self.mo_nham[khu["ten"]] = 0
+                self.tam_bo_khu(khu, "mở nhầm khu khác 3 lần", s)
             else:
                 self.log(f"  Mở nhầm khu khác (bản đồ lệch) → lấy mốc lại rồi thử lại {khu['ten']}")
             self.cam_ok = False
@@ -317,21 +320,43 @@ class SweepBot(BanDoMixin, Bot):
             self.log(f"⛔ Hết thể lực (còn khoảng {self.the_luc}, cần {self.chi_phi(khu)}) → dừng")
             raise StopBot
 
+        vt = self.vi_tri_khu(s, khu)
+        if vt is None:  # chưa định vị được bản đồ: chưa chạm, không tính là chạm hỏng
+            self.dinh_vi_hong += 1
+            if self.dinh_vi_hong >= 4:
+                self.dinh_vi_hong = 0
+                self.tam_bo_khu(khu, "không định vị được bản đồ", s)
+            return True
+        self.dinh_vi_hong = 0
+
         self.cham_khu_lien += 1
         if self.cham_khu_lien > 3:
-            self.log(f"  Chạm '{khu['ten']}' 3 lần không mở được → bỏ qua khu này")
-            self.het_luot.add(khu["ten"])
             self.cham_khu_lien = 0
+            self.tam_bo_khu(khu, "chạm 3 lần không mở được", s)
             return True
-
-        vt = self.vi_tri_khu(s, khu)
-        if vt is None:
-            return True  # vừa vuốt bản đồ mà không đo được vị trí: vòng sau lấy mốc lại
         self.dang_mo_khu = khu
         self.log(f"• Mở khu {khu['ten']} (thể lực ~{self.the_luc if self.the_luc is not None else 'đầy'})")
         self.tap(*vt)
-        self.sleep(1.5)
+        # chờ popup mở (game có thể cho nhân vật đi bộ tới toà nhà trước) – không chạm lại vội
+        for _ in range(int(self.cq.get("cho_mo_khu_giay", 6) / 0.5)):
+            self.sleep(0.5)
+            if not self.la_ban_do(self.shot()):
+                break
         return True
+
+    def tam_bo_khu(self, khu, ly_do, s=None):
+        """Bỏ qua khu trong vòng này, thử lại ở vòng sau; 3 lần như vậy mới bỏ hẳn."""
+        ten = khu["ten"]
+        self.so_lan_tam_bo[ten] = self.so_lan_tam_bo.get(ten, 0) + 1
+        if s is not None:
+            self.luu_anh_loi(s, f"{ten}: {ly_do}")
+        if self.so_lan_tam_bo[ten] >= 3:
+            self.log(f"  {ten}: {ly_do} (lần thứ 3) → bỏ hẳn khu này")
+            self.het_luot.add(ten)
+        else:
+            self.log(f"  {ten}: {ly_do} → tạm bỏ qua, sẽ thử lại ở vòng sau")
+            self.bo_vong.add(ten)
+        self.khu_i += 1
 
     def chon_khu(self):
         ds = self.ds_khu()
@@ -341,9 +366,10 @@ class SweepBot(BanDoMixin, Bot):
                 return khu
             self.khu_i += 1
         # mọi khu đều xong
-        if self.cq.get("lap_vong", True) and len(self.het_luot) < len(ds):
-            self.log("↻ Xong một vòng các khu, quay lại khu đầu")
+        if self.cq.get("lap_vong", True) and any(k["ten"] not in self.het_luot for k in ds):
+            self.log("↻ Xong một vòng các khu, quay lại thử các khu còn lượt")
             self.da_quet.clear()
+            self.bo_vong.clear()
             self.khu_i = 0
             return self.chon_khu()
         self.log("✔ Đã quét xong mọi khu")

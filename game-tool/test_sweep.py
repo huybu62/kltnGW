@@ -192,6 +192,52 @@ class TestSweep(unittest.TestCase):
         self.assertEqual(len(g.lich_su), 5)  # không dừng vì thể lực, chỉ dừng khi hết khu
         self.assertFalse(any("Hết thể lực" in l for l in logs))
 
+    def test_nhan_vat_di_bo_moi_mo_popup(self):
+        # chạm khu thì nhân vật đi bộ tới, 5 khung hình sau popup mới mở; chạm lại giữa chừng là đi lại từ đầu
+        class GameDiBo(FakeGame):
+            cho = None
+
+            def tap(self, x, y):
+                if self.man == "ban_do":
+                    super().tap(x, y)
+                    if self.man == "popup_khu":
+                        self.man, self.cho = "ban_do", 5
+                    else:
+                        self.cho = None
+                    return
+                super().tap(x, y)
+
+            def screenshot(self):
+                if self.cho is not None:
+                    self.cho -= 1
+                    if self.cho <= 0:
+                        self.man, self.cho = "popup_khu", None
+                return super().screenshot()
+
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["khu"].append({"ten": "Khu 2", "bat": True, "xy": [0.81, 0.92]})
+        g = GameDiBo(the_luc=1000, luot_khu={"cong_xuong": 4, "khu_2": 4})
+        b, logs = self.chay(g, cfg)
+        self.assertEqual(g.lich_su, ["cong_xuong"] * 4 + ["khu_2"] * 4)
+
+    def test_khu_tam_bo_duoc_thu_lai(self):
+        # khu 2 mấy lần đầu chạm không ăn → tạm bỏ qua, vòng sau quay lại quét được hết
+        class GameKhoMo(FakeGame):
+            bo = 5
+
+            def tap(self, x, y):
+                if self.man == "ban_do" and trong(x, y, HOP_TRAN_HINH) and self.bo > 0:
+                    self.bo -= 1
+                    return
+                super().tap(x, y)
+
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["khu"].append({"ten": "Khu 2", "bat": True, "xy": [0.81, 0.92]})
+        g = GameKhoMo(the_luc=1000, luot_khu={"cong_xuong": 3, "khu_2": 3})
+        b, logs = self.chay(g, cfg)
+        self.assertEqual(sorted(g.lich_su), sorted(["cong_xuong"] * 3 + ["khu_2"] * 3), logs)
+        self.assertTrue(any("tạm bỏ qua" in l for l in logs))
+
     def test_dung_sau_n_lan(self):
         g = FakeGame(the_luc=120)
         self.chay(g, self.cfg, stop_after=5)
