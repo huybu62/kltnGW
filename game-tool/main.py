@@ -129,6 +129,11 @@ class App:
         self.v_qua_ai = tk.BooleanVar(value=True)
         ttk.Checkbutton(h5, text="Hết khu thì Trở lại, sang ải kế (1-1 → 1-2 → …)", variable=self.v_qua_ai,
                         command=self.doi_qua_ai).pack(side="left")
+        h6 = ttk.Frame(self.f_cq)
+        h6.pack(fill="x", pady=(3, 0))
+        self.v_bo_tl = tk.BooleanVar(value=False)
+        ttk.Checkbutton(h6, text="Không kiểm tra thể lực (đã mua nhiều, chỉ dừng khi hết khu)",
+                        variable=self.v_bo_tl, command=self.luu_cq).pack(side="left")
         h3 = ttk.Frame(self.f_cq)
         h3.pack(fill="x", pady=(4, 0))
         self.lbl_ds = ttk.Label(h3, text="", foreground="#555")
@@ -186,6 +191,7 @@ class App:
         self.e_nhip.set(cq.get("nhip_lan_nua", 0.35))
         self.v_cuon.set(cq.get("cuon_map", True))
         self.v_qua_ai.set(cq.get("qua_ai", True))
+        self.v_bo_tl.set(cq.get("bo_qua_the_luc", False))
         for w in self.f_khu.winfo_children():
             w.destroy()
         if cq.get("qua_ai", True):
@@ -293,6 +299,7 @@ class App:
         except ValueError:
             pass
         cq["cuon_map"] = bool(self.v_cuon.get())
+        cq["bo_qua_the_luc"] = bool(self.v_bo_tl.get())
         self.save_config()
 
     def toggle_rule(self, rule, var):

@@ -159,6 +159,39 @@ class TestSweep(unittest.TestCase):
         self.chay(g, cfg)
         self.assertEqual(g.lich_su, ["cong_xuong"] * 99 + ["khu_2"] * 99)
 
+    def test_man_mo_khi_dong_ket_qua_khong_bao_het_the_luc(self):
+        # vừa đóng màn kết quả, bản đồ còn tối mờ 2 khung hình (hiệu ứng) → không được đọc thành 0
+        class GameMo(FakeGame):
+            mo = 0
+
+            def tap(self, x, y):
+                truoc = self.man
+                super().tap(x, y)
+                if truoc != "ban_do" and self.man == "ban_do":
+                    self.mo = 2
+
+            def screenshot(self):
+                img = super().screenshot()
+                if self.man == "ban_do" and self.mo > 0:
+                    self.mo -= 1
+                    return (img * 0.5).astype(img.dtype)
+                return img
+
+        g = GameMo(the_luc=200, luot_khu={"cong_xuong": 3, "khu_2": 3})
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["khu"].append({"ten": "Khu 2", "bat": True, "xy": [0.81, 0.92]})
+        b, logs = self.chay(g, cfg)
+        self.assertEqual(g.lich_su, ["cong_xuong"] * 3 + ["khu_2"] * 3)
+        self.assertFalse(any("Hết thể lực" in l for l in logs), logs)
+
+    def test_khong_kiem_tra_the_luc(self):
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["bo_qua_the_luc"] = True
+        g = FakeGame(the_luc=43, luot_khu={"cong_xuong": 5})
+        b, logs = self.chay(g, cfg)
+        self.assertEqual(len(g.lich_su), 5)  # không dừng vì thể lực, chỉ dừng khi hết khu
+        self.assertFalse(any("Hết thể lực" in l for l in logs))
+
     def test_dung_sau_n_lan(self):
         g = FakeGame(the_luc=120)
         self.chay(g, self.cfg, stop_after=5)

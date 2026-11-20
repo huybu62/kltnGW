@@ -60,6 +60,7 @@ Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: ch
 4. Đặt các tuỳ chọn:
    - **Mỗi khu quét N lần rồi sang khu khác.** Để `0` (mặc định) thì quét một khu **tới khi hết 99 lượt** rồi mới sang khu kế. Tool tự nhận ra khi khu hết lượt, kể cả khi hôm nay bạn đã quét tay một phần.
    - **Thể lực tối đa:** số sau dấu `/` trên thanh thể lực, ví dụ `43/120` thì nhập 120. Nhân vật lên cấp mà số này đổi thì nhớ sửa lại.
+   - **Không kiểm tra thể lực:** tick ô này nếu bạn đã mua rất nhiều thể lực. Tool sẽ không đọc thanh thể lực nữa, chỉ dừng khi quét hết khu hoặc hết ải.
    - **Mỗi lần tốn:** số thể lực mỗi lần quét, ví dụ ⚡4. Khu nào tốn khác thì thêm `"chi_phi": 6` vào khu đó trong `config.json`.
    - **Bấm 'lần nữa' mỗi … giây:** nhịp bấm *Càn quét lần nữa*, mặc định 0,35 giây. Tool bấm liên tục theo nhịp này và đếm số lần quét theo con số *Số lần* trên màn hình. Thấy game bỏ lỡ cú bấm thì tăng lên 0,5; muốn nhanh hơn thì giảm còn 0,2.
    - **Lướt cả bản đồ:** để tick thì lúc quét, tool tự vuốt bản đồ tới đúng khu, kể cả khu nằm ngoài màn hình. Mỗi lần chạy, tool vuốt về góc trên-trái để lấy mốc. Nếu mở nhầm khu (tiêu đề popup khác lúc dò), tool đóng lại, lấy mốc lại rồi thử tiếp.

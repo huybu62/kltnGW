@@ -15,6 +15,7 @@ Cấu hình trong config.json, mục "can_quet":
 import os
 import time
 
+import cv2
 import numpy as np
 
 from ban_do import BanDoMixin, cat_tieu_de, giong_nhau
@@ -34,10 +35,16 @@ def doc_thanh_the_luc(screen, m):
     h, w = screen.shape[:2]
     if x1 > w or y1 > h or x1 - x0 < 20:
         return None
-    vung = screen[y0:y1, x0:x1].astype(np.int16)
-    b, g, r = vung[..., 0], vung[..., 1], vung[..., 2]
-    cam = (r > 150) & (g > 60) & (g < 210) & (b < 100) & (r - b > 120)
-    cot = np.where(cam.sum(axis=0) >= max(1, int(2 * k)))[0]
+    hsv = cv2.cvtColor(screen[y0:y1, x0:x1], cv2.COLOR_BGR2HSV)
+    h, s_, v = hsv[..., 0].astype(np.int16), hsv[..., 1].astype(np.int16), hsv[..., 2].astype(np.int16)
+    cam = (h >= 5) & (h <= 25) & (s_ > 150) & (v > 180)  # phần đầy: cam sáng
+    nen = ((h <= 8) | (h >= 170)) & (s_ > 100) & (v >= 25) & (v <= 120)  # phần trống: đỏ sẫm
+    can = max(1, int(2 * k))
+    cot_cam = cam.sum(axis=0) >= can
+    cot_nen = nen.sum(axis=0) >= can
+    if (cot_cam | cot_nen).mean() < 0.7:
+        return None  # màn đang tối/mờ (popup vừa đóng, chuyển cảnh): không đọc được, KHÔNG coi là 0
+    cot = np.where(cot_cam)[0]
     if len(cot) == 0:
         return 0.0
     return min(1.0, (cot[-1] + 1) / (x1 - x0))
@@ -272,8 +279,10 @@ class SweepBot(BanDoMixin, Bot):
         if not m:
             return False
         self.reset_kq()
-        ti_le = doc_thanh_the_luc(s, m)
-        if ti_le is not None and ti_le >= 0.985:
+        ti_le = None if self.cq.get("bo_qua_the_luc") else doc_thanh_the_luc(s, m)
+        if self.cq.get("bo_qua_the_luc"):
+            self.the_luc = None
+        elif ti_le is not None and ti_le >= 0.985:
             # thanh đầy: có thể đang vượt mức tối đa (đã mua thêm) → không giới hạn theo ước tính,
             # khi hết thật thì "Càn quét lần nữa" hết tác dụng và lần về bản đồ sau sẽ đọc lại.
             self.the_luc = None
@@ -285,8 +294,15 @@ class SweepBot(BanDoMixin, Bot):
 
         ds = self.ds_khu()
         if self.the_luc is not None and ds and self.the_luc < min(self.chi_phi(k) for k in ds):
+            self.tl_thap = getattr(self, "tl_thap", 0) + 1
+            if self.tl_thap < 2:  # đọc lại cho chắc (tránh đọc nhầm lúc màn đang chuyển)
+                self.log(f"  Thể lực đọc được ~{self.the_luc}, kiểm tra lại...")
+                self.sleep(1.5)
+                return True
+            self.luu_anh_loi(s, f"hết thể lực (đọc được ~{self.the_luc})")
             self.log(f"⛔ Hết thể lực (còn khoảng {self.the_luc}) → dừng")
             raise StopBot
+        self.tl_thap = 0
         if self.nghi_het:
             # thể lực vẫn đủ → khu đó thật sự đã hết lượt
             self.log(f"  {self.nghi_het}: hết lượt → sang khu kế")
@@ -297,6 +313,7 @@ class SweepBot(BanDoMixin, Bot):
         if khu is None:
             return True
         if not self.du_the_luc(khu):
+            self.luu_anh_loi(s, "hết thể lực")
             self.log(f"⛔ Hết thể lực (còn khoảng {self.the_luc}, cần {self.chi_phi(khu)}) → dừng")
             raise StopBot
 

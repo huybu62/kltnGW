@@ -5,6 +5,7 @@ import struct
 import subprocess
 import sys
 import threading
+import time
 
 import cv2
 import numpy as np
@@ -102,6 +103,8 @@ class Device:
         self._raw_ok = True  # thử chụp ảnh thô (nhanh hơn PNG), lỗi thì quay về PNG
         self._sh = None  # adb shell giữ sẵn để chạm/vuốt không phải mở adb mỗi lần
         self._sh_lock = threading.Lock()
+        self._da_gui = 0  # số lệnh đã gửi / đã chạy xong (để không dồn lệnh khi bấm quá nhanh)
+        self._da_xong = 0
 
     def _shell(self, *args, timeout=10):
         r = self.adb.run("-s", self.serial, "shell", *args, timeout=timeout)
@@ -109,18 +112,30 @@ class Device:
             raise AdbError(r.stderr.decode("utf-8", "ignore").strip() or "adb shell lỗi")
         return r.stdout
 
-    def _gui_lenh(self, lenh):
-        """Gửi lệnh vào adb shell đang mở sẵn (không chờ), hỏng thì chạy lệnh riêng."""
+    def _doc_xac_nhan(self, sh):
+        for dong in iter(sh.stdout.readline, b""):
+            if b"@@xong" in dong:
+                self._da_xong += 1
+
+    def _gui_lenh(self, lenh, toi_da_cho=2):
+        """Gửi lệnh vào adb shell đang mở sẵn. Nếu đã có `toi_da_cho` lệnh chưa chạy xong thì chờ
+        (bấm nhanh hơn giả lập xử lý sẽ làm lệnh dồn lại và chạm lung tung sau đó)."""
+        han = time.time() + 3
+        while self._sh is not None and self._da_gui - self._da_xong >= toi_da_cho and time.time() < han:
+            time.sleep(0.01)
         with self._sh_lock:
             for _ in range(2):
                 try:
                     if self._sh is None or self._sh.poll() is not None:
                         self._sh = subprocess.Popen(
                             [self.adb.path, "-s", self.serial, "shell"],
-                            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                             creationflags=_NO_WINDOW)
-                    self._sh.stdin.write((lenh + "\n").encode())
+                        self._da_gui = self._da_xong = 0
+                        threading.Thread(target=self._doc_xac_nhan, args=(self._sh,), daemon=True).start()
+                    self._sh.stdin.write(f"{lenh}; echo @@xong\n".encode())
                     self._sh.stdin.flush()
+                    self._da_gui += 1
                     return
                 except (OSError, ValueError):
                     self._sh = None
