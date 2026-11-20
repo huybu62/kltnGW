@@ -93,6 +93,8 @@ class Bot(threading.Thread):
             self.log(f"Lỗi: {e}")
             traceback.print_exc()
         finally:
+            if hasattr(self.device, "close"):
+                self.device.close()
             self.emit(("state", self.device.serial, False))
             self.log("■ Đã dừng")
 

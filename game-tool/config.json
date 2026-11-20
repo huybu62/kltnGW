@@ -38,7 +38,11 @@
           0.613
         ]
       }
-    ]
+    ],
+    "nhip_lan_nua": 0.35,
+    "cho_khong_doi_giay": 4,
+    "cuon_map": true,
+    "toc_do_vuot_ms": 700
   },
   "mo_ta_mau": {
     "cq_the_luc": "[Càn quét] Chữ 'Thể lực' cạnh thanh thể lực trên bản đồ",

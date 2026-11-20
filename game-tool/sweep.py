@@ -12,11 +12,14 @@ Cấu hình trong config.json, mục "can_quet":
   lap_vong        hết danh sách khu thì quay lại khu đầu
   khu             danh sách khu: {"ten", "bat", "mau" (ảnh toà nhà, tuỳ chọn), "xy": [tỉ lệ x, tỉ lệ y]}
 """
+import os
 import time
 
 import numpy as np
 
+from ban_do import BanDoMixin, cat_tieu_de, giong_nhau
 from bot import Bot, StopBot
+from matcher import _doc_anh
 
 # Vị trí thanh thể lực so với góc trên-trái chữ "Thể lực", tính theo điểm ảnh của mẫu gốc
 _THANH_X = (111, 406)
@@ -40,15 +43,18 @@ def doc_thanh_the_luc(screen, m):
     return min(1.0, (cot[-1] + 1) / (x1 - x0))
 
 
-class SweepBot(Bot):
+class SweepBot(BanDoMixin, Bot):
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
+        self._init_ban_do()
+        self.kq_anh = None  # ảnh vùng "Số lần" lần cuối thấy đổi
+        self.kq_doi = 0.0
+        self.kq_da_cham = False
+        self.mo_nham = {}  # khu → số lần mở nhầm khu khác
         self.khu_i = 0
         self.da_quet = {}  # tên khu → số lần đã quét trong vòng này
         self.het_luot = set()  # khu không quét được nữa
         self.the_luc = None  # ước tính thể lực còn lại
-        self.cho_doi = None  # (ảnh vùng "Số lần", thời điểm) sau khi chạm "lần nữa"
-        self.lan_nua_hong = 0
         self.cham_khu_lien = 0
         self.dang_mo_khu = None
         self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
@@ -151,42 +157,44 @@ class SweepBot(Bot):
         x0, x1 = m_lan_nua.left - int(45 * k), m_lan_nua.left + int(285 * k)
         so_lan = s[max(0, y0):y1, max(0, x0):x1].astype(np.int16)
 
-        if self.cho_doi is not None:
-            cu, t = self.cho_doi
-            khong_doi = cu.shape == so_lan.shape and (np.abs(cu - so_lan).sum(axis=2) > 90).mean() < 0.003
-            if khong_doi:
-                if time.time() - t < 4:
-                    self.sleep(0.8)  # chờ thêm, có thể đang hiệu ứng
-                    return True
-                # chạm "lần nữa" mà số lần không đổi → khu đã hết lượt hoặc hết thể lực
-                self.dem(khu, -1)
-                self.lan_nua_hong += 1
-                self.log("  'Càn quét lần nữa' không có tác dụng")
-                if self.lan_nua_hong >= 2:
-                    self.nghi_het = khu["ten"]
-                    self.the_luc = None  # đọc lại trên bản đồ
-            else:
-                self.lan_nua_hong = 0
-            self.cho_doi = None
+        now = time.time()
+        if self.kq_anh is None or self.kq_anh.shape != so_lan.shape:
+            self.kq_anh, self.kq_doi = so_lan, now
+        elif (np.abs(self.kq_anh - so_lan).sum(axis=2) > 90).mean() >= 0.003:
+            # "Số lần" vừa đổi → thêm một lần càn quét thành công
+            self.kq_anh, self.kq_doi = so_lan, now
+            if self.kq_da_cham:
+                self.dem(khu)
+        elif self.kq_da_cham and now - self.kq_doi > self.cq.get("cho_khong_doi_giay", 4):
+            # bấm liên tục mà "Số lần" không đổi → khu hết lượt hoặc hết thể lực
+            self.log("  'Càn quét lần nữa' không còn tác dụng")
+            self.nghi_het = khu["ten"]
+            self.the_luc = None  # đọc lại trên bản đồ
 
-        if khu and not self.du_chi_tieu(khu) and self.du_the_luc(khu) and khu["ten"] not in self.het_luot:
-            # chạm vào biểu tượng đầu lâu phía trên chữ
+        du_tong = self.stop_after and self.stats["can_quet"] >= self.stop_after
+        if khu and not du_tong and not self.du_chi_tieu(khu) and self.du_the_luc(khu) and khu["ten"] not in self.het_luot:
+            # chạm vào biểu tượng đầu lâu phía trên chữ, liên tục theo nhịp
             self.tap(m_lan_nua.x, m_lan_nua.y - int(118 * k))
-            self.dem(khu)
-            self.cho_doi = (so_lan, time.time())
-            self.log(f"• Càn quét lần nữa – {khu['ten']} ({self.da_quet.get(khu['ten'], 0)})")
-            self.sleep(1.5)
+            if not self.kq_da_cham:
+                self.log(f"• Càn quét lần nữa liên tục – {khu['ten']}")
+            self.kq_da_cham = True
+            self.sleep(self.cq.get("nhip_lan_nua", 0.35))
             return True
 
         m = self.find(s, "cq_dong")
-        self.log("• Đóng kết quả")
+        self.log(f"• Đóng kết quả – {khu['ten']} đã quét {self.da_quet.get(khu['ten'], 0)} lần")
         if m:
             self.tap_match(m)
         else:
             self.tap(m_lan_nua.x, m_lan_nua.y + int(266 * k))
         self.dang_mo_khu = None
-        self.sleep(1.5)
+        self.reset_kq()
+        self.sleep(1.2)
         return True
+
+    def reset_kq(self):
+        self.kq_anh = None
+        self.kq_da_cham = False
 
     def man_popup(self, s):
         m_x = self.find(s, "cq_x_popup")
@@ -195,6 +203,20 @@ class SweepBot(Bot):
             return False
         khu = self.dang_mo_khu or self.khu_hien_tai()
         self.cham_khu_lien = 0
+        self.reset_kq()
+        if self.dang_mo_khu is not None and self.cho_popup is None and m_x and not self.dung_khu(s, m_x, khu):
+            # bản đồ lệch so với lúc dò → mở nhầm khu khác: đóng lại, lấy mốc lại
+            self.mo_nham[khu["ten"]] = self.mo_nham.get(khu["ten"], 0) + 1
+            if self.mo_nham[khu["ten"]] >= 3:
+                self.log(f"  Không mở đúng được {khu['ten']} → bỏ qua khu này")
+                self.het_luot.add(khu["ten"])
+            else:
+                self.log(f"  Mở nhầm khu khác (bản đồ lệch) → lấy mốc lại rồi thử lại {khu['ten']}")
+            self.cam_ok = False
+            self.tap_match(m_x)
+            self.dang_mo_khu = None
+            self.sleep(1.2)
+            return True
         if self.cho_popup is khu:
             # đã chạm "Càn quét" mà vẫn ở popup → không quét được (hết lượt / thiếu thể lực)
             self.cho_popup = None
@@ -224,10 +246,21 @@ class SweepBot(Bot):
         self.sleep(1.2)
         return True
 
+    def dung_khu(self, s, m_x, khu):
+        """Popup đang mở có đúng tiêu đề khu (ảnh lưu lúc dò) không. Khu không có ảnh thì coi là đúng."""
+        ten_anh = khu.get("tieu_de")
+        if not ten_anh:
+            return True
+        p = os.path.join(self.templates.folder, "tieu_de_khu", ten_anh)
+        if not os.path.isfile(p):
+            return True
+        return giong_nhau(_doc_anh(p), cat_tieu_de(s, m_x))
+
     def man_ban_do(self, s):
         m = self.find(s, "cq_the_luc")
         if not m:
             return False
+        self.reset_kq()
         ti_le = doc_thanh_the_luc(s, m)
         if ti_le is not None and ti_le >= 0.985:
             # thanh đầy: có thể đang vượt mức tối đa (đã mua thêm) → không giới hạn theo ước tính,
@@ -263,11 +296,13 @@ class SweepBot(Bot):
             self.cham_khu_lien = 0
             return True
 
+        vt = self.vi_tri_khu(s, khu)
+        if vt is None:
+            return True  # vừa vuốt bản đồ mà không đo được vị trí: vòng sau lấy mốc lại
         self.dang_mo_khu = khu
-        x, y = self.vi_tri_khu(s, khu)
-        self.log(f"• Mở khu {khu['ten']} (thể lực ~{self.the_luc})")
-        self.tap(x, y)
-        self.sleep(1.8)
+        self.log(f"• Mở khu {khu['ten']} (thể lực ~{self.the_luc if self.the_luc is not None else 'đầy'})")
+        self.tap(*vt)
+        self.sleep(1.5)
         return True
 
     def chon_khu(self):
@@ -287,6 +322,12 @@ class SweepBot(Bot):
         raise StopBot
 
     def vi_tri_khu(self, s, khu):
+        if "xy_map" in khu:
+            if not self.cam_ok:
+                self.log("  Vuốt về góc bản đồ để lấy mốc...")
+                s = self.ve_goc()
+            kq = self.toi_diem(s, *khu["xy_map"])
+            return None if kq is None else kq[:2]
         if khu.get("mau") and self.templates.exists(khu["mau"]):
             m = self.find(s, khu["mau"])
             if m:

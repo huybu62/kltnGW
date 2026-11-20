@@ -1,8 +1,10 @@
 """Kết nối giả lập Android qua ADB: tìm adb, liệt kê máy, chụp màn hình, chạm."""
 import os
 import shutil
+import struct
 import subprocess
 import sys
+import threading
 
 import cv2
 import numpy as np
@@ -97,6 +99,9 @@ class Device:
     def __init__(self, adb, serial):
         self.adb = adb
         self.serial = serial
+        self._raw_ok = True  # thử chụp ảnh thô (nhanh hơn PNG), lỗi thì quay về PNG
+        self._sh = None  # adb shell giữ sẵn để chạm/vuốt không phải mở adb mỗi lần
+        self._sh_lock = threading.Lock()
 
     def _shell(self, *args, timeout=10):
         r = self.adb.run("-s", self.serial, "shell", *args, timeout=timeout)
@@ -104,7 +109,40 @@ class Device:
             raise AdbError(r.stderr.decode("utf-8", "ignore").strip() or "adb shell lỗi")
         return r.stdout
 
+    def _gui_lenh(self, lenh):
+        """Gửi lệnh vào adb shell đang mở sẵn (không chờ), hỏng thì chạy lệnh riêng."""
+        with self._sh_lock:
+            for _ in range(2):
+                try:
+                    if self._sh is None or self._sh.poll() is not None:
+                        self._sh = subprocess.Popen(
+                            [self.adb.path, "-s", self.serial, "shell"],
+                            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            creationflags=_NO_WINDOW)
+                    self._sh.stdin.write((lenh + "\n").encode())
+                    self._sh.stdin.flush()
+                    return
+                except (OSError, ValueError):
+                    self._sh = None
+        self._shell(*lenh.split())
+
+    def close(self):
+        with self._sh_lock:
+            if self._sh and self._sh.poll() is None:
+                try:
+                    self._sh.stdin.close()
+                    self._sh.terminate()
+                except OSError:
+                    pass
+            self._sh = None
+
     def screenshot(self):
+        if self._raw_ok:
+            r = self.adb.run("-s", self.serial, "exec-out", "screencap", timeout=15)
+            img = _doc_anh_tho(r.stdout)
+            if img is not None:
+                return img
+            self._raw_ok = False
         r = self.adb.run("-s", self.serial, "exec-out", "screencap", "-p", timeout=15)
         img = None
         if r.stdout:
@@ -115,7 +153,24 @@ class Device:
         return img
 
     def tap(self, x, y):
-        self._shell("input", "tap", str(int(x)), str(int(y)))
+        self._gui_lenh(f"input tap {int(x)} {int(y)}")
+
+    def swipe(self, x1, y1, x2, y2, ms=700):
+        self._gui_lenh(f"input swipe {int(x1)} {int(y1)} {int(x2)} {int(y2)} {int(ms)}")
 
     def back(self):
-        self._shell("input", "keyevent", "4")
+        self._gui_lenh("input keyevent 4")
+
+
+def _doc_anh_tho(data):
+    """Ảnh thô của `screencap` (không -p): đầu 12 hoặc 16 byte (rộng, cao, định dạng[, màu]) + RGBA."""
+    if not data or len(data) < 16:
+        return None
+    w, h, dinh_dang = struct.unpack_from("<III", data, 0)
+    if not (0 < w < 10000 and 0 < h < 10000) or dinh_dang != 1:  # 1 = RGBA_8888
+        return None
+    dau = len(data) - w * h * 4
+    if dau not in (12, 16):
+        return None
+    rgba = np.frombuffer(data, np.uint8, count=w * h * 4, offset=dau).reshape(h, w, 4)
+    return cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)

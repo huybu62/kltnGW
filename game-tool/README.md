@@ -53,7 +53,7 @@ Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: ch
 1. Mở game tới **bản đồ có các toà nhà**, nơi thấy thanh *Thể lực*.
 2. Trên overlay chọn **Chế độ: Càn quét map**.
 3. **Lập danh sách khu**, chọn một trong hai cách:
-   - **🔎 Dò khu tự động** (nên dùng): tool chạm lần lượt khắp bản đồ, mất khoảng 4–5 phút, và trong lúc đó **đừng bấm gì**. Chỗ nào mở ra popup *Thám hiểm / Càn quét* thì ghi lại thành một khu. Nhiều điểm cùng mở một khu thì gộp lại và lấy điểm giữa. Khu chưa có nút *Càn quét* sẽ được thêm nhưng để **bỏ tick**. Ảnh tiêu đề từng khu lưu ở `mau/tieu_de_khu/khu_1.png`, `khu_2.png`..., để bạn biết Khu 1, Khu 2 là toà nào. Muốn đổi tên thì sửa `"ten"` trong `config.json`.
+   - **🔎 Dò khu tự động** (nên dùng): trong lúc dò **đừng bấm gì**. Tool vuốt về góc trên-trái bản đồ, rồi **lướt hết bản đồ** theo hình chữ chi: dò xong một màn thì vuốt sang màn bên cạnh, hết hàng thì xuống hàng dưới. Ở mỗi màn, tool chạm theo lưới và bỏ qua những chỗ đã chạm ở màn trước. Bản đồ cỡ 2×2 màn hình mất khoảng 6–10 phút. Chỗ nào mở ra popup *Thám hiểm / Càn quét* thì ghi lại thành một khu, kèm vị trí trên cả bản đồ. Khu chưa có nút *Càn quét* sẽ được thêm nhưng để **bỏ tick**. Ảnh tiêu đề từng khu lưu ở `mau/tieu_de_khu/khu_1.png`, `khu_2.png`..., để bạn biết Khu 1, Khu 2 là toà nào. Muốn đổi tên thì sửa `"ten"` trong `config.json`.
    - **Thêm tay:** bấm **✂**, **chạm 1 điểm** vào toà nhà trên ảnh, bấm **➕ Thêm khu** rồi đặt tên.
 
    Tool quét các khu theo thứ tự trong danh sách. Dùng **↑** để đổi thứ tự, **✕** để xoá, bỏ tick để tạm bỏ qua một khu.
@@ -61,6 +61,8 @@ Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: ch
    - **Mỗi khu quét N lần rồi sang khu khác.** Để `0` (mặc định) thì quét một khu **tới khi hết 99 lượt** rồi mới sang khu kế. Tool tự nhận ra khi khu hết lượt, kể cả khi hôm nay bạn đã quét tay một phần.
    - **Thể lực tối đa:** số sau dấu `/` trên thanh thể lực, ví dụ `43/120` thì nhập 120. Nhân vật lên cấp mà số này đổi thì nhớ sửa lại.
    - **Mỗi lần tốn:** số thể lực mỗi lần quét, ví dụ ⚡4. Khu nào tốn khác thì thêm `"chi_phi": 6` vào khu đó trong `config.json`.
+   - **Bấm 'lần nữa' mỗi … giây:** nhịp bấm *Càn quét lần nữa*, mặc định 0,35 giây. Tool bấm liên tục theo nhịp này và đếm số lần quét theo con số *Số lần* trên màn hình. Thấy game bỏ lỡ cú bấm thì tăng lên 0,5; muốn nhanh hơn thì giảm còn 0,2.
+   - **Lướt cả bản đồ:** để tick thì lúc quét, tool tự vuốt bản đồ tới đúng khu, kể cả khu nằm ngoài màn hình. Mỗi lần chạy, tool vuốt về góc trên-trái để lấy mốc. Nếu mở nhầm khu (tiêu đề popup khác lúc dò), tool đóng lại, lấy mốc lại rồi thử tiếp.
 5. Bấm **▶ Chạy**.
 
 Cách tool tiêu thể lực:
@@ -152,5 +154,6 @@ Khi bị kẹt (lâu không nhận ra màn hình nào), đặt `"khi_ket"` để
 python test_bot.py
 python test_sweep.py
 python test_discover.py
+python test_ban_do.py
 ```
 Hai lệnh này chạy thử bộ luật xúc xắc trên màn hình tổng hợp, và chế độ càn quét trên ảnh chụp thật của game trong `anh_test/`. Không cần giả lập.

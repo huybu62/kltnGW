@@ -112,7 +112,15 @@ class App:
         self.e_chi_phi = ttk.Spinbox(h2, from_=1, to=99, width=4, command=self.luu_cq)
         self.e_chi_phi.pack(side="left", padx=3)
         ttk.Label(h2, text="thể lực").pack(side="left")
-        for e in (self.e_moi_khu, self.e_tl_max, self.e_chi_phi):
+        h4 = ttk.Frame(self.f_cq)
+        h4.pack(fill="x", pady=(3, 0))
+        ttk.Label(h4, text="Bấm 'lần nữa' mỗi").pack(side="left")
+        self.e_nhip = ttk.Spinbox(h4, from_=0.1, to=3.0, increment=0.05, width=5, command=self.luu_cq)
+        self.e_nhip.pack(side="left", padx=3)
+        ttk.Label(h4, text="giây").pack(side="left")
+        self.v_cuon = tk.BooleanVar(value=True)
+        ttk.Checkbutton(h4, text="Lướt cả bản đồ", variable=self.v_cuon, command=self.luu_cq).pack(side="left", padx=(12, 0))
+        for e in (self.e_moi_khu, self.e_tl_max, self.e_chi_phi, self.e_nhip):
             e.bind("<FocusOut>", lambda _e: self.luu_cq())
         h3 = ttk.Frame(self.f_cq)
         h3.pack(fill="x", pady=(4, 0))
@@ -167,6 +175,8 @@ class App:
         for e, k, md in ((self.e_moi_khu, "so_lan_moi_khu", 0), (self.e_tl_max, "the_luc_toi_da", 120),
                          (self.e_chi_phi, "chi_phi", 4)):
             e.set(cq.get(k, md))
+        self.e_nhip.set(cq.get("nhip_lan_nua", 0.35))
+        self.v_cuon.set(cq.get("cuon_map", True))
         for w in self.f_khu.winfo_children():
             w.destroy()
         ds = cq.get("khu", [])
@@ -190,7 +200,7 @@ class App:
             return
         if not messagebox.askokcancel(
                 "Dò khu tự động",
-                f"Mở bản đồ khu trên {serial} rồi bấm OK.\n\nTool sẽ chạm khắp bản đồ (khoảng 4–5 phút), "
+                f"Mở bản đồ khu trên {serial} rồi bấm OK.\n\nTool sẽ lướt và chạm khắp bản đồ (mỗi màn khoảng 4 phút), "
                 "chỗ nào mở popup Càn quét thì ghi lại thành một khu. Không bấm gì trong lúc dò.",
                 parent=self.root):
             return
@@ -229,6 +239,11 @@ class App:
                 cq[k] = int(e.get())
             except ValueError:
                 pass
+        try:
+            cq["nhip_lan_nua"] = max(0.1, round(float(self.e_nhip.get()), 2))
+        except ValueError:
+            pass
+        cq["cuon_map"] = bool(self.v_cuon.get())
         self.save_config()
 
     def toggle_rule(self, rule, var):

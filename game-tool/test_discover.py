@@ -54,6 +54,9 @@ class FakeMap:
     def back(self):
         self.man = "ban_do"
 
+    def swipe(self, *a):
+        pass  # bản đồ này không kéo được
+
 
 class NhanhDiscover(DiscoverBot):
     def sleep(self, giay):
@@ -84,9 +87,8 @@ class TestDiscover(unittest.TestCase):
             self.assertEqual([k["bat"] for k in ds], [True, True, False])
             self.assertEqual(len(os.listdir(os.path.join(tmp, "tieu_de_khu"))), 3)
             # điểm chạm của mỗi khu phải nằm trong đúng khu đó
-            gw, gh = 1280, 720
-            for khu in ds:
-                x, y = khu["xy"][0] * gw, khu["xy"][1] * gh
+            for khu in ds:  # bản đồ không kéo: toạ độ bản đồ = toạ độ màn hình / chiều rộng
+                x, y = khu["xy_map"][0] * 1280, khu["xy_map"][1] * 1280
                 self.assertTrue(any(trong(x, y, k[0]) for k in KHU), khu)
             print(f"  {g.so_cham} lần chạm, khu: {ds}")
 
