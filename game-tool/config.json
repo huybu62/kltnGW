@@ -1,16 +1,54 @@
 {
   "adb_path": "",
+  "che_do": "can_quet",
   "nguong_khop": 0.85,
-  "nguong_rieng": {},
+  "nguong_rieng": {
+    "cq_the_luc": 0.8,
+    "cq_tro_lai": 0.8,
+    "cq_nut_can_quet": 0.8,
+    "cq_nut_tham_hiem": 0.8,
+    "cq_x_popup": 0.8,
+    "cq_lan_nua": 0.8,
+    "cq_dong": 0.8,
+    "kv_cong_xuong": 0.8
+  },
   "nghi_giua_vong": 0.8,
   "nghi_khi_khong_thay": 1.0,
   "lap_toi_da": 15,
   "ket_sau_giay": 45,
   "khi_ket": "bao",
-  "xy_khi_ket": [640, 650],
+  "xy_khi_ket": [
+    640,
+    650
+  ],
   "dung_khi_khong_nhan_ra_giay": 300,
-
+  "can_quet": {
+    "chi_phi": 4,
+    "the_luc_toi_da": 120,
+    "so_lan_moi_khu": 0,
+    "lap_vong": true,
+    "dung_khi_khong_nhan_ra_giay": 90,
+    "khu": [
+      {
+        "ten": "Công xưởng",
+        "bat": true,
+        "mau": "kv_cong_xuong",
+        "xy": [
+          0.6425,
+          0.613
+        ]
+      }
+    ]
+  },
   "mo_ta_mau": {
+    "cq_the_luc": "[Càn quét] Chữ 'Thể lực' cạnh thanh thể lực trên bản đồ",
+    "cq_tro_lai": "[Càn quét] Nút 'Trở lại' góc trái bản đồ",
+    "cq_nut_can_quet": "[Càn quét] Nút 'Càn quét' trong popup khu",
+    "cq_nut_tham_hiem": "[Càn quét] Nút 'Thám hiểm' trong popup khu",
+    "cq_x_popup": "[Càn quét] Nút X đỏ đóng popup khu",
+    "cq_lan_nua": "[Càn quét] Chữ 'Càn quét lần nữa' ở màn kết quả",
+    "cq_dong": "[Càn quét] Dấu X lớn 'Đóng' ở màn kết quả",
+    "cq_khong_du": "[Càn quét] Popup báo không đủ thể lực (nếu gặp)",
     "nut_xuc_xac": "Nút đổ xúc xắc trên bản đồ",
     "het_the_luc": "Thông báo hết thể lực (cắt phần chữ tiêu đề hoặc biểu tượng)",
     "nut_dung_binh": "Nút dùng bình hồi thể lực trong thông báo hết thể lực",
@@ -33,12 +71,14 @@
     "nut_xac_nhan": "Nút Xác nhận / OK chung",
     "nut_dong": "Nút X đóng popup"
   },
-
   "luat": [
     {
       "ten": "Dùng bình hồi thể lực",
       "bat": false,
-      "thay": ["het_the_luc", "nut_dung_binh"],
+      "thay": [
+        "het_the_luc",
+        "nut_dung_binh"
+      ],
       "lam": "cham",
       "muc_tieu": "nut_dung_binh",
       "dem": "binh_the_luc",
@@ -69,7 +109,11 @@
       "bat": true,
       "thay": "man_oan_tu_xi",
       "lam": "cham_ngau_nhien",
-      "muc_tieu": ["keo", "bua", "bao"],
+      "muc_tieu": [
+        "keo",
+        "bua",
+        "bao"
+      ],
       "dem": "oan_tu_xi",
       "nghi_sau": 2.5
     },
@@ -79,8 +123,16 @@
       "thay": "man_chon_team",
       "lam": "chuoi",
       "buoc": [
-        {"cham": "team_chon", "cho_toi_da": 2, "bo_qua_neu_khong_thay": true, "nghi_sau": 0.8},
-        {"cham": "nut_xuat_chien", "cho_toi_da": 3}
+        {
+          "cham": "team_chon",
+          "cho_toi_da": 2,
+          "bo_qua_neu_khong_thay": true,
+          "nghi_sau": 0.8
+        },
+        {
+          "cham": "nut_xuat_chien",
+          "cho_toi_da": 3
+        }
       ],
       "nghi_sau": 2.0
     },
@@ -109,7 +161,10 @@
     {
       "ten": "Mua vật phẩm",
       "bat": false,
-      "thay": ["man_cua_hang", "nut_mua"],
+      "thay": [
+        "man_cua_hang",
+        "nut_mua"
+      ],
       "lam": "cham",
       "muc_tieu": "nut_mua",
       "dem": "mua",

@@ -1,0 +1,156 @@
+"""Kiểm tra chế độ Càn quét bằng ảnh màn hình thật của game (thu về 1280×720).
+Chạy: python test_sweep.py
+"""
+import copy
+import json
+import os
+import queue
+import time
+import unittest
+
+import cv2
+
+from matcher import Templates
+from sweep import SweepBot, doc_thanh_the_luc
+
+GOC = os.path.dirname(os.path.abspath(__file__))
+ANH = os.path.join(GOC, "anh_test")
+K = 1280 / 2000  # ảnh gốc rộng 2000, vùng game bắt đầu ở y=108
+
+
+def doi(x, y):
+    return x * K, (y - 108) * K
+
+
+def trong(x, y, hop):
+    (x1, y1), (x2, y2) = doi(*hop[:2]), doi(*hop[2:])
+    return x1 <= x <= x2 and y1 <= y <= y2
+
+
+HOP_CONG_XUONG = (1100, 640, 1670, 1010)
+HOP_TRAN_HINH = (1540, 1050, 1700, 1190)  # dùng làm "khu thứ 2" giả
+HOP_CAN_QUET = (1112, 1030, 1340, 1128)
+HOP_X_POPUP = (1300, 150, 1452, 238)
+HOP_LAN_NUA = (1650, 475, 1855, 662)
+HOP_DONG = (1680, 870, 1835, 1035)
+
+
+class FakeGame:
+    """Mô phỏng: bản đồ → popup khu → kết quả, có tính thể lực và số lần còn lại."""
+
+    serial = "fake"
+
+    def __init__(self, the_luc=43, luot_khu=None):
+        self.anh = {n: cv2.imread(os.path.join(ANH, f"{n}.jpg")) for n in ("ban_do", "popup_khu", "ket_qua")}
+        self.man = "ban_do"
+        self.the_luc = the_luc
+        self.luot = dict(luot_khu or {})  # khu -> số lần còn lại
+        self.khu = None
+        self.lich_su = []  # (khu) mỗi lần quét thành công
+
+    def screenshot(self):
+        img = self.anh[self.man].copy()
+        if self.man == "ban_do":
+            x0, x1 = 577, 765
+            dai = int((x1 - x0) * min(1, self.the_luc / 120))
+            img[21:47, x0:x1] = (17, 13, 57)  # nền thanh (đỏ sẫm)
+            img[21:47, x0:x0 + dai] = (0, 129, 255)  # phần cam
+        if self.man == "ket_qua":
+            # số lần còn lại thay đổi sau mỗi lần quét
+            cv2.putText(img, str(len(self.lich_su)), (1080, 435), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+        return img
+
+    def quet(self):
+        if self.the_luc < 4 or self.luot.get(self.khu, 99) <= 0:
+            return False
+        self.the_luc -= 4
+        self.luot[self.khu] = self.luot.get(self.khu, 99) - 1
+        self.lich_su.append(self.khu)
+        return True
+
+    def tap(self, x, y):
+        if self.man == "ban_do":
+            if trong(x, y, HOP_CONG_XUONG):
+                self.khu, self.man = "cong_xuong", "popup_khu"
+            elif trong(x, y, HOP_TRAN_HINH):
+                self.khu, self.man = "khu_2", "popup_khu"
+        elif self.man == "popup_khu":
+            if trong(x, y, HOP_CAN_QUET) and self.quet():
+                self.man = "ket_qua"
+            elif trong(x, y, HOP_X_POPUP):
+                self.man = "ban_do"
+        elif self.man == "ket_qua":
+            if trong(x, y, HOP_LAN_NUA):
+                self.quet()
+            elif trong(x, y, HOP_DONG):
+                self.man = "ban_do"
+
+    def back(self):
+        pass
+
+
+class NhanhSweepBot(SweepBot):
+    def sleep(self, giay):
+        super().sleep(min(giay, 0.02))
+
+
+class TestSweep(unittest.TestCase):
+    def setUp(self):
+        with open(os.path.join(GOC, "config.json"), encoding="utf-8") as f:
+            self.cfg = json.load(f)
+        self.tpl = Templates(os.path.join(GOC, "mau"))
+
+    def chay(self, game, cfg, stop_after=0):
+        q = queue.Queue()
+        b = NhanhSweepBot(game, cfg, self.tpl, q.put, stop_after=stop_after)
+        t = time.time()
+        b.start()
+        b.join(60)
+        self.assertFalse(b.is_alive(), "bot không tự dừng")
+        logs = [m[2] for m in list(q.queue) if m[0] == "log"]
+        print(f"\n  ({time.time() - t:.1f}s) " + " | ".join(logs[-4:]))
+        return b, logs
+
+    def test_doc_the_luc(self):
+        for tl in (0, 4, 43, 80, 120):
+            g = FakeGame(the_luc=tl)
+            s = g.screenshot()
+            m = self.tpl.find(s, "cq_the_luc", 0.8)
+            self.assertIsNotNone(m)
+            self.assertAlmostEqual(doc_thanh_the_luc(s, m) * 120, tl, delta=1.5)
+        # ảnh gốc chưa vẽ lại: 43/120
+        s = cv2.imread(os.path.join(ANH, "ban_do.jpg"))
+        m = self.tpl.find(s, "cq_the_luc", 0.8)
+        self.assertAlmostEqual(doc_thanh_the_luc(s, m) * 120, 43, delta=1.5)
+
+    def test_quet_het_the_luc_mot_khu(self):
+        g = FakeGame(the_luc=43)
+        b, logs = self.chay(g, self.cfg)
+        self.assertEqual(len(g.lich_su), 10)  # 43 thể lực / 4 = 10 lần
+        self.assertEqual(g.man, "ban_do")
+        self.assertTrue(any("Hết thể lực" in l for l in logs))
+
+    def test_xoay_vong_hai_khu(self):
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["so_lan_moi_khu"] = 3
+        cfg["can_quet"]["khu"].append({"ten": "Khu 2", "bat": True, "xy": [0.81, 0.92]})
+        g = FakeGame(the_luc=43)
+        self.chay(g, cfg)
+        self.assertEqual(g.lich_su, ["cong_xuong"] * 3 + ["khu_2"] * 3 + ["cong_xuong"] * 3 + ["khu_2"])
+
+    def test_khu_het_luot_thi_sang_khu_khac(self):
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["khu"].append({"ten": "Khu 2", "bat": True, "xy": [0.81, 0.92]})
+        g = FakeGame(the_luc=43, luot_khu={"cong_xuong": 2})
+        b, logs = self.chay(g, cfg)
+        self.assertEqual(g.lich_su, ["cong_xuong"] * 2 + ["khu_2"] * 8)
+
+    def test_dung_sau_n_lan(self):
+        g = FakeGame(the_luc=120)
+        self.chay(g, self.cfg, stop_after=5)
+        self.assertEqual(len(g.lich_su), 5)
+        self.assertEqual(g.man, "ban_do")  # đóng hết popup trước khi dừng
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

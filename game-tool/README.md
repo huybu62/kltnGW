@@ -1,6 +1,10 @@
 # Hội Tụ Auto: tool tự tiêu thể lực
 
-Đây là cửa sổ nhỏ luôn nổi trên giả lập Android. Bấm **▶ Chạy** là tool tự đổ xúc xắc và tự xử lý các ô gặp trên bản đồ: oẳn tù xì, đánh boss (chọn team rồi xuất chiến), cửa hàng, phái đội chiếm giữ, nhận thưởng, đóng popup. Tool dừng khi hết thể lực hoặc khi đủ số lượt bạn đặt.
+Đây là cửa sổ nhỏ luôn nổi trên giả lập Android, có 2 chế độ:
+- **Càn quét map** (mặc định): mở lần lượt từng khu (toà nhà) trên bản đồ, bấm *Càn quét*, rồi *Càn quét lần nữa* cho tới khi đủ số lần hoặc hết thể lực. Xong một khu thì đóng lại và sang khu kế.
+- **Xúc xắc (sự kiện)**: tự đổ xúc xắc và xử lý các ô gặp trên bản đồ: oẳn tù xì, đánh boss (chọn team rồi xuất chiến), cửa hàng, phái đội chiếm giữ, nhận thưởng, đóng popup.
+
+Tool dừng khi hết thể lực hoặc khi đủ số lần bạn đặt.
 
 Tool chỉ **nhìn màn hình rồi chạm**, giống người bấm. Nó không đọc hay sửa dữ liệu của game.
 Một tool cho chạy được **nhiều giả lập cùng lúc**, mỗi giả lập có nút Chạy/Dừng riêng.
@@ -34,7 +38,25 @@ Nếu chưa thấy, gõ địa chỉ vào ô bên cạnh rồi bấm **Kết n�
 
 Một giả lập có thể hiện 2 dòng, ví dụ `emulator-5554` và `127.0.0.1:5555`. Đó là cùng một máy, **chỉ chạy một dòng**.
 
-## 3. Cắt ảnh mẫu (quan trọng nhất)
+## 3. Chế độ Càn quét map
+Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: chữ *Thể lực*, nút *Càn quét*, *Thám hiểm*, X của popup, *Càn quét lần nữa*, *Đóng*, và toà *Công xưởng*. Mẫu tự co giãn theo độ phân giải giả lập, nên thường không cần cắt lại.
+
+1. Mở game tới **bản đồ có các toà nhà**, nơi thấy thanh *Thể lực*.
+2. Trên overlay chọn **Chế độ: Càn quét map**.
+3. **Thêm khu cần quét:** bấm **✂**, **chạm 1 điểm** vào toà nhà trên ảnh, bấm **➕ Thêm khu** rồi đặt tên. Tool quét các khu theo thứ tự trong danh sách. Dùng **↑** để đổi thứ tự, **✕** để xoá, bỏ tick để tạm bỏ qua một khu.
+4. Đặt các tuỳ chọn:
+   - **Mỗi khu quét N lần rồi sang khu khác.** Để `0` thì quét một khu tới khi khu đó hết lượt (*Số lần còn lại* về 0, hoặc không còn nút *Càn quét*) rồi mới sang khu kế.
+   - **Thể lực tối đa:** số sau dấu `/` trên thanh thể lực, ví dụ `43/120` thì nhập 120. Nhân vật lên cấp mà số này đổi thì nhớ sửa lại.
+   - **Mỗi lần tốn:** số thể lực mỗi lần quét, ví dụ ⚡4. Khu nào tốn khác thì thêm `"chi_phi": 6` vào khu đó trong `config.json`.
+5. Bấm **▶ Chạy**.
+
+Cách tool tiêu thể lực:
+- Mỗi lần về bản đồ, tool **đọc thanh thể lực cam** để biết còn bao nhiêu. Khi không đủ cho 1 lần quét, tool đóng hết popup rồi **dừng**. Tool không bấm mua thể lực.
+- Nếu bấm *Càn quét lần nữa* mà *Số lần* không đổi, tool hiểu là khu đó đã hết lượt, rồi tự sang khu kế.
+- Nếu game hiện popup báo **không đủ thể lực**, bạn nên cắt mẫu đó đặt tên `cq_khong_du`. Gặp popup này tool sẽ bấm X rồi dừng, **không bao giờ bấm mua**.
+- Gặp màn lạ quá 90 giây thì tool dừng.
+
+## 4. Cắt ảnh mẫu (cho chế độ Xúc xắc, hoặc khi cần cắt lại)
 Tool nhận ra nút nhờ ảnh mẫu do **bạn cắt từ chính game của mình**.
 
 1. Trong game, mở đến màn hình có nút cần cắt.
@@ -71,11 +93,11 @@ Các mẫu cần có. Thiếu mẫu nào thì luật dùng mẫu đó tự bỏ 
 - Nút có nhiều kiểu (ví dụ 2 kiểu nút Xác nhận): lưu trùng tên rồi chọn **"Không"** để thêm biến thể. Tool lưu thành `nut_xac_nhan@2.png`, và khớp kiểu nào cũng được.
 - Nút đang **bị làm tối** sau popup hoặc **bị xám** thì tool tự bỏ qua, không bấm nhầm.
 - Nhận nhầm thì tăng ngưỡng riêng cho mẫu đó trong `config.json`, ví dụ `"nguong_rieng": {"nut_dong": 0.92}`. Không nhận ra thì cắt lại mẫu nhỏ hơn hoặc hạ ngưỡng (0.8).
-- Chạm 1 điểm (không kéo) trên ảnh để xem **toạ độ**. Dùng khi cần chạm vào vị trí cố định (xem mục 5).
+- Chạm 1 điểm (không kéo) trên ảnh để xem **toạ độ**. Dùng khi cần chạm vào vị trí cố định (xem mục 6).
 
-## 4. Chạy
+## 5. Chạy
 - Tick hoặc bỏ tick từng việc trong *Tuỳ chọn*. **Mua vật phẩm** và **Dùng bình hồi thể lực** mặc định **tắt** để tránh tiêu tiền hoặc kim cương ngoài ý muốn.
-- *Dừng sau N lượt xúc xắc*: để `0` thì chạy tới khi hết thể lực.
+- *Dừng sau N lần*: đếm theo lượt xúc xắc hoặc lần càn quét. Để `0` thì chạy tới khi hết thể lực.
 - Bấm **▶ Chạy** ở từng giả lập. Bấm **⏹ Dừng** hoặc **F12** để dừng tất cả.
 - Bấm **▾** để thu gọn overlay, chỉ còn các dòng giả lập.
 
@@ -85,7 +107,7 @@ Tool tự dừng khi:
 - **5 phút liền** không nhận ra màn hình nào;
 - adb mất kết nối.
 
-## 5. Tuỳ chỉnh luật (`config.json`)
+## 6. Tuỳ chỉnh luật xúc xắc (`config.json`)
 Mục `"luat"` là danh sách việc, **xét từ trên xuống**. Luật đầu tiên mà các mẫu trong `"thay"` đều đang hiện sẽ được thực hiện. Sửa xong bấm **↻ Tải lại cấu hình**, không cần tắt tool.
 
 | `lam` | Ý nghĩa |
@@ -114,5 +136,6 @@ Khi bị kẹt (lâu không nhận ra màn hình nào), đặt `"khi_ket"` để
 ## Kiểm tra phần nhận diện
 ```
 python test_bot.py
+python test_sweep.py
 ```
-Lệnh này chạy thử bộ luật trên màn hình tổng hợp, không cần giả lập.
+Hai lệnh này chạy thử bộ luật xúc xắc trên màn hình tổng hợp, và chế độ càn quét trên ảnh chụp thật của game trong `anh_test/`. Không cần giả lập.

@@ -5,20 +5,21 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, simpledialog, ttk
 
 import cv2
 from PIL import Image, ImageTk
 
-from matcher import ghi_anh
+from matcher import ghi_anh, vung_game
 
 RONG_TOI_DA = 1000
 CAO_TOI_DA = 620
 
 
 class CaptureWindow(tk.Toplevel):
-    def __init__(self, master, device, templates, cfg):
+    def __init__(self, master, device, templates, cfg, on_khu=None):
         super().__init__(master)
+        self.on_khu = on_khu
         self.device = device
         self.templates = templates
         self.cfg = cfg
@@ -56,6 +57,7 @@ class CaptureWindow(tk.Toplevel):
         self.cb.bind("<KeyRelease>", self.on_name)
         ttk.Button(bot, text="💾 Lưu mẫu", command=self.save).pack(side="left")
         ttk.Button(bot, text="Sao chép toạ độ", command=self.copy_xy).pack(side="left", padx=4)
+        ttk.Button(bot, text="➕ Thêm khu", command=self.them_khu).pack(side="left")
         self.lbl_desc = ttk.Label(bot, text="", foreground="#666")
         self.lbl_desc.pack(side="left", padx=6)
 
@@ -140,6 +142,20 @@ class CaptureWindow(tk.Toplevel):
             self.clipboard_clear()
             self.clipboard_append(f"[{self.diem_chon[0]}, {self.diem_chon[1]}]")
 
+    def them_khu(self):
+        """Thêm điểm vừa chạm làm một khu càn quét (lưu theo tỉ lệ vùng game)."""
+        if self.img is None or not self.diem_chon:
+            messagebox.showinfo("Chưa chọn điểm", "Chạm vào toà nhà (khu) trên ảnh trước.", parent=self)
+            return
+        ten = simpledialog.askstring("Thêm khu", "Tên khu (ví dụ Công xưởng):", parent=self)
+        if not ten:
+            return
+        gx, gy, gw, gh = vung_game(self.img)
+        x, y = self.diem_chon
+        if self.on_khu:
+            self.on_khu(ten.strip(), (x - gx) / gw, (y - gy) / gh)
+        self.lbl_xy.config(text=f"Đã thêm khu '{ten.strip()}'")
+
     # ---------- lưu ----------
     def save(self):
         if self.img is None or not self.sel:
@@ -163,6 +179,7 @@ class CaptureWindow(tk.Toplevel):
             if tl is False:
                 path = self.templates.next_variant_path(ten)
         ghi_anh(path, cat)
+        self.templates.ghi_ti_le(path, vung_game(self.img)[2])
         self.lbl_xy.config(text=f"Đã lưu {os.path.basename(path)} ({x2 - x1}×{y2 - y1})")
         if ten not in self.cb["values"]:
             self.cb["values"] = list(self.cb["values"]) + [ten]

@@ -3,8 +3,12 @@
 Mỗi mẫu là một file PNG trong thư mục `mau/`. Một mẫu có thể có nhiều biến thể:
 `nut_xac_nhan.png`, `nut_xac_nhan@2.png`, `nut_xac_nhan@3.png`... chỉ cần một biến
 thể khớp là coi như thấy.
+
+Mẫu tự co giãn theo kích thước màn hình: file `mau/_ti_le.json` ghi chiều rộng vùng
+game lúc cắt mẫu; khi màn hình thật rộng khác, mẫu được phóng/thu cho khớp.
 """
 import glob
+import json
 import os
 from dataclasses import dataclass
 
@@ -22,6 +26,22 @@ class Match:
     w: int
     h: int
     score: float
+    scale: float = 1.0
+
+
+def vung_game(screen):
+    """(x, y, w, h) của phần hình game, bỏ viền đen trên/dưới/hai bên nếu có."""
+    g = screen[::4, ::4].max(axis=2) > 25
+    hang = np.where(g.mean(axis=1) > 0.05)[0]
+    cot = np.where(g.mean(axis=0) > 0.05)[0]
+    sh, sw = screen.shape[:2]
+    if len(hang) == 0 or len(cot) == 0:
+        return 0, 0, sw, sh
+    y0, y1 = hang[0] * 4, min(sh, hang[-1] * 4 + 4)
+    x0, x1 = cot[0] * 4, min(sw, cot[-1] * 4 + 4)
+    if (x1 - x0) < sw * 0.5 or (y1 - y0) < sh * 0.5:  # màn gần như tối hết: dùng cả màn
+        return 0, 0, sw, sh
+    return int(x0), int(y0), int(x1 - x0), int(y1 - y0)
 
 
 def _doc_anh(path):
@@ -46,6 +66,35 @@ class Templates:
         self.folder = folder
         os.makedirs(folder, exist_ok=True)
         self._cache = {}  # path -> (mtime, img)
+        self._co_gian = {}  # (path, scale) -> img
+        self._vung = (None, None)  # (id màn hình, vùng game)
+        self._ti_le_path = os.path.join(folder, "_ti_le.json")
+        self._ti_le = (None, {})
+
+    def ti_le(self):
+        """{tên file: chiều rộng vùng game lúc cắt}."""
+        try:
+            mtime = os.path.getmtime(self._ti_le_path)
+        except OSError:
+            return {}
+        if self._ti_le[0] != mtime:
+            try:
+                with open(self._ti_le_path, encoding="utf-8") as f:
+                    self._ti_le = (mtime, json.load(f))
+            except (OSError, ValueError):
+                self._ti_le = (mtime, {})
+        return self._ti_le[1]
+
+    def ghi_ti_le(self, path, rong_game):
+        d = dict(self.ti_le())
+        d[os.path.basename(path)] = int(rong_game)
+        with open(self._ti_le_path, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False, indent=1, sort_keys=True)
+
+    def vung(self, screen):
+        if self._vung[0] is not screen:
+            self._vung = (screen, vung_game(screen))
+        return self._vung[1]
 
     def _files(self, name):
         chinh = os.path.join(self.folder, f"{name}.png")
@@ -79,10 +128,24 @@ class Templates:
     def best(self, screen, name):
         """Vị trí khớp tốt nhất của mẫu (mọi biến thể), không xét ngưỡng."""
         tot_nhat = None
+        rong = self.vung(screen)[2]
+        ti_le = self.ti_le()
         for path in self._files(name):
             tpl = self._load(path)
             if tpl is None:
                 continue
+            k = 1.0
+            goc = ti_le.get(os.path.basename(path))
+            if goc:
+                k = rong / goc
+                if abs(k - 1) > 0.01:
+                    khoa = (path, round(k, 3))
+                    if khoa not in self._co_gian:
+                        tw0, th0 = tpl.shape[1], tpl.shape[0]
+                        self._co_gian[khoa] = cv2.resize(
+                            tpl, (max(4, round(tw0 * k)), max(4, round(th0 * k))),
+                            interpolation=cv2.INTER_AREA if k < 1 else cv2.INTER_CUBIC)
+                    tpl = self._co_gian[khoa]
             th, tw = tpl.shape[:2]
             sh, sw = screen.shape[:2]
             if th > sh or tw > sw:
@@ -93,7 +156,7 @@ class Templates:
             if abs(float(vung.mean()) - float(tpl.mean())) > self.CHENH_SANG_TOI_DA:
                 diem = min(diem, 0.5)  # đúng hình nhưng tối/xám hơn hẳn: không tính
             if tot_nhat is None or diem > tot_nhat.score:
-                tot_nhat = Match(name, x + tw // 2, y + th // 2, x, y, tw, th, float(diem))
+                tot_nhat = Match(name, x + tw // 2, y + th // 2, x, y, tw, th, float(diem), k)
         return tot_nhat
 
     def find(self, screen, name, threshold):

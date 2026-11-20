@@ -10,12 +10,13 @@ from adb import Adb, Device, find_adb
 from bot import Bot
 from capture import CaptureWindow, mo_thu_muc
 from matcher import Templates
+from sweep import SweepBot
 
 GOC = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(GOC, "config.json")
 MAU_DIR = os.path.join(GOC, "mau")
 
-TEN_DEM = {"xuc_xac": "🎲", "boss": "👹", "oan_tu_xi": "✊", "mua": "🛒", "phai_doi": "🚩", "binh_the_luc": "🧪"}
+TEN_DEM = {"the_luc": "⚡", "can_quet": "🧹", "xuc_xac": "🎲", "boss": "👹", "oan_tu_xi": "✊", "mua": "🛒", "phai_doi": "🚩", "binh_the_luc": "🧪"}
 
 
 def doc_config():
@@ -77,17 +78,50 @@ class App:
 
         f_opt = ttk.LabelFrame(self.f_them, text="Tuỳ chọn", padding=4)
         f_opt.pack(fill="x", padx=6, pady=(4, 0))
+        hang0 = ttk.Frame(f_opt)
+        hang0.pack(fill="x")
+        ttk.Label(hang0, text="Chế độ:").pack(side="left")
+        self.v_che_do = tk.StringVar(value=self.cfg.get("che_do", "can_quet"))
+        for gt, nhan in (("can_quet", "Càn quét map"), ("xuc_xac", "Xúc xắc (sự kiện)")):
+            ttk.Radiobutton(hang0, text=nhan, value=gt, variable=self.v_che_do,
+                            command=self.doi_che_do).pack(side="left", padx=4)
         hang = ttk.Frame(f_opt)
-        hang.pack(fill="x")
+        hang.pack(fill="x", pady=(3, 0))
         ttk.Label(hang, text="Dừng sau").pack(side="left")
         self.e_luot = ttk.Spinbox(hang, from_=0, to=9999, width=6)
         self.e_luot.set(0)
         self.e_luot.pack(side="left", padx=3)
-        ttk.Label(hang, text="lượt xúc xắc (0 = tới khi hết thể lực)").pack(side="left")
+        self.lbl_luot = ttk.Label(hang, text="")
+        self.lbl_luot.pack(side="left")
 
+        # --- tuỳ chọn càn quét ---
+        self.f_cq = ttk.Frame(f_opt)
+        h1 = ttk.Frame(self.f_cq)
+        h1.pack(fill="x", pady=(3, 0))
+        ttk.Label(h1, text="Mỗi khu quét").pack(side="left")
+        self.e_moi_khu = ttk.Spinbox(h1, from_=0, to=999, width=5, command=self.luu_cq)
+        self.e_moi_khu.pack(side="left", padx=3)
+        ttk.Label(h1, text="lần rồi sang khu khác (0 = tới khi khu hết lượt)").pack(side="left")
+        h2 = ttk.Frame(self.f_cq)
+        h2.pack(fill="x", pady=(3, 0))
+        ttk.Label(h2, text="Thể lực tối đa").pack(side="left")
+        self.e_tl_max = ttk.Spinbox(h2, from_=1, to=9999, width=5, command=self.luu_cq)
+        self.e_tl_max.pack(side="left", padx=3)
+        ttk.Label(h2, text="  Mỗi lần tốn").pack(side="left")
+        self.e_chi_phi = ttk.Spinbox(h2, from_=1, to=99, width=4, command=self.luu_cq)
+        self.e_chi_phi.pack(side="left", padx=3)
+        ttk.Label(h2, text="thể lực").pack(side="left")
+        for e in (self.e_moi_khu, self.e_tl_max, self.e_chi_phi):
+            e.bind("<FocusOut>", lambda _e: self.luu_cq())
+        ttk.Label(self.f_cq, text="Các khu (quét theo thứ tự, thêm khu bằng ✂ → chạm toà nhà → ➕ Thêm khu):",
+                  foreground="#555").pack(anchor="w", pady=(4, 0))
+        self.f_khu = ttk.Frame(self.f_cq)
+        self.f_khu.pack(fill="x")
+
+        # --- luật xúc xắc ---
         self.f_luat = ttk.Frame(f_opt)
-        self.f_luat.pack(fill="x", pady=(4, 0))
         self.build_rules()
+        self.doi_che_do(luu=False)
 
         f_tool = ttk.Frame(self.f_them, padding=(6, 4))
         f_tool.pack(fill="x")
@@ -109,6 +143,62 @@ class App:
                                  command=lambda rr=rule, vv=v: self.toggle_rule(rr, vv))
             cb.grid(row=i // 2, column=i % 2, sticky="w", padx=(0, 10))
             self.rule_vars.append(v)
+        self.build_cq()
+
+    def doi_che_do(self, luu=True):
+        che_do = self.v_che_do.get()
+        if che_do == "can_quet":
+            self.f_luat.pack_forget()
+            self.f_cq.pack(fill="x")
+            self.lbl_luot.config(text="lần càn quét (0 = tới khi hết thể lực)")
+        else:
+            self.f_cq.pack_forget()
+            self.f_luat.pack(fill="x", pady=(4, 0))
+            self.lbl_luot.config(text="lượt xúc xắc (0 = tới khi hết thể lực)")
+        if luu:
+            self.cfg["che_do"] = che_do
+            self.save_config()
+
+    def build_cq(self):
+        cq = self.cfg.setdefault("can_quet", {})
+        for e, k, md in ((self.e_moi_khu, "so_lan_moi_khu", 0), (self.e_tl_max, "the_luc_toi_da", 120),
+                         (self.e_chi_phi, "chi_phi", 4)):
+            e.set(cq.get(k, md))
+        for w in self.f_khu.winfo_children():
+            w.destroy()
+        ds = cq.get("khu", [])
+        if not ds:
+            ttk.Label(self.f_khu, text="(chưa có khu nào)", foreground="#888").pack(anchor="w")
+        for i, khu in enumerate(ds):
+            hang = ttk.Frame(self.f_khu)
+            hang.pack(fill="x")
+            v = tk.BooleanVar(value=khu.get("bat", True))
+            ttk.Checkbutton(hang, text=f"{i + 1}. {khu.get('ten', '?')}", variable=v,
+                            command=lambda kk=khu, vv=v: self.toggle_rule(kk, vv)).pack(side="left")
+            ttk.Button(hang, text="✕", width=2, command=lambda kk=khu: self.xoa_khu(kk)).pack(side="right")
+            if i:
+                ttk.Button(hang, text="↑", width=2, command=lambda j=i: self.len_khu(j)).pack(side="right")
+
+    def xoa_khu(self, khu):
+        if messagebox.askyesno("Xoá khu", f"Xoá khu '{khu.get('ten')}' khỏi danh sách?", parent=self.root):
+            self.cfg["can_quet"]["khu"].remove(khu)
+            self.save_config()
+            self.build_cq()
+
+    def len_khu(self, i):
+        ds = self.cfg["can_quet"]["khu"]
+        ds[i - 1], ds[i] = ds[i], ds[i - 1]
+        self.save_config()
+        self.build_cq()
+
+    def luu_cq(self):
+        cq = self.cfg.setdefault("can_quet", {})
+        for e, k in ((self.e_moi_khu, "so_lan_moi_khu"), (self.e_tl_max, "the_luc_toi_da"), (self.e_chi_phi, "chi_phi")):
+            try:
+                cq[k] = int(e.get())
+            except ValueError:
+                pass
+        self.save_config()
 
     def toggle_rule(self, rule, var):
         rule["bat"] = bool(var.get())  # bot dùng chung dict này → có hiệu lực ngay
@@ -190,7 +280,14 @@ class App:
     def open_capture(self, serial=None):
         serial = serial or self.chon_serial()
         if serial:
-            CaptureWindow(self.root, Device(self.adb, serial), self.templates, self.cfg)
+            CaptureWindow(self.root, Device(self.adb, serial), self.templates, self.cfg, on_khu=self.them_khu)
+
+    def them_khu(self, ten, fx, fy):
+        self.cfg.setdefault("can_quet", {}).setdefault("khu", []).append(
+            {"ten": ten, "bat": True, "xy": [round(fx, 4), round(fy, 4)]})
+        self.save_config()
+        self.build_cq()
+        self.log("", f"Đã thêm khu '{ten}'")
 
     # ---------- chạy / dừng ----------
     def toggle_bot(self, serial):
@@ -203,7 +300,9 @@ class App:
             luot = int(self.e_luot.get() or 0)
         except ValueError:
             luot = 0
-        b = Bot(Device(self.adb, serial), self.cfg, self.templates, self.q.put, stop_after=luot)
+        self.luu_cq()
+        lop = SweepBot if self.cfg.get("che_do", "can_quet") == "can_quet" else Bot
+        b = lop(Device(self.adb, serial), self.cfg, self.templates, self.q.put, stop_after=luot)
         self.bots[serial] = b
         self.rows[serial]["dem"].config(text="")
         b.start()
@@ -221,6 +320,8 @@ class App:
         self.cfg.clear()
         self.cfg.update(moi)  # giữ nguyên dict để bot đang chạy cũng nhận cấu hình mới
         self.build_rules()
+        self.v_che_do.set(self.cfg.get("che_do", "can_quet"))
+        self.doi_che_do(luu=False)
         self.log("", "Đã tải lại config.json")
 
     def hotkey_toan_cuc(self):
