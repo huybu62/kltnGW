@@ -23,6 +23,11 @@ _ADB_THUONG_GAP = [
     r"C:\Program Files\Nox\bin\nox_adb.exe",
     r"D:\Program Files\Nox\bin\nox_adb.exe",
     r"C:\Program Files (x86)\Nox\bin\nox_adb.exe",
+    # macOS
+    "/opt/homebrew/bin/adb",
+    "/usr/local/bin/adb",
+    "/Applications/BlueStacks.app/Contents/MacOS/hd-adb",
+    os.path.expanduser("~/Library/Android/sdk/platform-tools/adb"),
 ]
 
 # Cổng ADB mặc định của các giả lập (LDPlayer, BlueStacks, MuMu, Nox...)

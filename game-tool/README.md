@@ -21,6 +21,15 @@ Một tool cho chạy được **nhiều giả lập cùng lúc**, mỗi giả l
      - **MuMu / Nox:** đã bật sẵn.
 3. Nháy đúp **`chay.bat`**. Lần đầu tool sẽ tự cài thư viện, mất 1–2 phút.
 
+### Trên máy Mac
+1. Cài Python bản macOS từ python.org/downloads/macos.
+2. Mở **BlueStacks** → Cài đặt → **Nâng cao** → bật **Android Debug Bridge (ADB)**. Bên dưới sẽ hiện địa chỉ `127.0.0.1:5555`.
+3. **Đừng** nháy đúp `main.py`: Mac sẽ mở bằng *Python Launcher*, không chạy được tool.
+4. Lần đầu: **chuột phải** vào **`chay.command`** → **Mở** → **Mở**. Mac hỏi vì file tải từ mạng về. Từ lần sau chỉ cần nháy đúp.
+   - Nếu Mac báo không có quyền chạy, mở **Terminal**, gõ `chmod +x ` (có dấu cách cuối), kéo file `chay.command` thả vào cửa sổ Terminal, rồi Enter.
+5. Một cửa sổ Terminal mở ra. Lần đầu tool tự cài thư viện và tự tải `adb` của Google. Xong thì overlay hiện lên.
+6. **Giữ cửa sổ Terminal đó**: đóng nó là tắt tool. Trên Mac, phím dừng F12 (có thể phải giữ thêm `fn`) chỉ có tác dụng khi đang bấm vào overlay.
+
 Tool tự tìm `adb` có sẵn trong LDPlayer, MuMu, BlueStacks và Nox. Nếu không tìm thấy:
 - ghi đường dẫn `adb.exe` vào `"adb_path"` trong `config.json`, ví dụ `"C:\\LDPlayer\\LDPlayer9\\adb.exe"`; hoặc
 - tải [platform-tools](https://developer.android.com/tools/releases/platform-tools) và để thư mục `platform-tools` cạnh `main.py`.
