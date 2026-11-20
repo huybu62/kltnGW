@@ -1,0 +1,157 @@
+{
+  "adb_path": "",
+  "nguong_khop": 0.85,
+  "nguong_rieng": {},
+  "nghi_giua_vong": 0.8,
+  "nghi_khi_khong_thay": 1.0,
+  "lap_toi_da": 15,
+  "ket_sau_giay": 45,
+  "khi_ket": "bao",
+  "xy_khi_ket": [640, 650],
+  "dung_khi_khong_nhan_ra_giay": 300,
+
+  "mo_ta_mau": {
+    "nut_xuc_xac": "Nút đổ xúc xắc trên bản đồ",
+    "het_the_luc": "Thông báo hết thể lực (cắt phần chữ tiêu đề hoặc biểu tượng)",
+    "nut_dung_binh": "Nút dùng bình hồi thể lực trong thông báo hết thể lực",
+    "man_oan_tu_xi": "Dấu hiệu màn oẳn tù xì (ví dụ tiêu đề)",
+    "keo": "Nút chọn Kéo",
+    "bua": "Nút chọn Búa",
+    "bao": "Nút chọn Bao",
+    "nut_danh_boss": "Nút khiêu chiến / đánh boss khi vào ô boss",
+    "man_chon_team": "Dấu hiệu màn chọn đội hình (ví dụ tiêu đề)",
+    "team_chon": "Ô / tab đội hình bạn muốn dùng",
+    "nut_xuat_chien": "Nút bắt đầu / xuất chiến ở màn chọn đội",
+    "nut_auto_tat": "Nút Auto trong trận khi đang TẮT",
+    "dang_trong_tran": "Biểu tượng chỉ có trong trận (nút tạm dừng, tốc độ...)",
+    "man_cua_hang": "Dấu hiệu ô cửa hàng (ví dụ tiêu đề)",
+    "nut_mua": "Nút Mua trong cửa hàng (lúc còn bấm được)",
+    "nut_roi_cua_hang": "Nút rời / đóng cửa hàng",
+    "nut_phai_doi": "Nút phái đội chiếm giữ",
+    "nut_tiep_tuc": "Nút Tiếp tục / Nhận ở màn kết quả, phần thưởng",
+    "cham_de_tiep_tuc": "Chữ 'chạm để tiếp tục' (nếu có)",
+    "nut_xac_nhan": "Nút Xác nhận / OK chung",
+    "nut_dong": "Nút X đóng popup"
+  },
+
+  "luat": [
+    {
+      "ten": "Dùng bình hồi thể lực",
+      "bat": false,
+      "thay": ["het_the_luc", "nut_dung_binh"],
+      "lam": "cham",
+      "muc_tieu": "nut_dung_binh",
+      "dem": "binh_the_luc",
+      "nghi_sau": 1.5
+    },
+    {
+      "ten": "Hết thể lực → dừng",
+      "bat": true,
+      "thay": "het_the_luc",
+      "lam": "dung"
+    },
+    {
+      "ten": "Nhận thưởng / tiếp tục",
+      "bat": true,
+      "thay": "nut_tiep_tuc",
+      "lam": "cham",
+      "nghi_sau": 1.2
+    },
+    {
+      "ten": "Chạm để tiếp tục",
+      "bat": true,
+      "thay": "cham_de_tiep_tuc",
+      "lam": "cham",
+      "nghi_sau": 1.2
+    },
+    {
+      "ten": "Oẳn tù xì",
+      "bat": true,
+      "thay": "man_oan_tu_xi",
+      "lam": "cham_ngau_nhien",
+      "muc_tieu": ["keo", "bua", "bao"],
+      "dem": "oan_tu_xi",
+      "nghi_sau": 2.5
+    },
+    {
+      "ten": "Chọn team + xuất chiến",
+      "bat": true,
+      "thay": "man_chon_team",
+      "lam": "chuoi",
+      "buoc": [
+        {"cham": "team_chon", "cho_toi_da": 2, "bo_qua_neu_khong_thay": true, "nghi_sau": 0.8},
+        {"cham": "nut_xuat_chien", "cho_toi_da": 3}
+      ],
+      "nghi_sau": 2.0
+    },
+    {
+      "ten": "Bật auto trong trận",
+      "bat": true,
+      "thay": "nut_auto_tat",
+      "lam": "cham",
+      "nghi_sau": 1.0
+    },
+    {
+      "ten": "Đang trong trận → chờ",
+      "bat": true,
+      "thay": "dang_trong_tran",
+      "lam": "cho",
+      "nghi_sau": 3.0
+    },
+    {
+      "ten": "Đánh boss",
+      "bat": true,
+      "thay": "nut_danh_boss",
+      "lam": "cham",
+      "dem": "boss",
+      "nghi_sau": 1.5
+    },
+    {
+      "ten": "Mua vật phẩm",
+      "bat": false,
+      "thay": ["man_cua_hang", "nut_mua"],
+      "lam": "cham",
+      "muc_tieu": "nut_mua",
+      "dem": "mua",
+      "nghi_sau": 1.2
+    },
+    {
+      "ten": "Rời cửa hàng",
+      "bat": true,
+      "thay": "man_cua_hang",
+      "lam": "cham",
+      "muc_tieu": "nut_roi_cua_hang",
+      "nghi_sau": 1.2
+    },
+    {
+      "ten": "Phái đội chiếm giữ",
+      "bat": true,
+      "thay": "nut_phai_doi",
+      "lam": "cham",
+      "dem": "phai_doi",
+      "nghi_sau": 1.5
+    },
+    {
+      "ten": "Xác nhận",
+      "bat": true,
+      "thay": "nut_xac_nhan",
+      "lam": "cham",
+      "nghi_sau": 1.0
+    },
+    {
+      "ten": "Đóng popup (X)",
+      "bat": true,
+      "thay": "nut_dong",
+      "lam": "cham",
+      "nghi_sau": 1.0
+    },
+    {
+      "ten": "Đổ xúc xắc",
+      "bat": true,
+      "thay": "nut_xuc_xac",
+      "lam": "cham",
+      "dem": "xuc_xac",
+      "nghi_sau": 2.5
+    }
+  ]
+}

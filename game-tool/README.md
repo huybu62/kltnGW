@@ -1,0 +1,118 @@
+# Hội Tụ Auto: tool tự tiêu thể lực
+
+Đây là cửa sổ nhỏ luôn nổi trên giả lập Android. Bấm **▶ Chạy** là tool tự đổ xúc xắc và tự xử lý các ô gặp trên bản đồ: oẳn tù xì, đánh boss (chọn team rồi xuất chiến), cửa hàng, phái đội chiếm giữ, nhận thưởng, đóng popup. Tool dừng khi hết thể lực hoặc khi đủ số lượt bạn đặt.
+
+Tool chỉ **nhìn màn hình rồi chạm**, giống người bấm. Nó không đọc hay sửa dữ liệu của game.
+Một tool cho chạy được **nhiều giả lập cùng lúc**, mỗi giả lập có nút Chạy/Dừng riêng.
+
+> ⚠ Nhiều game cấm dùng công cụ tự động và có thể khoá tài khoản. Tự bạn cân nhắc khi dùng.
+
+## 1. Cài đặt (một lần)
+1. Cài **Python 3.10 trở lên** từ python.org. Khi cài nhớ tick **"Add python.exe to PATH"**.
+2. Chỉnh giả lập:
+   - Độ phân giải **1280×720** (hoặc mức khác, miễn là **giữ nguyên** từ lúc cắt mẫu về sau). Nếu chạy 2 giả lập, để **cùng độ phân giải** thì dùng chung được bộ ảnh mẫu.
+   - Bật ADB:
+     - **LDPlayer:** Cài đặt → Khác → Gỡ lỗi ADB → *Mở kết nối cục bộ*.
+     - **BlueStacks:** Cài đặt → Nâng cao → *Android Debug Bridge*.
+     - **MuMu / Nox:** đã bật sẵn.
+3. Nháy đúp **`chay.bat`**. Lần đầu tool sẽ tự cài thư viện, mất 1–2 phút.
+
+Tool tự tìm `adb` có sẵn trong LDPlayer, MuMu, BlueStacks và Nox. Nếu không tìm thấy:
+- ghi đường dẫn `adb.exe` vào `"adb_path"` trong `config.json`, ví dụ `"C:\\LDPlayer\\LDPlayer9\\adb.exe"`; hoặc
+- tải [platform-tools](https://developer.android.com/tools/releases/platform-tools) và để thư mục `platform-tools` cạnh `main.py`.
+
+## 2. Kết nối giả lập
+Bấm **🔄 Tìm giả lập**. Các giả lập đang mở sẽ hiện trong khung *Giả lập*.
+Nếu chưa thấy, gõ địa chỉ vào ô bên cạnh rồi bấm **Kết nối**:
+
+| Giả lập | Địa chỉ |
+|---|---|
+| LDPlayer | `127.0.0.1:5555` (máy thứ 2: `5557`) |
+| BlueStacks 5 | `127.0.0.1:5555` (xem trong Cài đặt → Nâng cao) |
+| MuMu 12 | `127.0.0.1:16384` (máy thứ 2: `16416`) |
+| Nox | `127.0.0.1:62001` (máy thứ 2: `62025`) |
+
+Một giả lập có thể hiện 2 dòng, ví dụ `emulator-5554` và `127.0.0.1:5555`. Đó là cùng một máy, **chỉ chạy một dòng**.
+
+## 3. Cắt ảnh mẫu (quan trọng nhất)
+Tool nhận ra nút nhờ ảnh mẫu do **bạn cắt từ chính game của mình**.
+
+1. Trong game, mở đến màn hình có nút cần cắt.
+2. Bấm **✂** ở dòng giả lập đó (hoặc **✂ Cắt mẫu**). Cửa sổ hiện ảnh màn hình giả lập.
+3. **Kéo chuột** khoanh quanh nút, chọn **Tên mẫu** trong danh sách rồi bấm **💾 Lưu mẫu**.
+4. Bấm **🔍 Thử nhận diện** để kiểm tra. Mẫu khớp sẽ có khung xanh và điểm khớp (từ 0.85 trở lên là đạt).
+
+Các mẫu cần có. Thiếu mẫu nào thì luật dùng mẫu đó tự bỏ qua, nên cứ cắt dần cũng được:
+
+| Tên mẫu | Cắt cái gì |
+|---|---|
+| `nut_xuc_xac` | Nút đổ xúc xắc trên bản đồ |
+| `het_the_luc` | Thông báo hết thể lực (tiêu đề hoặc biểu tượng) |
+| `nut_dung_binh` | Nút dùng bình hồi thể lực (nếu muốn tự uống bình) |
+| `man_oan_tu_xi` | Dấu hiệu màn oẳn tù xì, ví dụ tiêu đề |
+| `keo`, `bua`, `bao` | 3 nút Kéo / Búa / Bao |
+| `nut_danh_boss` | Nút khiêu chiến khi vào ô boss |
+| `man_chon_team` | Dấu hiệu màn chọn đội hình, ví dụ tiêu đề |
+| `team_chon` | Ô / tab đội hình **bạn muốn dùng** |
+| `nut_xuat_chien` | Nút bắt đầu / xuất chiến |
+| `nut_auto_tat` | Nút Auto trong trận lúc đang **tắt** |
+| `dang_trong_tran` | Thứ chỉ có trong trận (nút tạm dừng, tốc độ...) |
+| `man_cua_hang` | Dấu hiệu ô cửa hàng |
+| `nut_mua` | Nút Mua (lúc còn bấm được) |
+| `nut_roi_cua_hang` | Nút rời / đóng cửa hàng |
+| `nut_phai_doi` | Nút phái đội chiếm giữ |
+| `nut_tiep_tuc` | Nút Tiếp tục / Nhận ở màn kết quả, phần thưởng |
+| `cham_de_tiep_tuc` | Chữ "chạm để tiếp tục" (nếu game có) |
+| `nut_xac_nhan` | Nút Xác nhận / OK |
+| `nut_dong` | Nút X đóng popup |
+
+**Mẹo cắt mẫu**
+- Cắt **vừa khít** phần đặc trưng của nút (chữ và biểu tượng). **Tránh** con số thay đổi (vàng, thể lực, hẹn giờ) và hiệu ứng nhấp nháy.
+- Nút có nhiều kiểu (ví dụ 2 kiểu nút Xác nhận): lưu trùng tên rồi chọn **"Không"** để thêm biến thể. Tool lưu thành `nut_xac_nhan@2.png`, và khớp kiểu nào cũng được.
+- Nút đang **bị làm tối** sau popup hoặc **bị xám** thì tool tự bỏ qua, không bấm nhầm.
+- Nhận nhầm thì tăng ngưỡng riêng cho mẫu đó trong `config.json`, ví dụ `"nguong_rieng": {"nut_dong": 0.92}`. Không nhận ra thì cắt lại mẫu nhỏ hơn hoặc hạ ngưỡng (0.8).
+- Chạm 1 điểm (không kéo) trên ảnh để xem **toạ độ**. Dùng khi cần chạm vào vị trí cố định (xem mục 5).
+
+## 4. Chạy
+- Tick hoặc bỏ tick từng việc trong *Tuỳ chọn*. **Mua vật phẩm** và **Dùng bình hồi thể lực** mặc định **tắt** để tránh tiêu tiền hoặc kim cương ngoài ý muốn.
+- *Dừng sau N lượt xúc xắc*: để `0` thì chạy tới khi hết thể lực.
+- Bấm **▶ Chạy** ở từng giả lập. Bấm **⏹ Dừng** hoặc **F12** để dừng tất cả.
+- Bấm **▾** để thu gọn overlay, chỉ còn các dòng giả lập.
+
+Tool tự dừng khi:
+- thấy thông báo hết thể lực;
+- đổ đủ số lượt đã đặt;
+- **5 phút liền** không nhận ra màn hình nào;
+- adb mất kết nối.
+
+## 5. Tuỳ chỉnh luật (`config.json`)
+Mục `"luat"` là danh sách việc, **xét từ trên xuống**. Luật đầu tiên mà các mẫu trong `"thay"` đều đang hiện sẽ được thực hiện. Sửa xong bấm **↻ Tải lại cấu hình**, không cần tắt tool.
+
+| `lam` | Ý nghĩa |
+|---|---|
+| `cham` | Chạm vào mẫu (hoặc vào `muc_tieu` nếu có) |
+| `cham_xy` | Chạm toạ độ cố định `"xy": [x, y]` |
+| `cham_ngau_nhien` | Chạm ngẫu nhiên một mẫu trong `muc_tieu` (dùng cho oẳn tù xì) |
+| `chuoi` | Làm nhiều bước liên tiếp (`buoc`), ví dụ chọn team rồi xuất chiến |
+| `cho` | Chỉ chờ, ví dụ đang trong trận |
+| `back` | Bấm nút Quay lại của Android |
+| `dung` | Dừng tool |
+
+Ví dụ: chọn team bằng **toạ độ** thay cho ảnh mẫu.
+```json
+"buoc": [
+  {"cham_xy": [210, 330], "nghi_sau": 0.8},
+  {"cham": "nut_xuat_chien", "cho_toi_da": 3}
+]
+```
+
+Khi bị kẹt (lâu không nhận ra màn hình nào), đặt `"khi_ket"` để tool tự gỡ:
+- `"bao"`: chỉ ghi log;
+- `"back"`: bấm Quay lại;
+- `"cham_xy"`: chạm vào toạ độ `"xy_khi_ket"`.
+
+## Kiểm tra phần nhận diện
+```
+python test_bot.py
+```
+Lệnh này chạy thử bộ luật trên màn hình tổng hợp, không cần giả lập.
