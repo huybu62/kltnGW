@@ -53,6 +53,7 @@ class SweepBot(Bot):
         self.dang_mo_khu = None
         self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
         self.popup_hong = 0
+        self.nghi_het = None  # khu nghi đã hết lượt (hoặc do hết thể lực), xác nhận khi về bản đồ
 
     # ---------- cấu hình ----------
     @property
@@ -71,7 +72,7 @@ class SweepBot(Bot):
 
     def du_chi_tieu(self, khu):
         n = self.cq.get("so_lan_moi_khu", 0)
-        return khu["ten"] in self.het_luot or (n > 0 and self.da_quet.get(khu["ten"], 0) >= n)
+        return khu["ten"] in self.het_luot or khu["ten"] == self.nghi_het or (n > 0 and self.da_quet.get(khu["ten"], 0) >= n)
 
     def du_the_luc(self, khu):
         return self.the_luc is None or self.the_luc >= self.chi_phi(khu)
@@ -162,7 +163,7 @@ class SweepBot(Bot):
                 self.lan_nua_hong += 1
                 self.log("  'Càn quét lần nữa' không có tác dụng")
                 if self.lan_nua_hong >= 2:
-                    self.het_luot.add(khu["ten"])
+                    self.nghi_het = khu["ten"]
                     self.the_luc = None  # đọc lại trên bản đồ
             else:
                 self.lan_nua_hong = 0
@@ -184,8 +185,6 @@ class SweepBot(Bot):
         else:
             self.tap(m_lan_nua.x, m_lan_nua.y + int(266 * k))
         self.dang_mo_khu = None
-        self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
-        self.popup_hong = 0
         self.sleep(1.5)
         return True
 
@@ -203,7 +202,7 @@ class SweepBot(Bot):
             self.popup_hong += 1
             self.log("  Chạm 'Càn quét' nhưng không có kết quả")
             if self.popup_hong >= 2:
-                self.het_luot.add(khu["ten"])
+                self.nghi_het = khu["ten"]
                 self.the_luc = None
         if not m_cq:
             self.log(f"  {khu['ten']}: không có nút Càn quét (chưa mở hoặc hết lượt) → sang khu khác")
@@ -222,8 +221,6 @@ class SweepBot(Bot):
             self.tap_match(m_x)
         self.dang_mo_khu = None
         self.cho_popup = None
-        self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
-        self.popup_hong = 0
         self.sleep(1.2)
         return True
 
@@ -232,10 +229,25 @@ class SweepBot(Bot):
         if not m:
             return False
         ti_le = doc_thanh_the_luc(s, m)
-        if ti_le is not None:
+        if ti_le is not None and ti_le >= 0.985:
+            # thanh đầy: có thể đang vượt mức tối đa (đã mua thêm) → không giới hạn theo ước tính,
+            # khi hết thật thì "Càn quét lần nữa" hết tác dụng và lần về bản đồ sau sẽ đọc lại.
+            self.the_luc = None
+            self.emit(("stats", self.device.serial, {**self.stats, "the_luc": "đầy"}))
+        elif ti_le is not None:
             toi_da = self.cq.get("the_luc_toi_da", 120)
             self.the_luc = int(ti_le * toi_da + 0.3)
             self.emit(("stats", self.device.serial, {**self.stats, "the_luc": self.the_luc}))
+
+        ds = self.ds_khu()
+        if self.the_luc is not None and ds and self.the_luc < min(self.chi_phi(k) for k in ds):
+            self.log(f"⛔ Hết thể lực (còn khoảng {self.the_luc}) → dừng")
+            raise StopBot
+        if self.nghi_het:
+            # thể lực vẫn đủ → khu đó thật sự đã hết lượt
+            self.log(f"  {self.nghi_het}: hết lượt → sang khu kế")
+            self.het_luot.add(self.nghi_het)
+            self.nghi_het = None
 
         khu = self.chon_khu()
         if khu is None:

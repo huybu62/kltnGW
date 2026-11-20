@@ -43,16 +43,21 @@ Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: ch
 
 1. Mở game tới **bản đồ có các toà nhà**, nơi thấy thanh *Thể lực*.
 2. Trên overlay chọn **Chế độ: Càn quét map**.
-3. **Thêm khu cần quét:** bấm **✂**, **chạm 1 điểm** vào toà nhà trên ảnh, bấm **➕ Thêm khu** rồi đặt tên. Tool quét các khu theo thứ tự trong danh sách. Dùng **↑** để đổi thứ tự, **✕** để xoá, bỏ tick để tạm bỏ qua một khu.
+3. **Lập danh sách khu**, chọn một trong hai cách:
+   - **🔎 Dò khu tự động** (nên dùng): tool chạm lần lượt khắp bản đồ, mất khoảng 4–5 phút, và trong lúc đó **đừng bấm gì**. Chỗ nào mở ra popup *Thám hiểm / Càn quét* thì ghi lại thành một khu. Nhiều điểm cùng mở một khu thì gộp lại và lấy điểm giữa. Khu chưa có nút *Càn quét* sẽ được thêm nhưng để **bỏ tick**. Ảnh tiêu đề từng khu lưu ở `mau/tieu_de_khu/khu_1.png`, `khu_2.png`..., để bạn biết Khu 1, Khu 2 là toà nào. Muốn đổi tên thì sửa `"ten"` trong `config.json`.
+   - **Thêm tay:** bấm **✂**, **chạm 1 điểm** vào toà nhà trên ảnh, bấm **➕ Thêm khu** rồi đặt tên.
+
+   Tool quét các khu theo thứ tự trong danh sách. Dùng **↑** để đổi thứ tự, **✕** để xoá, bỏ tick để tạm bỏ qua một khu.
 4. Đặt các tuỳ chọn:
-   - **Mỗi khu quét N lần rồi sang khu khác.** Để `0` thì quét một khu tới khi khu đó hết lượt (*Số lần còn lại* về 0, hoặc không còn nút *Càn quét*) rồi mới sang khu kế.
+   - **Mỗi khu quét N lần rồi sang khu khác.** Để `0` (mặc định) thì quét một khu **tới khi hết 99 lượt** rồi mới sang khu kế. Tool tự nhận ra khi khu hết lượt, kể cả khi hôm nay bạn đã quét tay một phần.
    - **Thể lực tối đa:** số sau dấu `/` trên thanh thể lực, ví dụ `43/120` thì nhập 120. Nhân vật lên cấp mà số này đổi thì nhớ sửa lại.
    - **Mỗi lần tốn:** số thể lực mỗi lần quét, ví dụ ⚡4. Khu nào tốn khác thì thêm `"chi_phi": 6` vào khu đó trong `config.json`.
 5. Bấm **▶ Chạy**.
 
 Cách tool tiêu thể lực:
 - Mỗi lần về bản đồ, tool **đọc thanh thể lực cam** để biết còn bao nhiêu. Khi không đủ cho 1 lần quét, tool đóng hết popup rồi **dừng**. Tool không bấm mua thể lực.
-- Nếu bấm *Càn quét lần nữa* mà *Số lần* không đổi, tool hiểu là khu đó đã hết lượt, rồi tự sang khu kế.
+- **Thể lực đã mua vượt mức** (ví dụ 500/120, thanh đầy): tool không ước tính theo thanh nữa mà cứ quét tiếp. Khi hết thật, bấm *Càn quét lần nữa* sẽ không còn tác dụng; tool về bản đồ đọc lại thanh rồi dừng.
+- Nếu bấm *Càn quét lần nữa* mà *Số lần* không đổi, tool về bản đồ đọc lại thể lực. Thể lực vẫn đủ thì khu đó **đã hết 99 lượt**, tool tự sang khu kế. Thể lực không đủ thì tool dừng.
 - Nếu game hiện popup báo **không đủ thể lực**, bạn nên cắt mẫu đó đặt tên `cq_khong_du`. Gặp popup này tool sẽ bấm X rồi dừng, **không bao giờ bấm mua**.
 - Gặp màn lạ quá 90 giây thì tool dừng.
 
@@ -137,5 +142,6 @@ Khi bị kẹt (lâu không nhận ra màn hình nào), đặt `"khi_ket"` để
 ```
 python test_bot.py
 python test_sweep.py
+python test_discover.py
 ```
 Hai lệnh này chạy thử bộ luật xúc xắc trên màn hình tổng hợp, và chế độ càn quét trên ảnh chụp thật của game trong `anh_test/`. Không cần giả lập.

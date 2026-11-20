@@ -145,6 +145,20 @@ class TestSweep(unittest.TestCase):
         b, logs = self.chay(g, cfg)
         self.assertEqual(g.lich_su, ["cong_xuong"] * 2 + ["khu_2"] * 8)
 
+    def test_the_luc_mua_vuot_muc(self):
+        # mua thêm: 200/120, thanh đầy → không dừng ở 30 lần mà quét tới khi hết thật
+        g = FakeGame(the_luc=200)
+        b, logs = self.chay(g, self.cfg)
+        self.assertEqual(len(g.lich_su), 50)
+        self.assertTrue(any("Hết thể lực" in l for l in logs))
+
+    def test_het_99_luot_sang_khu_ke(self):
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["khu"].append({"ten": "Khu 2", "bat": True, "xy": [0.81, 0.92]})
+        g = FakeGame(the_luc=1000, luot_khu={"cong_xuong": 99, "khu_2": 99})
+        self.chay(g, cfg)
+        self.assertEqual(g.lich_su, ["cong_xuong"] * 99 + ["khu_2"] * 99)
+
     def test_dung_sau_n_lan(self):
         g = FakeGame(the_luc=120)
         self.chay(g, self.cfg, stop_after=5)

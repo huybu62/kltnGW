@@ -10,13 +10,14 @@ from adb import Adb, Device, find_adb
 from bot import Bot
 from capture import CaptureWindow, mo_thu_muc
 from matcher import Templates
+from discover import DiscoverBot
 from sweep import SweepBot
 
 GOC = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(GOC, "config.json")
 MAU_DIR = os.path.join(GOC, "mau")
 
-TEN_DEM = {"the_luc": "⚡", "can_quet": "🧹", "xuc_xac": "🎲", "boss": "👹", "oan_tu_xi": "✊", "mua": "🛒", "phai_doi": "🚩", "binh_the_luc": "🧪"}
+TEN_DEM = {"do": "🔎", "khu": "🏠", "the_luc": "⚡", "can_quet": "🧹", "xuc_xac": "🎲", "boss": "👹", "oan_tu_xi": "✊", "mua": "🛒", "phai_doi": "🚩", "binh_the_luc": "🧪"}
 
 
 def doc_config():
@@ -101,7 +102,7 @@ class App:
         ttk.Label(h1, text="Mỗi khu quét").pack(side="left")
         self.e_moi_khu = ttk.Spinbox(h1, from_=0, to=999, width=5, command=self.luu_cq)
         self.e_moi_khu.pack(side="left", padx=3)
-        ttk.Label(h1, text="lần rồi sang khu khác (0 = tới khi khu hết lượt)").pack(side="left")
+        ttk.Label(h1, text="lần rồi sang khu khác (0 = tới khi hết 99 lượt)").pack(side="left")
         h2 = ttk.Frame(self.f_cq)
         h2.pack(fill="x", pady=(3, 0))
         ttk.Label(h2, text="Thể lực tối đa").pack(side="left")
@@ -113,8 +114,10 @@ class App:
         ttk.Label(h2, text="thể lực").pack(side="left")
         for e in (self.e_moi_khu, self.e_tl_max, self.e_chi_phi):
             e.bind("<FocusOut>", lambda _e: self.luu_cq())
-        ttk.Label(self.f_cq, text="Các khu (quét theo thứ tự, thêm khu bằng ✂ → chạm toà nhà → ➕ Thêm khu):",
-                  foreground="#555").pack(anchor="w", pady=(4, 0))
+        h3 = ttk.Frame(self.f_cq)
+        h3.pack(fill="x", pady=(4, 0))
+        ttk.Label(h3, text="Các khu (quét theo thứ tự):", foreground="#555").pack(side="left")
+        ttk.Button(h3, text="🔎 Dò khu tự động", command=self.do_khu).pack(side="right")
         self.f_khu = ttk.Frame(self.f_cq)
         self.f_khu.pack(fill="x")
 
@@ -178,6 +181,34 @@ class App:
             ttk.Button(hang, text="✕", width=2, command=lambda kk=khu: self.xoa_khu(kk)).pack(side="right")
             if i:
                 ttk.Button(hang, text="↑", width=2, command=lambda j=i: self.len_khu(j)).pack(side="right")
+
+    def do_khu(self):
+        serial = next((s for s in self.rows if not (self.bots.get(s) and self.bots[s].is_alive())), None)
+        if not serial:
+            messagebox.showinfo("Dò khu", "Cần một giả lập đang rảnh (bấm 'Tìm giả lập' hoặc dừng bớt).",
+                                parent=self.root)
+            return
+        if not messagebox.askokcancel(
+                "Dò khu tự động",
+                f"Mở bản đồ khu trên {serial} rồi bấm OK.\n\nTool sẽ chạm khắp bản đồ (khoảng 4–5 phút), "
+                "chỗ nào mở popup Càn quét thì ghi lại thành một khu. Không bấm gì trong lúc dò.",
+                parent=self.root):
+            return
+        b = DiscoverBot(Device(self.adb, serial), self.cfg, self.templates, self.q.put)
+        self.bots[serial] = b
+        b.start()
+
+    def nhan_khu_moi(self, ds):
+        if not ds:
+            messagebox.showinfo("Dò khu", "Không tìm thấy khu nào.", parent=self.root)
+            return
+        cq = self.cfg.setdefault("can_quet", {})
+        thay = not cq.get("khu") or messagebox.askyesno(
+            "Dò khu", f"Tìm thấy {len(ds)} khu.\n\nCó = thay danh sách khu hiện tại\nKhông = thêm vào cuối danh sách",
+            parent=self.root)
+        cq["khu"] = ds if thay else cq.get("khu", []) + ds
+        self.save_config()
+        self.build_cq()
 
     def xoa_khu(self, khu):
         if messagebox.askyesno("Xoá khu", f"Xoá khu '{khu.get('ten')}' khỏi danh sách?", parent=self.root):
@@ -341,6 +372,8 @@ class App:
                     self.log(msg[1], msg[2])
                 elif kieu == "devices":
                     self.set_devices(msg[1])
+                elif kieu == "khu_moi":
+                    self.nhan_khu_moi(msg[2])
                 elif kieu == "stop_all":
                     self.stop_all()
                 elif kieu == "state":
