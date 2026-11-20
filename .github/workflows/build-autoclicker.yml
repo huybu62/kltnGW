@@ -1,0 +1,51 @@
+name: Build AutoClicker (macOS)
+
+on:
+  push:
+    paths:
+      - "AutoClickerMac/**"
+      - ".github/workflows/build-autoclicker.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swiftc --version
+
+      - name: Build
+        working-directory: AutoClickerMac
+        run: ./build.sh
+
+      - name: Verify bundle
+        working-directory: AutoClickerMac
+        run: |
+          lipo -info AutoClicker.app/Contents/MacOS/AutoClicker
+          codesign --verify --verbose AutoClicker.app
+          plutil -lint AutoClicker.app/Contents/Info.plist
+
+      - name: Smoke test (app khởi động không bị crash)
+        working-directory: AutoClickerMac
+        run: |
+          ./AutoClicker.app/Contents/MacOS/AutoClicker &
+          PID=$!
+          sleep 8
+          if kill -0 $PID 2>/dev/null; then
+            echo "App vẫn đang chạy sau 8 giây — OK"
+            kill $PID
+          else
+            echo "App đã thoát/crash khi khởi động"
+            exit 1
+          fi
+
+      - name: Zip app
+        working-directory: AutoClickerMac
+        run: ditto -c -k --keepParent AutoClicker.app AutoClicker.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AutoClicker-macOS
+          path: AutoClickerMac/AutoClicker.zip
