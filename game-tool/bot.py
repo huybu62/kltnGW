@@ -69,8 +69,8 @@ class Bot(threading.Thread):
     def nguong(self, name):
         return self.cfg.get("nguong_rieng", {}).get(name, self.cfg.get("nguong_khop", 0.85))
 
-    def find(self, screen, name):
-        return self.templates.find(screen, name, self.nguong(name))
+    def find(self, screen, name, roi=None):
+        return self.templates.find(screen, name, self.nguong(name), roi)
 
     def shot(self):
         loi = 0
@@ -111,6 +111,8 @@ class Bot(threading.Thread):
             self.log(f"Lỗi: {e}")
             traceback.print_exc()
         finally:
+            if hasattr(self, "dung_bam"):
+                self.dung_bam()
             if hasattr(self.device, "close"):
                 self.device.close()
             self.emit(("state", self.device.serial, False))

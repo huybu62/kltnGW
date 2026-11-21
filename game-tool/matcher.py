@@ -144,8 +144,9 @@ class Templates:
             i += 1
         return os.path.join(self.folder, f"{name}@{i}.png")
 
-    def best(self, screen, name):
-        """Vị trí khớp tốt nhất của mẫu (mọi biến thể), không xét ngưỡng."""
+    def best(self, screen, name, roi=None):
+        """Vị trí khớp tốt nhất của mẫu (mọi biến thể), không xét ngưỡng.
+        roi=(x0, y0, x1, y1): chỉ tìm trong vùng này (nhanh hơn), toạ độ trả về vẫn theo cả màn hình."""
         tot_nhat = None
         rong = self.vung(screen)[2]
         ti_le = self.ti_le()
@@ -166,18 +167,23 @@ class Templates:
                             interpolation=cv2.INTER_AREA if k < 1 else cv2.INTER_CUBIC)
                     tpl = self._co_gian[khoa]
             th, tw = tpl.shape[:2]
-            sh, sw = screen.shape[:2]
+            ox, oy, anh = 0, 0, screen
+            if roi is not None:
+                ox, oy = max(0, int(roi[0])), max(0, int(roi[1]))
+                anh = screen[oy:max(oy, int(roi[3])), ox:max(ox, int(roi[2]))]
+            sh, sw = anh.shape[:2]
             if th > sh or tw > sw:
                 continue
-            res = cv2.matchTemplate(screen, tpl, cv2.TM_CCOEFF_NORMED)
+            res = cv2.matchTemplate(anh, tpl, cv2.TM_CCOEFF_NORMED)
             _, diem, _, (x, y) = cv2.minMaxLoc(res)
-            vung = screen[y:y + th, x:x + tw]
+            vung = anh[y:y + th, x:x + tw]
+            x, y = x + ox, y + oy
             if abs(float(vung.mean()) - float(tpl.mean())) > self.CHENH_SANG_TOI_DA:
                 diem = min(diem, 0.5)  # đúng hình nhưng tối/xám hơn hẳn: không tính
             if tot_nhat is None or diem > tot_nhat.score:
                 tot_nhat = Match(name, x + tw // 2, y + th // 2, x, y, tw, th, float(diem), k)
         return tot_nhat
 
-    def find(self, screen, name, threshold):
-        m = self.best(screen, name)
+    def find(self, screen, name, threshold, roi=None):
+        m = self.best(screen, name, roi)
         return m if m and m.score >= threshold else None

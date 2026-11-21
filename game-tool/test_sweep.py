@@ -94,6 +94,9 @@ class NhanhSweepBot(SweepBot):
     def sleep(self, giay):
         super().sleep(min(giay, 0.02))
 
+    def cho_bam(self, ev, giay):
+        return ev.wait(min(giay, 0.005))
+
 
 class TestSweep(unittest.TestCase):
     def setUp(self):

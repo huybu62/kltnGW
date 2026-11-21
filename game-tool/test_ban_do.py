@@ -121,6 +121,9 @@ class Nhanh:
     def sleep(self, giay):
         super().sleep(min(giay, 0.003))
 
+    def cho_bam(self, ev, giay):
+        return ev.wait(min(giay, 0.005))
+
 
 class NhanhDiscover(Nhanh, DiscoverBot):
     pass
