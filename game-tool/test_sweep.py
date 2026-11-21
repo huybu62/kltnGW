@@ -296,6 +296,35 @@ class TestSweep(unittest.TestCase):
         self.assertLess(g.so_chup, 25, f"chụp {g.so_chup} lần cho 40 lần quét")
         self.assertGreaterEqual(b.stats["can_quet"], 40)
 
+    def test_bam_xuyen_hieu_ung(self):
+        # sau mỗi lần quét game chạy hiệu ứng (nút "lần nữa" biến mất) 4 khung hình; bấm vào thì bỏ qua hiệu ứng
+        class GameHieuUng(FakeGame):
+            hieu_ung = 0
+
+            def tap(self, x, y):
+                if self.hieu_ung > 0:
+                    if trong(x, y, HOP_LAN_NUA):
+                        self.hieu_ung = 0  # bấm tiếp thì bỏ qua hiệu ứng (như auto click)
+                    return
+                truoc = len(self.lich_su)
+                super().tap(x, y)
+                if self.man == "ket_qua" and len(self.lich_su) > truoc:
+                    self.hieu_ung = 4
+
+            def screenshot(self):
+                if self.hieu_ung > 0:
+                    self.hieu_ung -= 1
+                    img = np.full((720, 1280, 3), (40, 60, 90), np.uint8)
+                    cv2.putText(img, "CAN QUET...", (400, 360), cv2.FONT_HERSHEY_SIMPLEX, 2.5, (0, 220, 255), 5)
+                    return img
+                return super().screenshot()
+
+        g = GameHieuUng(the_luc=1000, luot_khu={"cong_xuong": 30})
+        b, logs = self.chay(g, self.cfg)
+        self.assertEqual(len(g.lich_su), 30)
+        self.assertEqual(sum("liên tục" in l for l in logs), 1, logs)  # luồng bấm không bị tắt/bật lại
+        self.assertFalse(any("Màn lạ" in l for l in logs))
+
     def test_dung_sau_n_lan(self):
         g = FakeGame(the_luc=120)
         self.chay(g, self.cfg, stop_after=5)

@@ -160,8 +160,11 @@ class SweepBot(BanDoMixin, Bot):
                 return
 
             la_kq = self.man_khong_du(s) or self.man_ket_qua(s)
+            if not la_kq and self.bam_xuyen_hieu_ung(s):
+                lan_thay_cuoi = time.time()
+                continue
             if not la_kq:
-                self.dung_bam()  # rời màn kết quả: ngừng bấm ngay
+                self.dung_bam()  # rời hẳn màn kết quả: ngừng bấm
             xu_ly = la_kq or self.man_popup(s) or self.man_ban_do(s) or self.man_khac(s)
             now = time.time()
             if xu_ly:
@@ -236,6 +239,18 @@ class SweepBot(BanDoMixin, Bot):
             mb.dung.set()
             self.may_bam = None
 
+    def bam_xuyen_hieu_ung(self, s):
+        """Sau mỗi lần quét game chạy hiệu ứng ~1 giây, nút "lần nữa" tạm biến mất. Như auto click:
+        cứ bấm tiếp, chỉ dừng khi thấy rõ đã về bản đồ / mở popup khu, hoặc màn lạ quá lâu."""
+        if getattr(self, "may_bam", None) is None:
+            return False
+        if time.time() - getattr(self, "kq_thay_cuoi", 0) > self.cq.get("bam_qua_hieu_ung_giay", 3):
+            return False
+        if self.la_ban_do(s) or self.find(s, "cq_x_popup") or self.find(s, "cq_nut_can_quet"):
+            return False
+        self.sleep(0.2)
+        return True
+
     def man_ket_qua(self, s):
         roi = getattr(self, "kq_roi", None)
         m_lan_nua = (self.find(s, "cq_lan_nua", roi) if roi else None) or self.find(s, "cq_lan_nua")
@@ -243,6 +258,7 @@ class SweepBot(BanDoMixin, Bot):
             return False
         self.kq_roi = (m_lan_nua.left - 60, m_lan_nua.top - 60, m_lan_nua.left + m_lan_nua.w + 60,
                        m_lan_nua.top + m_lan_nua.h + 60)
+        self.kq_thay_cuoi = time.time()
         khu = self.dang_mo_khu or self.khu_hien_tai()
         self.cho_popup = None
         self.popup_hong = 0
@@ -280,7 +296,9 @@ class SweepBot(BanDoMixin, Bot):
                 gioi_han.append(self.cq["so_lan_moi_khu"] - self.da_quet.get(khu["ten"], 0))
             x, y = m_lan_nua.x, m_lan_nua.y - int(118 * k)  # biểu tượng đầu lâu phía trên chữ
             if mb is None:
-                self.log(f"• Càn quét lần nữa liên tục – {khu['ten']}")
+                if getattr(self, "kq_log_khu", None) != khu["ten"]:
+                    self.log(f"• Càn quét lần nữa liên tục – {khu['ten']}")
+                    self.kq_log_khu = khu["ten"]
                 mb = MayBam(self, x, y, max(0.05, float(self.cq.get("nhip_lan_nua", 0.15))))
                 self.may_bam = mb
                 self.kq_moc = 0
@@ -296,6 +314,7 @@ class SweepBot(BanDoMixin, Bot):
 
         self.dung_bam()
         m = self.find(s, "cq_dong")
+        self.kq_log_khu = None
         self.log(f"• Đóng kết quả – {khu['ten']} đã quét {self.da_quet.get(khu['ten'], 0)} lần")
         if m:
             self.tap_match(m)
