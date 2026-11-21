@@ -44,6 +44,13 @@ def vung_game(screen):
     return int(x0), int(y0), int(x1 - x0), int(y1 - y0)
 
 
+def mat_na_chu_cam(img):
+    """Mặt nạ các điểm ảnh màu cam/vàng sáng (chữ trên bảng hỏi), dạng float32 0/1."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    m = (hsv[..., 0] >= 5) & (hsv[..., 0] <= 32) & (hsv[..., 1] > 110) & (hsv[..., 2] > 140)
+    return m.astype(np.float32)
+
+
 def _doc_anh(path):
     # np.fromfile để đọc được đường dẫn có dấu tiếng Việt trên Windows
     data = np.fromfile(path, dtype=np.uint8)
@@ -183,6 +190,38 @@ class Templates:
             if tot_nhat is None or diem > tot_nhat.score:
                 tot_nhat = Match(name, x + tw // 2, y + th // 2, x, y, tw, th, float(diem), k)
         return tot_nhat
+
+    def anh_mau(self, screen, name):
+        """Ảnh mẫu (biến thể đầu tiên) đã co giãn theo màn hình, kèm hệ số co giãn."""
+        files = self._files(name)
+        if not files:
+            return None, 1.0
+        tpl = self._load(files[0])
+        goc = self.ti_le().get(os.path.basename(files[0]))
+        k = self.vung(screen)[2] / goc if goc else 1.0
+        if abs(k - 1) > 0.01:
+            tpl = cv2.resize(tpl, (max(4, round(tpl.shape[1] * k)), max(4, round(tpl.shape[0] * k))),
+                             interpolation=cv2.INTER_AREA if k < 1 else cv2.INTER_CUBIC)
+        return tpl, k
+
+    def khop_chu_cam(self, screen, name, roi=None):
+        """So riêng phần CHỮ MÀU CAM (bỏ nền) – dùng cho chữ trên bảng hỏi nền trong suốt.
+        Trả về Match hoặc None."""
+        tpl, k = self.anh_mau(screen, name)
+        if tpl is None:
+            return None
+        ox, oy, anh = 0, 0, screen
+        if roi is not None:
+            ox, oy = max(0, int(roi[0])), max(0, int(roi[1]))
+            anh = screen[oy:max(oy, int(roi[3])), ox:max(ox, int(roi[2]))]
+        th, tw = tpl.shape[:2]
+        if anh.shape[0] < th or anh.shape[1] < tw:
+            return None
+        mt, ma = mat_na_chu_cam(tpl), mat_na_chu_cam(anh)
+        if mt.std() < 1e-3:
+            return None
+        _, diem, _, (x, y) = cv2.minMaxLoc(cv2.matchTemplate(ma, mt, cv2.TM_CCOEFF_NORMED))
+        return Match(name, x + ox + tw // 2, y + oy + th // 2, x + ox, y + oy, tw, th, float(diem), k)
 
     def find(self, screen, name, threshold, roi=None):
         m = self.best(screen, name, roi)

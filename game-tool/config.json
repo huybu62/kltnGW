@@ -14,7 +14,10 @@
     "cq_chuong": 0.8,
     "cq_ai_thuong": 0.8,
     "cq_mui_ten_phai": 0.8,
-    "cq_mui_ten_trai": 0.8
+    "cq_mui_ten_trai": 0.8,
+    "cq_nut_x10": 0.85,
+    "cq_nut_x5": 0.85,
+    "cq_xac_dinh": 0.85
   },
   "nghi_giua_vong": 0.8,
   "nghi_khi_khong_thay": 1.0,
@@ -76,7 +79,8 @@
     ],
     "bo_qua_the_luc": false,
     "cho_mo_khu_giay": 6,
-    "kiem_tra_moi_giay": 1.0
+    "kiem_tra_moi_giay": 1.0,
+    "kieu_quet": 1
   },
   "mo_ta_mau": {
     "cq_the_luc": "[Càn quét] Chữ 'Thể lực' cạnh thanh thể lực trên bản đồ",
@@ -111,7 +115,11 @@
     "cq_chuong": "[Qua ải] Biểu tượng 'Chương' góc phải trên màn chương",
     "cq_ai_thuong": "[Qua ải] Thẻ 'Ải Thường' bên trái màn chương",
     "cq_mui_ten_phai": "[Qua ải] Mũi tên ▶ sang chương sau",
-    "cq_mui_ten_trai": "[Qua ải] Mũi tên ◀ về chương trước"
+    "cq_mui_ten_trai": "[Qua ải] Mũi tên ◀ về chương trước",
+    "cq_nut_x10": "[Càn quét] Nút x10 trong popup khu",
+    "cq_nut_x5": "[Càn quét] Nút x5 trong popup khu",
+    "cq_xac_dinh": "[Càn quét] Nút đỏ 'Xác định' của bảng hỏi càn quét nhiều lần",
+    "cq_hoi_can_quet": "[Càn quét] Chữ 'Càn quét' (màu cam) đầu câu hỏi xác nhận"
   },
   "luat": [
     {

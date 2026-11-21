@@ -129,6 +129,13 @@ class App:
         self.v_qua_ai = tk.BooleanVar(value=True)
         ttk.Checkbutton(h5, text="Hết khu thì Trở lại, sang ải kế (1-1 → 1-2 → …)", variable=self.v_qua_ai,
                         command=self.doi_qua_ai).pack(side="left")
+        h7 = ttk.Frame(self.f_cq)
+        h7.pack(fill="x", pady=(3, 0))
+        ttk.Label(h7, text="Kiểu quét:").pack(side="left")
+        self.KIEU = {"Từng lần (bấm 'lần nữa')": 1, "x5 (tốn Xu)": 5, "x10 (tốn Xu)": 10}
+        self.cb_kieu = ttk.Combobox(h7, values=list(self.KIEU), state="readonly", width=24)
+        self.cb_kieu.pack(side="left", padx=4)
+        self.cb_kieu.bind("<<ComboboxSelected>>", lambda _e: self.luu_cq())
         h6 = ttk.Frame(self.f_cq)
         h6.pack(fill="x", pady=(3, 0))
         self.v_bo_tl = tk.BooleanVar(value=False)
@@ -192,6 +199,8 @@ class App:
         self.v_cuon.set(cq.get("cuon_map", True))
         self.v_qua_ai.set(cq.get("qua_ai", True))
         self.v_bo_tl.set(cq.get("bo_qua_the_luc", False))
+        kieu = int(cq.get("kieu_quet", 1) or 1)
+        self.cb_kieu.set(next((t for t, v in self.KIEU.items() if v == kieu), list(self.KIEU)[0]))
         for w in self.f_khu.winfo_children():
             w.destroy()
         if cq.get("qua_ai", True):
@@ -300,6 +309,7 @@ class App:
             pass
         cq["cuon_map"] = bool(self.v_cuon.get())
         cq["bo_qua_the_luc"] = bool(self.v_bo_tl.get())
+        cq["kieu_quet"] = self.KIEU.get(self.cb_kieu.get(), 1)
         self.save_config()
 
     def toggle_rule(self, rule, var):

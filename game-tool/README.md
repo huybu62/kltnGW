@@ -60,6 +60,11 @@ Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: ch
 4. Đặt các tuỳ chọn:
    - **Mỗi khu quét N lần rồi sang khu khác.** Để `0` (mặc định) thì quét một khu **tới khi hết 99 lượt** rồi mới sang khu kế. Tool tự nhận ra khi khu hết lượt, kể cả khi hôm nay bạn đã quét tay một phần.
    - **Thể lực tối đa:** số sau dấu `/` trên thanh thể lực, ví dụ `43/120` thì nhập 120. Nhân vật lên cấp mà số này đổi thì nhớ sửa lại.
+   - **Kiểu quét:**
+     - **Từng lần:** bấm *Càn quét* rồi bấm liên tục *Càn quét lần nữa*.
+     - **x5 / x10 (tốn Xu):** bấm nút x5/x10 trong popup khu. Thấy bảng hỏi *"Càn quét 10 lần: tốn … Xác nhận?"* thì bấm **Xác định**, rồi lặp lại.
+     - Tool **chỉ bấm Xác định khi đúng là câu hỏi "Càn quét … lần"** và do chính tool vừa bấm x5/x10. Bảng hỏi khác, như mua Xu hay mua thể lực, tool bấm **Quay lại** để huỷ.
+     - Khu còn ít hơn 10 lượt, hoặc game không cho x10 nữa (ví dụ hết Xu), tool tự chuyển khu đó sang **quét từng lần** cho phần còn lại.
    - **Không kiểm tra thể lực:** tick ô này nếu bạn đã mua rất nhiều thể lực. Tool sẽ không đọc thanh thể lực nữa, chỉ dừng khi quét hết khu hoặc hết ải.
    - **Mỗi lần tốn:** số thể lực mỗi lần quét, ví dụ ⚡4. Khu nào tốn khác thì thêm `"chi_phi": 6` vào khu đó trong `config.json`.
    - **Bấm 'lần nữa' mỗi … giây:** mặc định 0,15 giây, tức khoảng 6–7 cú mỗi giây. Tool dùng **một luồng riêng chỉ để bấm**, đều nhịp, không dừng khi chụp màn hình. Luồng chính vẫn chụp và kiểm tra song song, gặp lên cấp hay hết lượt thì ra lệnh dừng bấm ngay. Số lần quét trên overlay là ước lượng theo số cú bấm. Game bỏ lỡ cú bấm thì tăng lên 0,2–0,25.
@@ -183,5 +188,6 @@ python test_sweep.py
 python test_discover.py
 python test_ban_do.py
 python test_chuong.py
+python test_x10.py
 ```
 Hai lệnh này chạy thử bộ luật xúc xắc trên màn hình tổng hợp, và chế độ càn quét trên ảnh chụp thật của game trong `anh_test/`. Không cần giả lập.
