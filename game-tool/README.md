@@ -62,7 +62,7 @@ Thư mục `mau/` **đã có sẵn** các mẫu cắt từ ảnh chụp game: ch
    - **Thể lực tối đa:** số sau dấu `/` trên thanh thể lực, ví dụ `43/120` thì nhập 120. Nhân vật lên cấp mà số này đổi thì nhớ sửa lại.
    - **Không kiểm tra thể lực:** tick ô này nếu bạn đã mua rất nhiều thể lực. Tool sẽ không đọc thanh thể lực nữa, chỉ dừng khi quét hết khu hoặc hết ải.
    - **Mỗi lần tốn:** số thể lực mỗi lần quét, ví dụ ⚡4. Khu nào tốn khác thì thêm `"chi_phi": 6` vào khu đó trong `config.json`.
-   - **Bấm 'lần nữa' mỗi … giây:** nhịp bấm *Càn quét lần nữa*, mặc định 0,35 giây. Tool bấm liên tục theo nhịp này và đếm số lần quét theo con số *Số lần* trên màn hình. Thấy game bỏ lỡ cú bấm thì tăng lên 0,5; muốn nhanh hơn thì giảm còn 0,2.
+   - **Bấm 'lần nữa' mỗi … giây:** mặc định 0,15 giây. Tool **bấm theo loạt** (nhiều cú liền, khoảng 1 giây mới chụp màn hình kiểm tra một lần) và chạm chạy nền nên không phải chờ từng cú. Số lần quét trên overlay là ước lượng theo số cú bấm. Game bỏ lỡ cú bấm thì tăng lên 0,25.
    - **Lướt cả bản đồ:** để tick thì lúc quét, tool tự vuốt bản đồ tới đúng khu, kể cả khu nằm ngoài màn hình. Mỗi lần chạy, tool vuốt về góc trên-trái để lấy mốc. Nếu mở nhầm khu (tiêu đề popup khác lúc dò), tool đóng lại, lấy mốc lại rồi thử tiếp.
 5. Bấm **▶ Chạy**.
 
@@ -168,6 +168,7 @@ Khi bị kẹt (lâu không nhận ra màn hình nào), đặt `"khi_ket"` để
 - `"cham_xy"`: chạm vào toạ độ `"xy_khi_ket"`.
 
 ## Khi gặp lỗi
+- **Màn lạ** (lên cấp, nhận thưởng, thông báo…): tool chạm vào mép trên màn hình, nếu không được thì bấm **Quay lại**. Tool **không chạm vào giữa màn** để tránh lỡ bấm nút mua. Lần đầu gặp màn lạ, tool lưu ảnh vào `anh_loi/`. Gửi ảnh đó cho người hỗ trợ để làm mẫu nhận diện chuẩn.
 - Mọi dòng log trên overlay cũng được ghi vào file **`nhat_ky.txt`** trong thư mục `game-tool`.
 - Khi gặp lỗi (không thấy bản đồ, không định vị được…), tool lưu ảnh màn hình vào thư mục **`anh_loi/`**.
 - Gửi 2 thứ này cho người hỗ trợ là đủ để biết chuyện gì đã xảy ra.

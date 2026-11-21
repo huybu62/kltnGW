@@ -133,7 +133,8 @@ class Device:
                             creationflags=_NO_WINDOW)
                         self._da_gui = self._da_xong = 0
                         threading.Thread(target=self._doc_xac_nhan, args=(self._sh,), daemon=True).start()
-                    self._sh.stdin.write(f"{lenh}; echo @@xong\n".encode())
+                    noi = " " if lenh.rstrip().endswith("&") else "; "  # "lệnh &; echo" là lỗi cú pháp
+                    self._sh.stdin.write(f"{lenh}{noi}echo @@xong\n".encode())
                     self._sh.stdin.flush()
                     self._da_gui += 1
                     return
@@ -169,6 +170,10 @@ class Device:
 
     def tap(self, x, y):
         self._gui_lenh(f"input tap {int(x)} {int(y)}")
+
+    def tap_nhanh(self, x, y):
+        """Chạm chạy nền trên máy ảo: không phải chờ cú trước xong (mỗi lệnh input mất ~0,2 giây)."""
+        self._gui_lenh(f"input tap {int(x)} {int(y)} &", toi_da_cho=3)
 
     def swipe(self, x1, y1, x2, y2, ms=700):
         self._gui_lenh(f"input swipe {int(x1)} {int(y1)} {int(x2)} {int(y2)} {int(ms)}")

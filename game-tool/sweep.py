@@ -132,18 +132,50 @@ class SweepBot(BanDoMixin, Bot):
                 self.log(f"Đã quét đủ {self.stop_after} lần → dừng")
                 return
 
-            xu_ly = (self.man_khong_du(s) or self.man_ket_qua(s) or self.man_popup(s) or self.man_ban_do(s))
+            xu_ly = (self.man_khong_du(s) or self.man_ket_qua(s) or self.man_popup(s) or self.man_ban_do(s)
+                     or self.man_khac(s))
             now = time.time()
             if xu_ly:
                 lan_thay_cuoi = now
+                self.go_la_lan = 0
                 continue
             ranh = now - lan_thay_cuoi
+            if ranh > 2.5:
+                self.go_man_la(s)
             if ranh > self.cq.get("dung_khi_khong_nhan_ra_giay", 90):
                 self.log(f"Không nhận ra màn hình nào trong {int(ranh)} giây → dừng")
                 return
             if ranh > 20 and int(ranh) % 20 == 0:
                 self.log(f"⚠ {int(ranh)} giây không nhận ra màn hình (đang chuyển cảnh, hay có popup lạ?)")
             self.sleep(1.0)
+
+    def man_khac(self, s):
+        """Chỗ cho lớp con xử lý thêm màn (vd. màn chương)."""
+        return False
+
+    def go_man_la(self, s):
+        """Màn lạ (lên cấp, nhận thưởng, thông báo...): chạm mép trên màn hình, không được thì bấm
+        Quay lại. Không chạm giữa màn để tránh bấm nhầm nút mua."""
+        lan = getattr(self, "go_la_lan", 0)
+        self.go_la_lan = lan + 1
+        if lan == 0:
+            self.luu_anh_loi(s, "gặp màn lạ (lên cấp / thông báo?)")
+        for ten in ("cq_dong", "cq_x_popup", "nut_dong", "nut_tiep_tuc", "cham_de_tiep_tuc", "nut_xac_nhan"):
+            if self.templates.exists(ten):
+                m = self.find(s, ten)
+                if m:
+                    self.log(f"  Màn lạ → bấm {ten}")
+                    self.tap_match(m)
+                    self.sleep(1.2)
+                    return
+        gx, gy, gw, gh = self.templates.vung(s)
+        if lan % 2 == 0:
+            self.log("  Màn lạ (lên cấp?) → chạm mép trên màn hình")
+            self.tap(gx + 0.5 * gw, gy + 0.03 * gh)
+        else:
+            self.log("  Màn lạ → bấm Quay lại")
+            self.device.back()
+        self.sleep(1.5)
 
     def thoat_ve_ban_do(self, s):
         """Đóng màn kết quả / popup nếu đang mở. Trả về True nếu vừa chạm."""
@@ -181,11 +213,13 @@ class SweepBot(BanDoMixin, Bot):
         now = time.time()
         if self.kq_anh is None or self.kq_anh.shape != so_lan.shape:
             self.kq_anh, self.kq_doi = so_lan, now
+            self.kq_cham = 0
         elif (np.abs(self.kq_anh - so_lan).sum(axis=2) > 90).mean() >= 0.003:
-            # "Số lần" vừa đổi → thêm một lần càn quét thành công
+            # "Số lần" vừa đổi → các cú bấm từ lần trước đã quét được (đếm ước lượng theo số cú bấm)
             self.kq_anh, self.kq_doi = so_lan, now
             if self.kq_da_cham:
-                self.dem(khu)
+                self.dem(khu, max(1, self.kq_cham))
+            self.kq_cham = 0
         elif self.kq_da_cham and now - self.kq_doi > self.cq.get("cho_khong_doi_giay", 8):
             # bấm liên tục mà "Số lần" không đổi → khu hết lượt hoặc hết thể lực
             self.log("  'Càn quét lần nữa' không còn tác dụng")
@@ -194,12 +228,29 @@ class SweepBot(BanDoMixin, Bot):
 
         du_tong = self.stop_after and self.stats["can_quet"] >= self.stop_after
         if khu and not du_tong and not self.du_chi_tieu(khu) and self.du_the_luc(khu) and khu["ten"] not in self.het_luot:
-            # chạm vào biểu tượng đầu lâu phía trên chữ, liên tục theo nhịp
-            self.tap(m_lan_nua.x, m_lan_nua.y - int(118 * k))
+            # chạm vào biểu tượng đầu lâu phía trên chữ, theo loạt: bấm liền nhiều cú rồi mới chụp kiểm tra
+            nhip = max(0.05, float(self.cq.get("nhip_lan_nua", 0.25)))
+            so = 1 if not self.kq_da_cham else max(1, min(10, round(self.cq.get("kiem_tra_moi_giay", 1.0) / nhip)))
+            # không bấm lố: tính cả các cú đã bấm mà chưa thấy "Số lần" đổi
+            gioi_han = []
+            if self.stop_after:
+                gioi_han.append(self.stop_after - self.stats["can_quet"])
+            if self.cq.get("so_lan_moi_khu", 0) > 0:
+                gioi_han.append(self.cq["so_lan_moi_khu"] - self.da_quet.get(khu["ten"], 0))
+            if gioi_han:
+                con = min(gioi_han) - self.kq_cham
+                if con <= 0:
+                    self.sleep(0.3)  # đã bấm đủ, chờ "Số lần" cập nhật rồi mới đóng
+                    return True
+                so = min(so, con)
             if not self.kq_da_cham:
                 self.log(f"• Càn quét lần nữa liên tục – {khu['ten']}")
             self.kq_da_cham = True
-            self.sleep(self.cq.get("nhip_lan_nua", 0.35))
+            x, y = m_lan_nua.x, m_lan_nua.y - int(118 * k)
+            for _ in range(so):
+                self.tap_nhanh(x, y)
+                self.kq_cham += 1
+                self.sleep(nhip)
             return True
 
         m = self.find(s, "cq_dong")
@@ -214,6 +265,7 @@ class SweepBot(BanDoMixin, Bot):
         return True
 
     def reset_kq(self):
+        self.kq_cham = 0
         self.kq_anh = None
         self.kq_da_cham = False
 

@@ -9,6 +9,7 @@ import time
 import unittest
 
 import cv2
+import numpy as np
 
 from matcher import Templates
 from sweep import SweepBot, doc_thanh_the_luc
@@ -237,6 +238,60 @@ class TestSweep(unittest.TestCase):
         b, logs = self.chay(g, cfg)
         self.assertEqual(sorted(g.lich_su), sorted(["cong_xuong"] * 3 + ["khu_2"] * 3), logs)
         self.assertTrue(any("tạm bỏ qua" in l for l in logs))
+
+    def test_len_cap_giua_chung(self):
+        # sau lần quét thứ 4 và thứ 9 hiện màn "lên cấp" (tool không biết), chạm mép trên / Quay lại mới tắt
+        class GameLenCap(FakeGame):
+            len_cap = False
+            so_tap = 0
+
+            def quet(self):
+                ok = super().quet()
+                if ok and len(self.lich_su) in (4, 9):
+                    self.len_cap = True
+                return ok
+
+            def tap(self, x, y):
+                self.so_tap += 1
+                if self.len_cap:
+                    if y < 0.08 * 720:
+                        self.len_cap = False
+                    return
+                super().tap(x, y)
+
+            def back(self):
+                self.len_cap = False
+
+            def screenshot(self):
+                if self.len_cap:
+                    img = np.full((720, 1280, 3), (60, 20, 90), np.uint8)
+                    cv2.putText(img, "LEVEL UP!", (420, 360), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 220, 255), 6)
+                    return img
+                return super().screenshot()
+
+        g = GameLenCap(the_luc=1000, luot_khu={"cong_xuong": 12})
+        b, logs = self.chay(g, self.cfg)
+        self.assertEqual(len(g.lich_su), 12, logs[-8:])
+        self.assertTrue(any("Màn lạ" in l for l in logs))
+        self.assertFalse(any("Không nhận ra màn hình" in l for l in logs))
+
+    def test_bam_theo_loat(self):
+        # đang bấm "lần nữa" thì mỗi lần chụp màn hình phải bấm được nhiều cú
+        class GameDem(FakeGame):
+            so_chup = 0
+
+            def screenshot(self):
+                if self.man == "ket_qua" and len(self.lich_su) < 40:  # chỉ đếm lúc khu còn lượt
+                    self.so_chup += 1
+                return super().screenshot()
+
+        cfg = copy.deepcopy(self.cfg)
+        cfg["can_quet"]["nhip_lan_nua"] = 0.2
+        g = GameDem(the_luc=1000, luot_khu={"cong_xuong": 40})
+        b, logs = self.chay(g, cfg)
+        self.assertEqual(len(g.lich_su), 40)
+        self.assertLess(g.so_chup, 25, f"chụp {g.so_chup} lần cho 40 lần quét")
+        self.assertGreaterEqual(b.stats["can_quet"], 40)
 
     def test_dung_sau_n_lan(self):
         g = FakeGame(the_luc=120)

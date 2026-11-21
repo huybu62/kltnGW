@@ -86,6 +86,11 @@ class Bot(threading.Thread):
                     raise StopBot
                 self.sleep(2)
 
+    def tap_nhanh(self, x, y):
+        """Chạm không chờ lệnh trước chạy xong (dùng cho bấm liên tục)."""
+        f = getattr(self.device, "tap_nhanh", None)
+        (f or self.device.tap)(x, y)
+
     def tap(self, x, y):
         self.device.tap(x, y)
 

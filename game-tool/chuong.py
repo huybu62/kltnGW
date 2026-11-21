@@ -42,6 +42,19 @@ class ChuongBot(DiscoverBot):
             return self.moc_moi
         return (self.ai_dang or {}).get("moc", [])
 
+    def man_khac(self, s):
+        """Đang quét mà lỡ về màn chương (vd. bấm Quay lại ở màn lạ) → vào lại ải đang quét."""
+        if self.ai_dang is None or not self.la_chuong(s):
+            return False
+        m = self.find(s, self.ai_dang["mau"])
+        if not m:
+            return False
+        self.log(f"  Đang ở màn chương → vào lại ải {self.ai_dang['ten']}")
+        self.tap_match(m)
+        self.cam_ok = False
+        self.sleep(3.0)
+        return True
+
     def la_chuong(self, s):
         return self.find(s, "cq_chuong") is not None
 
