@@ -100,7 +100,8 @@ class FakeVuotAi:
                 self.dung_o = 1
                 return
             for so, (cx, cy) in NHAN.items():
-                if abs(x - cx) < 90 and abs(y - cy) < 18 and so in self.nuoc[self.i_nuoc][1]:
+                # chỉ chạm vào TOÀ NHÀ phía trên nhãn mới vào được (chạm vào chữ thì không)
+                if abs(x - cx) < 90 and cy - 125 <= y <= cy - 50 and so in self.nuoc[self.i_nuoc][1]:
                     if self.dung_o != so:
                         self.dung_o = so  # nhân vật đi tới ải này, chưa vào
                         return

@@ -205,11 +205,16 @@ class ChuongBot(DiscoverBot):
         raise StopBot
 
     def vao_ai_xy(self, x, y):
-        """Chạm nhãn ải. Ải chưa có nhân vật đứng: chạm lần 1 thì nhân vật đi tới, chạm lần 2 mới vào
-        → vẫn ở màn chương sau ~3 giây thì chạm lại (tối đa 3 lần)."""
+        """Vào ải: chạm vào TOÀ NHÀ phía trên nhãn chữ (chạm vào chữ không vào được). Toà nhà cao hơn tâm
+        nhãn khoảng 12–16% chiều cao màn hình. Vẫn ở màn chương sau ~3 giây thì chạm lại, đổi độ cao
+        (ải chưa có nhân vật đứng: lần đầu nhân vật mới đi tới)."""
         from ocr import doc
-        for lan in range(1, 4):
-            self.tap(x, y)
+        gx, gy, gw, gh = self.templates.vung(self.shot())
+        do_cao = self.cq.get("vao_ai_cao_hon", [0.125, 0.125, 0.16, 0.09])
+        for lan, cao in enumerate(do_cao, 1):
+            tx, ty = x, max(gy + 0.05 * gh, y - cao * gh)
+            self.ai_vi_tri = (tx, ty)
+            self.tap(tx, ty)
             o_chuong = 0
             for _ in range(10):
                 self.sleep(1.0)
@@ -230,8 +235,8 @@ class ChuongBot(DiscoverBot):
                 if nut:
                     self.log(f"  Bấm '{nut.text.strip()}'")
                     self.tap(nut.x, nut.y)
-            if lan < 3:
-                self.log(f"  Chưa vào được ải (lần {lan}) → chạm lại")
+            if lan < len(do_cao):
+                self.log(f"  Chưa vào được ải (lần {lan}) → chạm lại vào toà nhà")
         return False
 
     def sang_nuoc_sau(self, s, nuoc):
