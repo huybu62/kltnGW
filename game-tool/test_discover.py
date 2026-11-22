@@ -67,6 +67,7 @@ class TestDiscover(unittest.TestCase):
     def test_do_khu(self):
         with open(os.path.join(GOC, "config.json"), encoding="utf-8") as f:
             cfg = json.load(f)
+        cfg["can_quet"]["tu_dong_tham_hiem"] = False  # khu chưa thám hiểm thì để tắt
         with tempfile.TemporaryDirectory() as tmp:
             # chép mẫu sang thư mục tạm để ảnh tiêu đề khu không ghi vào mau/
             for f in os.listdir(os.path.join(GOC, "mau")):

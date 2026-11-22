@@ -290,11 +290,14 @@ class SweepBot(BanDoMixin, Bot):
             self.kq_anh, self.kq_doi = so_lan, now
             con = self.doc_so_lan(s, (x0, y0, x1, y1))
             truoc = getattr(self, "kq_con", None)
-            if self.kq_da_cham:
-                if con is not None and truoc is not None and 0 <= truoc - con <= 50:
+            if con is not None and truoc is not None and 0 <= truoc - con <= 50:
+                if self.kq_da_cham:
                     self.dem(khu, truoc - con)
-                elif con is None or truoc is None:
+                self.kq_moc += truoc - con  # chỉ tính những cú bấm đã thấy kết quả
+            else:
+                if self.kq_da_cham:
                     self.dem(khu, max(1, da_bam - self.kq_moc))
+                self.kq_moc = da_bam
             if con is not None:
                 self.kq_con = con
                 self.con_lai[khu["ten"]] = con
@@ -302,7 +305,6 @@ class SweepBot(BanDoMixin, Bot):
                     self.dung_bam()
                     self.log(f"  {khu['ten']}: hết lượt (Số lần 0)")
                     self.het_luot.add(khu["ten"])
-            self.kq_moc = da_bam
         elif self.kq_da_cham and now - self.kq_doi > self.cq.get("cho_khong_doi_giay", 8):
             # bấm liên tục mà "Số lần" không đổi → khu hết lượt hoặc hết thể lực
             self.log("  'Càn quét lần nữa' không còn tác dụng")
@@ -311,6 +313,8 @@ class SweepBot(BanDoMixin, Bot):
 
         if self.boi_xac_nhan is not None and self.boi_xac_nhan[0] is khu:
             self.boi_xac_nhan = None  # có màn kết quả → xN đã quét được
+        if mb is not None and mb.toi_da is not None and mb.da_bam >= mb.toi_da and now - self.kq_doi > 1.5:
+            self.kq_moc = mb.da_bam  # các cú bấm còn treo bị game bỏ qua (lúc hiệu ứng) → cân lại
         du_tong = self.stop_after and self.stats["can_quet"] >= self.stop_after
         if khu and self.boi_so(khu) > 1:
             du_tong = True  # đang dùng xN: đóng kết quả rồi bấm xN lại ở popup

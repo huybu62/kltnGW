@@ -79,6 +79,9 @@ class TestChuong(unittest.TestCase):
             cfg = json.load(f)
         cfg = copy.deepcopy(cfg)
         cfg["can_quet"]["qua_ai"] = True
+        cfg["can_quet"]["tu_dong_vuot_ai"] = False  # kiểm tra chế độ danh sách ải
+        cfg["can_quet"]["tu_dong_tham_hiem"] = False
+        cfg["can_quet"]["kieu_quet"] = 1
         for ai in cfg["can_quet"]["ai"]:
             ai["khu"] = []
         tmp = tempfile.mkdtemp()
