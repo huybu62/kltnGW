@@ -65,9 +65,15 @@ class FakeVuotAi:
     def ten_nuoc(self):
         return self.nuoc[self.i_nuoc][0]
 
+    che_ten = False  # che dải tên nước (đọc chữ không ra)
+
     def screenshot(self):
         if self.man == "chuong":
-            return self.anh[self.ten_nuoc].copy()
+            img = self.anh[self.ten_nuoc].copy()
+            if self.che_ten:
+                cv2.rectangle(img, (650, 10), (880, 55), (180, 110, 40), -1)
+                cv2.line(img, (660, 20), (870, 48), (40, 200, 230), 3)
+            return img
         if self.man == "ban_do":
             img = self.ban_do.copy()
             for x1, y1, x2, y2 in [TRO_LAI, (250, 12, 780, 60)]:
@@ -253,6 +259,55 @@ class TestVuotAi(unittest.TestCase):
         cq, logs = self.chay(g, "nguoc")
         self.assertEqual(g.vao, [("Ai Cap", i) for i in (4, 3, 2, 1)] + [("Singapore", i) for i in (4, 3, 2, 1)])
         self.kiem_tra_quet(g)
+
+
+@unittest.skipUnless(co_ocr(), "cần bộ đọc chữ rapidocr_onnxruntime")
+class TestDuLieuLoi(TestVuotAi):
+    def test_khong_doc_duoc_ten_nuoc_va_moc_sai(self):
+        g = tao_game()
+        g.che_ten = True  # không đọc được tên nước ở cả 2 nước
+        with open(os.path.join(GOC, "config.json"), encoding="utf-8") as f:
+            cfg0 = json.load(f)
+        # dữ liệu lỗi của bản cũ + một ải có mốc sai (không khớp bản đồ)
+        sai = {"khu": [{"ten": "Khu sai", "bat": True, "xy_map": [0.9, 0.9]}], "moc": [{"anh": "khong_co.png", "xy": [0.5, 0.3]}]}
+        self._sai = sai
+        cq, logs = self.chay_voi(g, {"? 1": sai, "? 2": sai, "Nuoc1 1": sai})  # Nuoc1 1: mốc sai → phải dò lại
+        self.assertEqual(len(g.vao), 8)
+        self.kiem_tra_quet(g)
+        khoa = list(cq["ai_tu_dong"])
+        self.assertFalse(any(k.startswith("? ") for k in khoa), khoa)
+        self.assertEqual(len({k.rsplit(" ", 1)[0] for k in khoa}), 2, khoa)  # 2 nước khác khoá nhau
+
+    def chay_voi(self, g, ai_tu_dong):
+        goc = TestVuotAi.chay
+
+        def chay(self2, g2, thu_tu):
+            return goc(self2, g2, thu_tu)
+        with open(os.path.join(GOC, "config.json"), encoding="utf-8") as f:
+            cfg = copy.deepcopy(json.load(f))
+        cq = cfg["can_quet"]
+        cq.update({"tu_dong_vuot_ai": True, "qua_ai": True, "tu_dong_tham_hiem": True, "kieu_quet": 5,
+                   "bo_qua_the_luc": True, "ai_tu_dong": copy.deepcopy(ai_tu_dong), "xong_tu_dong": {},
+                   "thu_tu": "xuoi", "hinh_nuoc": []})
+        tmp = tempfile.mkdtemp()
+        try:
+            for f in os.listdir(os.path.join(GOC, "mau")):
+                p = os.path.join(GOC, "mau", f)
+                if os.path.isfile(p):
+                    shutil.copy(p, tmp)
+            q = queue.Queue()
+            b = NhanhVuotAi(g, cfg, Templates(tmp), q.put)
+            b.start()
+            b.join(900)
+            self.assertFalse(b.is_alive())
+            logs = [m[2] for m in list(q.queue) if m[0] == "log"]
+            print("\n  " + "\n  ".join(l for l in logs if "══" in l or "Nuoc" in l or "xoá" in l))
+            return cq, logs
+        finally:
+            shutil.rmtree(tmp)
+
+    test_di_xuoi = None
+    test_di_nguoc = None
 
 
 if __name__ == "__main__":

@@ -77,6 +77,10 @@ class MayBam(threading.Thread):
                 break
 
 
+class MatViTri(StopBot):
+    """Không định vị được bản đồ nhiều lần liền (mốc đã lưu không khớp) → chế độ vượt ải sẽ dò lại ải."""
+
+
 class XongKhu(StopBot):
     """Mọi khu của bản đồ hiện tại đã quét xong (chế độ qua ải sẽ sang ải kế)."""
 
@@ -764,7 +768,12 @@ class SweepBot(BanDoMixin, Bot):
             elif self.ds_moc():
                 s = self.dinh_vi(s)  # tìm mốc trên màn hình: biết chính xác đang ở đâu
                 if not self.cam_ok:
+                    self.mat_vi_tri = getattr(self, "mat_vi_tri", 0) + 1
+                    if self.mat_vi_tri >= 3 and getattr(self, "ai_dang", None) is not None:
+                        self.mat_vi_tri = 0
+                        raise MatViTri
                     return None
+                self.mat_vi_tri = 0
             elif not self.cam_ok:
                 self.log("  Vuốt về góc bản đồ để lấy mốc...")
                 s = self.ve_goc()

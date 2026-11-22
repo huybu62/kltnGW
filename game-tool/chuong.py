@@ -19,7 +19,7 @@ from bot import StopBot
 from chuong_ocr import doc_man_chuong
 from discover import DiscoverBot
 from ocr import co_ocr, gon
-from sweep import SweepBot, XongKhu
+from sweep import MatViTri, SweepBot, XongKhu
 
 
 class ChuongBot(DiscoverBot):
@@ -279,6 +279,13 @@ class ChuongBot(DiscoverBot):
         self.log(f"  Bắt đầu từ nước: {nuoc}")
 
     def loop_tu_dong(self):
+        # dọn dữ liệu lỗi của bản cũ: các ải lưu dưới tên nước "?" (đọc hỏng tên nước, dùng chung khoá)
+        cu = [k for k in self.cq.get("ai_tu_dong", {}) if k.startswith("? ")]
+        for k in cu:
+            del self.cq["ai_tu_dong"][k]
+        if cu:
+            self.log(f"  Đã xoá {len(cu)} ải lưu lỗi (tên nước '?') → sẽ dò lại đúng")
+            self.emit(("luu_cfg",))
         if self.nguoc():
             self.toi_nuoc_cuoi()
         xong = self.ds_xong()
@@ -297,7 +304,7 @@ class ChuongBot(DiscoverBot):
                 self.sleep(2.0)
                 continue
             doc_hong = 0
-            nuoc = nuoc or "?"
+            nuoc = self.ten_nuoc(s, nuoc)
             if self.nguoc():
                 ds = sorted(ds, reverse=True)  # ải 4 → 1
             con = [a for a in ds if f"{nuoc} {a[0]}" not in xong and f"{nuoc} {a[0]}" not in da_thu]
@@ -325,6 +332,13 @@ class ChuongBot(DiscoverBot):
             data = self.cq.setdefault("ai_tu_dong", {}).setdefault(key, {"ten": key})
             self.ai_dang = data
             self.reset_khu()
+            if data.get("khu") and data.get("moc") and self.cq.get("cuon_map", True):
+                # dữ liệu đã lưu phải khớp bản đồ này (tìm thấy mốc), không thì dò lại
+                s = self.dinh_vi(self.shot())
+                if not self.cam_ok:
+                    self.log("  Mốc đã lưu không khớp bản đồ ải này → xoá và dò lại")
+                    data["khu"], data["moc"] = [], []
+                    self.reset_khu()
             if not data.get("khu") or (self.cq.get("cuon_map", True) and not data.get("moc")):
                 self.log("  Ải này chưa dò khu → dò trước (chỉ một lần, sau đó nhớ luôn)")
                 data["khu"] = self.do_ca_ban_do(tien_to=re.sub(r"[^a-z0-9]+", "_", gon(key)) + "_")
@@ -336,6 +350,14 @@ class ChuongBot(DiscoverBot):
                     SweepBot.loop(self)
                 except XongKhu:
                     pass
+                except MatViTri:
+                    self.log("  Mất vị trí bản đồ nhiều lần → xoá khu đã lưu, dò lại ải này")
+                    data["khu"], data["moc"] = [], []
+                    self.emit(("luu_cfg",))
+                    da_thu.discard(key)
+                    self.ai_dang = None
+                    self.ra_chuong()
+                    continue
                 else:
                     return  # dừng vì đủ số lần đặt, hoặc gặp màn lạ quá lâu
             else:
@@ -344,3 +366,25 @@ class ChuongBot(DiscoverBot):
             xong.add(key)
             self.ai_dang = None
             self.ra_chuong()
+
+    def ten_nuoc(self, s, nuoc_doc):
+        """Tên nước dùng làm khoá lưu dữ liệu. Đọc chữ hỏng thì nhận theo HÌNH dải tiêu đề (so với các
+        nước đã gặp), để không bao giờ dùng chung một khoá "?" cho nhiều nước."""
+        import cv2
+        gx, gy, gw, gh = self.templates.vung(s)
+        dai = s[gy:gy + int(0.15 * gh), gx + int(0.45 * gw):gx + int(0.72 * gw)]
+        g = cv2.resize(cv2.cvtColor(dai, cv2.COLOR_BGR2GRAY), (32, 8), interpolation=cv2.INTER_AREA)
+        bit = "".join("1" if v > g.mean() else "0" for v in g.flatten())
+        ds = self.cq.setdefault("hinh_nuoc", [])  # [[bit, tên]]
+        gan = min(ds, key=lambda d: sum(a != b for a, b in zip(d[0], bit)), default=None)
+        khop = gan is not None and sum(a != b for a, b in zip(gan[0], bit)) <= 24
+        if nuoc_doc and len(gon(nuoc_doc)) >= 3:
+            if not khop:
+                ds.append([bit, nuoc_doc])
+            return gan[1] if khop else nuoc_doc
+        if khop:
+            return gan[1]
+        ten = f"Nuoc{len(ds) + 1}"
+        ds.append([bit, ten])
+        self.log(f"  Không đọc được tên nước → tạm gọi là {ten}")
+        return ten
