@@ -563,11 +563,14 @@ class SweepBot(BanDoMixin, Bot):
         nut = next((c for c in ds if "quetlai" in gon(c.text)), None)
         if nut is None:
             return False
-        for c in ds:  # màn này có thể hiện "Số lần: N/99"
-            n_con = so_trong(c.text, r"(\d+)\s*/\s*\d+")
-            if n_con is not None:
-                self.con_lai[khu["ten"]] = n_con
-                break
+        # "Số lần: N/99" (không lấy nhầm thanh EXP "6265/9840" ở trên cùng): ưu tiên dòng có chữ "số lần",
+        # không thì con số dạng N/M gần ngay dưới nút "Quét lại"
+        ung_vien = [c for c in ds if so_trong(c.text, r"(\d+)\s*/\s*\d+") is not None]
+        dong_so_lan = next((c for c in ung_vien if "solan" in gon(c.text)), None) or min(
+            (c for c in ung_vien if 0 < c.y - nut.y < 250 and abs(c.x - nut.x) < 250),
+            key=lambda c: c.y - nut.y, default=None)
+        if dong_so_lan is not None:
+            self.con_lai[khu["ten"]] = so_trong(dong_so_lan.text, r"(\d+)\s*/\s*\d+")
         self.boi_xac_nhan = None  # có màn này → lần xN trước đã quét được
         n = self.boi_so(khu)
         if n > 1 and khu["ten"] not in self.boi_hong and not self.du_chi_tieu(khu):
