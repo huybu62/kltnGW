@@ -239,21 +239,48 @@ class ChuongBot(DiscoverBot):
                 self.log(f"  Chưa vào được ải (lần {lan}) → chạm lại vào toà nhà")
         return False
 
-    def sang_nuoc_sau(self, s, nuoc):
-        m = self.find(s, "cq_mui_ten_phai") if self.templates.exists("cq_mui_ten_phai") else None
+    def nguoc(self):
+        return self.cq.get("thu_tu") == "nguoc"
+
+    def sang_nuoc_sau(self, s, nuoc, im_lang=False):
+        """Sang nước kế theo thứ tự đang chọn: xuôi → mũi tên ▶, ngược → mũi tên ◀."""
+        mau = "cq_mui_ten_trai" if self.nguoc() else "cq_mui_ten_phai"
+        m = self.find(s, mau) if self.templates.exists(mau) else None
         if not m:
             return False
-        self.log(f"▶ Xong các ải của {nuoc} → bấm mũi tên xanh sang nước sau")
+        if not im_lang:
+            self.log(f"{'◀' if self.nguoc() else '▶'} Xong các ải của {nuoc} → bấm mũi tên xanh sang nước "
+                     f"{'trước' if self.nguoc() else 'sau'}")
         self.tap_match(m)
         self.sleep(2.5)
         s2 = self.shot()
         nuoc2, _ = doc_man_chuong(s2, self.templates.vung(s2))
         if not nuoc2 or gon(nuoc2) == gon(nuoc):
-            self.log("  Không sang được nước sau (đã là nước cuối hoặc chưa mở)")
+            if not im_lang:
+                self.log(f"  Không sang được nước {'trước' if self.nguoc() else 'sau'} (đã hết hoặc chưa mở)")
             return False
         return True
 
+    def toi_nuoc_cuoi(self):
+        """Đi ngược: bấm ▶ tới nước cuối cùng mở được rồi mới bắt đầu."""
+        self.log("▶▶ Đi ngược: bấm mũi tên ▶ tới nước cuối cùng...")
+        for _ in range(60):
+            s = self.ve_man_chuong()
+            nuoc, _ = doc_man_chuong(s, self.templates.vung(s))
+            m = self.find(s, "cq_mui_ten_phai") if self.templates.exists("cq_mui_ten_phai") else None
+            if not m:
+                break
+            self.tap_match(m)
+            self.sleep(2.0)
+            s2 = self.shot()
+            nuoc2, _ = doc_man_chuong(s2, self.templates.vung(s2))
+            if not nuoc2 or gon(nuoc2) == gon(nuoc):
+                break
+        self.log(f"  Bắt đầu từ nước: {nuoc}")
+
     def loop_tu_dong(self):
+        if self.nguoc():
+            self.toi_nuoc_cuoi()
         xong = self.ds_xong()
         da_thu = set()
         that_bai = {}  # ải → số lần vào hỏng
@@ -271,6 +298,8 @@ class ChuongBot(DiscoverBot):
                 continue
             doc_hong = 0
             nuoc = nuoc or "?"
+            if self.nguoc():
+                ds = sorted(ds, reverse=True)  # ải 4 → 1
             con = [a for a in ds if f"{nuoc} {a[0]}" not in xong and f"{nuoc} {a[0]}" not in da_thu]
             if not con and any(n < 2 for k, n in that_bai.items() if k.startswith(nuoc + " ")):
                 # thử lại các ải vào hỏng một lần nữa trước khi sang nước sau

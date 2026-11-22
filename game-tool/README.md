@@ -88,8 +88,13 @@ Bấm **▶ Chạy** khi đang ở **màn chương** (Singapore…) hoặc trong
    - Khu đã hết lượt thì bỏ qua ngay.
    - Khu **chưa thám hiểm** (chỉ có nút *Thám hiểm*): bấm Thám hiểm. Trong trận, cứ thấy **"Tiến lên"** thì bấm, hết trận thì bấm các nút như *Tiếp tục* / *Đóng*. Xong thì quay lại càn quét khu đó.
    - **Càn quét bằng x5**: bấm x5, rồi bấm Xác định ở bảng hỏi "Càn quét 5 lần: tốn … Xu". Còn dưới 5 lượt thì quét lẻ cho đủ. Trên màn kết quả, tool đọc "Số lần: N/99" và đóng ngay khi về 0.
-4. Hết khu thì bấm **Trở lại**, vào ải kế. Xong 4 ải thì bấm **mũi tên xanh ▶** sang nước sau.
-5. Dừng khi không sang được nước sau, hoặc hết thể lực.
+   - Sau khi quét x5, màn kết quả có nút **"Quét lại"**: tool bấm luôn nút này, rồi bấm Xác định ở bảng hỏi, lặp lại ngay trên màn đó mà không đóng ra mở lại popup. Khi còn ít hơn 5 lượt thì đóng màn này và quét lẻ phần còn lại.
+4. Vào ải bằng cách **chạm vào toà nhà phía trên nhãn chữ** (chạm vào chữ thì game không vào). Ải chưa có nhân vật đứng thì lần chạm đầu nhân vật mới đi tới, tool tự chạm lại.
+5. Hết khu thì bấm **Trở lại**, vào ải kế. Xong 4 ải thì bấm **mũi tên xanh** sang nước kế.
+   - **Thứ tự** (chọn trên overlay):
+     - *Nước đầu → cuối*: ải 1→4, bấm ▶.
+     - *Nước cuối → đầu*: tool bấm ▶ tới nước cuối mở được, rồi đi ải 4→1, bấm ◀ về nước trước.
+6. Dừng khi không sang được nước kế, hoặc hết thể lực.
 
 Các ải đã xong trong ngày được ghi lại (dấu ✔ trên overlay) để lần chạy sau không vào lại. Muốn quét lại thì bấm **"Quét lại các ải đã xong hôm nay"**. Muốn dò lại khu của một ải thì bấm **Dò lại** ở ải đó.
 

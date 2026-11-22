@@ -133,8 +133,13 @@ class App:
         h8 = ttk.Frame(self.f_cq)
         h8.pack(fill="x", pady=(3, 0))
         self.v_tu_dong = tk.BooleanVar(value=True)
-        ttk.Checkbutton(h8, text="Tự động vượt ải: đọc chữ, đi hết 4 ải rồi bấm ▶ sang nước sau",
-                        variable=self.v_tu_dong, command=self.doi_qua_ai).pack(side="left")
+        ttk.Checkbutton(h8, text="Tự động vượt ải (đọc chữ)", variable=self.v_tu_dong,
+                        command=self.doi_qua_ai).pack(side="left")
+        ttk.Label(h8, text="  Thứ tự:").pack(side="left")
+        self.THU_TU = {"Nước đầu → cuối (ải 1→4, ▶)": "xuoi", "Nước cuối → đầu (ải 4→1, ◀)": "nguoc"}
+        self.cb_thu_tu = ttk.Combobox(h8, values=list(self.THU_TU), state="readonly", width=26)
+        self.cb_thu_tu.pack(side="left", padx=4)
+        self.cb_thu_tu.bind("<<ComboboxSelected>>", lambda _e: self.luu_cq())
         h9 = ttk.Frame(self.f_cq)
         h9.pack(fill="x", pady=(3, 0))
         self.v_tham_hiem = tk.BooleanVar(value=True)
@@ -212,6 +217,8 @@ class App:
         self.v_cuon.set(cq.get("cuon_map", True))
         self.v_qua_ai.set(cq.get("qua_ai", True))
         self.v_tu_dong.set(cq.get("tu_dong_vuot_ai", True))
+        tt = cq.get("thu_tu", "xuoi")
+        self.cb_thu_tu.set(next((t for t, v in self.THU_TU.items() if v == tt), list(self.THU_TU)[0]))
         self.v_tham_hiem.set(cq.get("tu_dong_tham_hiem", True))
         self.v_bo_tl.set(cq.get("bo_qua_the_luc", False))
         kieu = int(cq.get("kieu_quet", 1) or 1)
@@ -358,6 +365,7 @@ class App:
         cq["bo_qua_the_luc"] = bool(self.v_bo_tl.get())
         cq["kieu_quet"] = self.KIEU.get(self.cb_kieu.get(), 1)
         cq["tu_dong_tham_hiem"] = bool(self.v_tham_hiem.get())
+        cq["thu_tu"] = self.THU_TU.get(self.cb_thu_tu.get(), "xuoi")
         self.save_config()
 
     def toggle_rule(self, rule, var):
