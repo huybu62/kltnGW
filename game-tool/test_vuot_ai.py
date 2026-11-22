@@ -50,6 +50,7 @@ class FakeVuotAi:
         self.da_quet = []  # (nước, ải, khu) mỗi lượt quét
         self.vao = []
         self.so_tien_len = 0
+        self.dung_o = 2  # ải nhân vật đang đứng: ải khác phải chạm 2 lần (lần 1 nhân vật đi tới)
 
     # ---------- hình ----------
     def screenshot(self):
@@ -96,9 +97,13 @@ class FakeVuotAi:
         if self.man == "chuong":
             if MUI_TEN[0] <= x <= MUI_TEN[2] and MUI_TEN[1] <= y <= MUI_TEN[3]:
                 self.i_nuoc = min(self.i_nuoc + 1, len(self.nuoc) - 1)
+                self.dung_o = 1
                 return
             for so, (cx, cy) in NHAN.items():
                 if abs(x - cx) < 90 and abs(y - cy) < 18 and so in self.nuoc[self.i_nuoc][1]:
+                    if self.dung_o != so:
+                        self.dung_o = so  # nhân vật đi tới ải này, chưa vào
+                        return
                     self.man, self.ai = "ban_do", so
                     self.vao.append((self.nuoc[self.i_nuoc][0], so))
             return

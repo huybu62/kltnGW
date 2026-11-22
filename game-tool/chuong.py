@@ -205,12 +205,33 @@ class ChuongBot(DiscoverBot):
         raise StopBot
 
     def vao_ai_xy(self, x, y):
-        self.tap(x, y)
-        for _ in range(15):
-            self.sleep(1.0)
-            if self.la_ban_do(self.shot()):
-                self.sleep(0.5)
-                return True
+        """Chạm nhãn ải. Ải chưa có nhân vật đứng: chạm lần 1 thì nhân vật đi tới, chạm lần 2 mới vào
+        → vẫn ở màn chương sau ~3 giây thì chạm lại (tối đa 3 lần)."""
+        from ocr import doc
+        for lan in range(1, 4):
+            self.tap(x, y)
+            o_chuong = 0
+            for _ in range(10):
+                self.sleep(1.0)
+                s = self.shot()
+                if self.la_ban_do(s):
+                    self.sleep(0.5)
+                    return True
+                if self.la_chuong(s):
+                    o_chuong += 1
+                    if o_chuong >= 3:
+                        break  # chưa vào → chạm lại
+                    continue
+                # bảng trung gian (thông tin ải...) → bấm nút vào nếu có
+                ds = doc(s)
+                nguy_hiem = any(k in gon(c.text) for c in ds for k in ("mua", "nap", "kimcuong"))
+                nut = None if nguy_hiem else next(
+                    (c for c in ds if gon(c.text) in ("vao", "vaoai", "batdau", "tieptuc", "dichuyen")), None)
+                if nut:
+                    self.log(f"  Bấm '{nut.text.strip()}'")
+                    self.tap(nut.x, nut.y)
+            if lan < 3:
+                self.log(f"  Chưa vào được ải (lần {lan}) → chạm lại")
         return False
 
     def sang_nuoc_sau(self, s, nuoc):
@@ -230,6 +251,7 @@ class ChuongBot(DiscoverBot):
     def loop_tu_dong(self):
         xong = self.ds_xong()
         da_thu = set()
+        that_bai = {}  # ải → số lần vào hỏng
         doc_hong = 0
         while True:
             s = self.ve_man_chuong()
@@ -245,6 +267,12 @@ class ChuongBot(DiscoverBot):
             doc_hong = 0
             nuoc = nuoc or "?"
             con = [a for a in ds if f"{nuoc} {a[0]}" not in xong and f"{nuoc} {a[0]}" not in da_thu]
+            if not con and any(n < 2 for k, n in that_bai.items() if k.startswith(nuoc + " ")):
+                # thử lại các ải vào hỏng một lần nữa trước khi sang nước sau
+                for k, n in that_bai.items():
+                    if k.startswith(nuoc + " ") and n < 2:
+                        da_thu.discard(k)
+                con = [a for a in ds if f"{nuoc} {a[0]}" not in xong and f"{nuoc} {a[0]}" not in da_thu]
             if not con:
                 if not self.sang_nuoc_sau(s, nuoc):
                     self.log("✔ Đã đi hết các ải các nước mở được")
@@ -256,8 +284,9 @@ class ChuongBot(DiscoverBot):
             self.log(f"══ {nuoc} – ải {so}: {nhan} ══")
             self.ai_vi_tri = (x, y)
             if not self.vao_ai_xy(x, y):
+                that_bai[key] = that_bai.get(key, 0) + 1
                 self.luu_anh_loi(self.shot(), f"không vào được ải {key}")
-                self.log(f"  Không vào được ải {key} (chưa mở?) → bỏ qua")
+                self.log(f"  Không vào được ải {key} (chưa mở?) → " + ("thử lại sau" if that_bai[key] < 2 else "bỏ qua"))
                 continue
             data = self.cq.setdefault("ai_tu_dong", {}).setdefault(key, {"ten": key})
             self.ai_dang = data
