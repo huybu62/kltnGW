@@ -72,7 +72,12 @@ class FakeVuotAi:
             img = self.anh[self.ten_nuoc].copy()
             if self.che_ten:
                 cv2.rectangle(img, (650, 10), (880, 55), (180, 110, 40), -1)
-                cv2.line(img, (660, 20), (870, 48), (40, 200, 230), 3)
+                # mỗi nước một hình khác nhau (như tên nước khác nhau), nhưng không đọc ra chữ
+                if self.i_nuoc == 0:
+                    cv2.line(img, (660, 20), (870, 48), (40, 200, 230), 3)
+                else:
+                    cv2.circle(img, (700, 32), 14, (40, 200, 230), -1)
+                    cv2.rectangle(img, (760, 18), (860, 46), (230, 230, 230), -1)
             return img
         if self.man == "ban_do":
             img = self.ban_do.copy()

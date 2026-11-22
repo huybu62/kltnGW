@@ -5,6 +5,7 @@ Nhãn ải hay bị đọc thiếu chữ số đầu (dính viền khung) hoặc
 - nhãn đọc được chữ mà không có số (bị che) thì gán số còn thiếu trong 1..4.
 """
 import re
+from difflib import SequenceMatcher
 
 from ocr import chuan_hoa, doc, gon
 
@@ -28,6 +29,9 @@ def doc_man_chuong(s, vung):
         if fx < 0.27 or fy < 0.16 or c.diem < 0.5:  # cột thẻ Ải bên trái, thanh trên
             continue
         if any(k in g for k in _GIAO_DIEN) or len(re.sub(r"[^a-z]", "", g)) < 3:
+            continue
+        # dòng vàng "Hoàn toàn thu hồi" phía trên nhãn hay bị đọc sai ("Hon tonuhai", "Hoantoantnuhot")
+        if SequenceMatcher(None, re.sub(r"[^a-z]", "", g), "hoantoanthuhoi").ratio() >= 0.6:
             continue
         t = chuan_hoa(c.text)
         m = re.match(r"^\s*(?:\d\s*)?[-–—]\s*(\d)", t) or re.match(r"^\s*(\d)\s*[-–—]?\s*[a-z]", t) \

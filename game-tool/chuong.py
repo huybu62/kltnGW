@@ -255,6 +255,7 @@ class ChuongBot(DiscoverBot):
         self.sleep(2.5)
         s2 = self.shot()
         nuoc2, _ = doc_man_chuong(s2, self.templates.vung(s2))
+        nuoc2 = self.ten_nuoc(s2, nuoc2)  # đọc chữ hỏng thì nhận theo hình dải tiêu đề
         if not nuoc2 or gon(nuoc2) == gon(nuoc):
             if not im_lang:
                 self.log(f"  Không sang được nước {'trước' if self.nguoc() else 'sau'} (đã hết hoặc chưa mở)")
@@ -274,7 +275,8 @@ class ChuongBot(DiscoverBot):
             self.sleep(2.0)
             s2 = self.shot()
             nuoc2, _ = doc_man_chuong(s2, self.templates.vung(s2))
-            if not nuoc2 or gon(nuoc2) == gon(nuoc):
+            nuoc2 = self.ten_nuoc(s2, nuoc2)
+            if not nuoc2 or gon(nuoc2) == gon(self.ten_nuoc(s, nuoc)):
                 break
         self.log(f"  Bắt đầu từ nước: {nuoc}")
 
