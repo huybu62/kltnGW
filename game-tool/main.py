@@ -51,6 +51,7 @@ class App:
         root.bind("<F12>", lambda _e: self.stop_all())
         self.hotkey_toan_cuc()
         root.after(150, self.poll)
+        threading.Thread(target=self.kiem_tra_ocr, daemon=True).start()
         if self.adb:
             self.log("", f"ADB: {self.adb.path}")
             self.refresh(tim_them=True)
@@ -129,6 +130,18 @@ class App:
         self.v_qua_ai = tk.BooleanVar(value=True)
         ttk.Checkbutton(h5, text="Hết khu thì Trở lại, sang ải kế (1-1 → 1-2 → …)", variable=self.v_qua_ai,
                         command=self.doi_qua_ai).pack(side="left")
+        h8 = ttk.Frame(self.f_cq)
+        h8.pack(fill="x", pady=(3, 0))
+        self.v_tu_dong = tk.BooleanVar(value=True)
+        ttk.Checkbutton(h8, text="Tự động vượt ải: đọc chữ, đi hết 4 ải rồi bấm ▶ sang nước sau",
+                        variable=self.v_tu_dong, command=self.doi_qua_ai).pack(side="left")
+        h9 = ttk.Frame(self.f_cq)
+        h9.pack(fill="x", pady=(3, 0))
+        self.v_tham_hiem = tk.BooleanVar(value=True)
+        ttk.Checkbutton(h9, text="Tự thám hiểm khu chưa mở (đánh trận, bấm 'Tiến lên')",
+                        variable=self.v_tham_hiem, command=self.luu_cq).pack(side="left")
+        self.lbl_ocr = ttk.Label(h9, text="", foreground="#888")
+        self.lbl_ocr.pack(side="right")
         h7 = ttk.Frame(self.f_cq)
         h7.pack(fill="x", pady=(3, 0))
         ttk.Label(h7, text="Kiểu quét:").pack(side="left")
@@ -198,11 +211,32 @@ class App:
         self.e_nhip.set(cq.get("nhip_lan_nua", 0.35))
         self.v_cuon.set(cq.get("cuon_map", True))
         self.v_qua_ai.set(cq.get("qua_ai", True))
+        self.v_tu_dong.set(cq.get("tu_dong_vuot_ai", True))
+        self.v_tham_hiem.set(cq.get("tu_dong_tham_hiem", True))
         self.v_bo_tl.set(cq.get("bo_qua_the_luc", False))
         kieu = int(cq.get("kieu_quet", 1) or 1)
         self.cb_kieu.set(next((t for t, v in self.KIEU.items() if v == kieu), list(self.KIEU)[0]))
         for w in self.f_khu.winfo_children():
             w.destroy()
+        if cq.get("qua_ai", True) and cq.get("tu_dong_vuot_ai", True):
+            self.btn_do.pack_forget()
+            self.lbl_ds.config(text="Các ải đã đi qua (tool tự tìm ải trên màn chương):")
+            xong = cq.get("xong_tu_dong") or {}
+            xong = set(xong.get("ds", [])) if xong.get("ngay") == time.strftime("%Y-%m-%d") else set()
+            ds_ai = cq.get("ai_tu_dong", {})
+            if not ds_ai:
+                ttk.Label(self.f_khu, text="(chưa có: bấm ▶ Chạy, tool tự vào ải và dò khu)", foreground="#888").pack(anchor="w")
+            for key, ai in list(ds_ai.items())[-8:]:
+                hang = ttk.Frame(self.f_khu)
+                hang.pack(fill="x")
+                ttk.Label(hang, text=f"{'✔' if key in xong else '•'} {key}  ({len(ai.get('khu') or [])} khu)").pack(side="left")
+                ttk.Button(hang, text="Dò lại", width=6, command=lambda aa=ai: self.do_lai_ai(aa)).pack(side="right")
+            if len(ds_ai) > 8:
+                ttk.Label(self.f_khu, text=f"… và {len(ds_ai) - 8} ải khác", foreground="#888").pack(anchor="w")
+            hang = ttk.Frame(self.f_khu)
+            hang.pack(fill="x", pady=(2, 0))
+            ttk.Button(hang, text="Quét lại các ải đã xong hôm nay", command=self.lam_lai_hom_nay).pack(side="left")
+            return
         if cq.get("qua_ai", True):
             self.btn_do.pack_forget()
             self.lbl_ds.config(text="Các ải (quét theo thứ tự; ải chưa dò sẽ tự dò khu lần đầu):")
@@ -280,9 +314,22 @@ class App:
             self.build_cq()
 
     def doi_qua_ai(self):
-        self.cfg.setdefault("can_quet", {})["qua_ai"] = bool(self.v_qua_ai.get())
+        cq = self.cfg.setdefault("can_quet", {})
+        cq["qua_ai"] = bool(self.v_qua_ai.get())
+        cq["tu_dong_vuot_ai"] = bool(self.v_tu_dong.get())
         self.save_config()
         self.build_cq()
+
+    def kiem_tra_ocr(self):
+        from ocr import co_ocr
+        co = co_ocr()
+        self.q.put(("ocr", co))
+
+    def lam_lai_hom_nay(self):
+        self.cfg.setdefault("can_quet", {})["xong_tu_dong"] = {}
+        self.save_config()
+        self.build_cq()
+        self.log("", "Đã xoá danh sách ải xong hôm nay: lần chạy sau tool đi lại từ ải đầu")
 
     def them_ai(self, ten, mau):
         self.cfg.setdefault("can_quet", {}).setdefault("ai", []).append({"ten": ten, "bat": True, "mau": mau, "khu": []})
@@ -310,6 +357,7 @@ class App:
         cq["cuon_map"] = bool(self.v_cuon.get())
         cq["bo_qua_the_luc"] = bool(self.v_bo_tl.get())
         cq["kieu_quet"] = self.KIEU.get(self.cb_kieu.get(), 1)
+        cq["tu_dong_tham_hiem"] = bool(self.v_tham_hiem.get())
         self.save_config()
 
     def toggle_rule(self, rule, var):
@@ -416,7 +464,7 @@ class App:
         self.luu_cq()
         if self.cfg.get("che_do", "can_quet") != "can_quet":
             lop = Bot
-        elif self.cfg.get("can_quet", {}).get("qua_ai", True):
+        elif self.cfg.get("can_quet", {}).get("qua_ai", True) or self.cfg.get("can_quet", {}).get("tu_dong_vuot_ai"):
             lop = ChuongBot
         else:
             lop = SweepBot
@@ -459,6 +507,9 @@ class App:
                     self.log(msg[1], msg[2])
                 elif kieu == "devices":
                     self.set_devices(msg[1])
+                elif kieu == "ocr":
+                    self.lbl_ocr.config(text="Đọc chữ: có ✔" if msg[1] else "Đọc chữ: CHƯA CÀI",
+                                        foreground="#1a8f3a" if msg[1] else "#c0392b")
                 elif kieu == "luu_cfg":
                     self.save_config()
                     self.build_cq()

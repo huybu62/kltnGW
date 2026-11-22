@@ -75,7 +75,8 @@ class FakeScrollGame:
             cv2.putText(img, self.mo, (400, 112), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (40, 230, 240), 2)
             return img
         img = self.anh_kq.copy()
-        cv2.putText(img, str(len(self.lich_su)), (1080, 435), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+        img[402:442, 1021:1232] = (20, 30, 30)
+        cv2.putText(img, f"So lan: {self.luot[self.mo]}/99", (1026, 434), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
         return img
 
     def quet(self):

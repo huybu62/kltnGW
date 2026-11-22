@@ -22,6 +22,7 @@ import numpy as np
 from ban_do import BanDoMixin, cat_tieu_de, giong_nhau
 from bot import Bot, StopBot
 from matcher import _doc_anh
+from ocr import co_ocr, doc, gon, so_trong
 
 # Vị trí thanh thể lực so với góc trên-trái chữ "Thể lực", tính theo điểm ảnh của mẫu gốc
 _THANH_X = (111, 406)
@@ -102,6 +103,9 @@ class SweepBot(BanDoMixin, Bot):
         self.boi_hong = set()  # khu không dùng được x5/x10 nữa (còn ít lượt / hết Xu) → quét từng lần
         self.cho_boi = None  # (khu, n, ảnh "Số lần còn lại") vừa bấm x5/x10, chờ bảng hỏi
         self.boi_xac_nhan = None  # (khu, n, ảnh "Số lần còn lại") vừa bấm Xác định
+        self.dang_danh = None  # khu đang thám hiểm (đánh trận)
+        self.danh_tu = 0.0
+        self.con_lai = {}  # khu → "Số lần còn lại" đọc được gần nhất
         self.so_lan_tam_bo = {}
         self.dang_mo_khu = None
         self.cho_popup = None  # khu vừa chạm "Càn quét" trong popup, chờ màn kết quả
@@ -168,7 +172,7 @@ class SweepBot(BanDoMixin, Bot):
                 continue
             if not la_kq:
                 self.dung_bam()  # rời hẳn màn kết quả: ngừng bấm
-            xu_ly = la_kq or self.man_popup(s) or self.man_ban_do(s) or self.man_khac(s)
+            xu_ly = la_kq or self.man_popup(s) or self.man_ban_do(s) or self.man_tran(s) or self.man_khac(s)
             now = time.time()
             if xu_ly:
                 lan_thay_cuoi = now
@@ -277,11 +281,27 @@ class SweepBot(BanDoMixin, Bot):
         if self.kq_anh is None or self.kq_anh.shape != so_lan.shape:
             self.kq_anh, self.kq_doi = so_lan, now
             self.kq_moc = da_bam
+            self.kq_con = self.doc_so_lan(s, (x0, y0, x1, y1))
+            if self.kq_con == 0:  # lượt vừa quét là lượt cuối
+                self.log(f"  {khu['ten']}: hết lượt (Số lần 0)")
+                self.het_luot.add(khu["ten"])
         elif (np.abs(self.kq_anh - so_lan).sum(axis=2) > 90).mean() >= 0.003:
-            # "Số lần" vừa đổi → các cú bấm từ lần trước đã quét được (đếm ước lượng theo số cú bấm)
+            # "Số lần" vừa đổi: có đọc chữ thì lấy đúng số còn lại, không thì ước lượng theo số cú bấm
             self.kq_anh, self.kq_doi = so_lan, now
+            con = self.doc_so_lan(s, (x0, y0, x1, y1))
+            truoc = getattr(self, "kq_con", None)
             if self.kq_da_cham:
-                self.dem(khu, max(1, da_bam - self.kq_moc))
+                if con is not None and truoc is not None and 0 <= truoc - con <= 50:
+                    self.dem(khu, truoc - con)
+                elif con is None or truoc is None:
+                    self.dem(khu, max(1, da_bam - self.kq_moc))
+            if con is not None:
+                self.kq_con = con
+                self.con_lai[khu["ten"]] = con
+                if con == 0:
+                    self.dung_bam()
+                    self.log(f"  {khu['ten']}: hết lượt (Số lần 0)")
+                    self.het_luot.add(khu["ten"])
             self.kq_moc = da_bam
         elif self.kq_da_cham and now - self.kq_doi > self.cq.get("cho_khong_doi_giay", 8):
             # bấm liên tục mà "Số lần" không đổi → khu hết lượt hoặc hết thể lực
@@ -332,8 +352,21 @@ class SweepBot(BanDoMixin, Bot):
         self.sleep(1.2)
         return True
 
+    def doc_so_lan(self, s, roi):
+        """Số lần còn lại trên màn kết quả ("Số lần: 98/99" → 98); None nếu không đọc được."""
+        if not co_ocr():
+            return None
+        x0, y0, x1, y1 = roi
+        h = y1 - y0
+        for c in doc(s, (x0 - 10, y0 - h // 3, x1 + 10, y1 + h // 3)):
+            n = so_trong(c.text, r"(\d+)\s*/\s*\d+")
+            if n is not None:
+                return n
+        return None
+
     def reset_kq(self):
         self.dung_bam()
+        self.kq_con = None
         self.kq_moc = 0
         self.kq_roi = None
         self.kq_anh = None
@@ -347,7 +380,14 @@ class SweepBot(BanDoMixin, Bot):
         khu = self.dang_mo_khu or self.khu_hien_tai()
         self.cham_khu_lien = 0
         self.reset_kq()
-        if self.dang_mo_khu is not None and self.cho_popup is None and m_x and not self.dung_khu(s, m_x, khu):
+        if self.dang_danh is not None:
+            self.log(f"  Thám hiểm xong {self.dang_danh['ten']}")
+            self.stats["tham_hiem"] += 1
+            self.dang_danh = None
+        ten_ocr, con = self.doc_popup(s, m_x) if m_x else (None, None)
+        if con is not None:
+            self.con_lai[khu["ten"]] = con
+        if self.dang_mo_khu is not None and self.cho_popup is None and m_x and not self.dung_khu(s, m_x, khu, ten_ocr):
             # bản đồ lệch so với lúc dò → mở nhầm khu khác: đóng lại, lấy mốc lại
             self.mo_nham[khu["ten"]] = self.mo_nham.get(khu["ten"], 0) + 1
             if self.mo_nham[khu["ten"]] >= 3:
@@ -371,7 +411,21 @@ class SweepBot(BanDoMixin, Bot):
                 self.the_luc = None
         if m_x and self.kiem_tra_boi(s, m_x, khu):
             return True
-        if not m_cq:
+        if con == 0 and m_cq:
+            self.log(f"  {khu['ten']}: đã hết lượt (còn 0) → sang khu khác")
+            self.het_luot.add(khu["ten"])
+        elif not m_cq and self.cq.get("tu_dong_tham_hiem") and self.templates.exists("cq_nut_tham_hiem") \
+                and self.find(s, "cq_nut_tham_hiem") and self.so_lan_tam_bo.get("tham_hiem:" + khu["ten"], 0) < 2:
+            m_th = self.find(s, "cq_nut_tham_hiem")
+            self.so_lan_tam_bo["tham_hiem:" + khu["ten"]] = self.so_lan_tam_bo.get("tham_hiem:" + khu["ten"], 0) + 1
+            self.log(f"• Thám hiểm {khu['ten']} (khu chưa mở càn quét)")
+            self.dang_mo_khu = khu
+            self.dang_danh, self.danh_tu = khu, time.time()
+            self.da_log_tien_len = False
+            self.tap_match(m_th)
+            self.sleep(2.0)
+            return True
+        elif not m_cq:
             self.log(f"  {khu['ten']}: không có nút Càn quét (chưa mở hoặc hết lượt) → sang khu khác")
             self.het_luot.add(khu["ten"])
         elif self.du_chi_tieu(khu) or not self.du_the_luc(khu):
@@ -393,6 +447,50 @@ class SweepBot(BanDoMixin, Bot):
         self.sleep(1.2)
         return True
 
+    # ---------- đọc chữ popup ----------
+    def doc_popup(self, s, m_x):
+        """(tên khu, số lần còn lại) đọc bằng OCR; (None, None) nếu không có OCR."""
+        if not co_ocr():
+            return None, None
+        k = m_x.scale
+        roi = (m_x.x - int(800 * k), m_x.y + int(20 * k), m_x.x + int(60 * k), m_x.y + int(215 * k))
+        ten = con = None
+        for c in doc(s, roi):
+            g = gon(c.text)
+            if "solan" in g or "conlai" in g:
+                con = so_trong(c.text, r"(\d+)\D*$")
+            elif ten is None and c.y < m_x.y + int(120 * k) and c.x < m_x.x - int(250 * k) and len(g) >= 3:
+                ten = c.text.strip()
+        return ten, con
+
+    # ---------- thám hiểm (đánh trận) ----------
+    def man_tran(self, s):
+        """Đang đánh trận thám hiểm: bấm "Tiến lên", hết trận thì bấm nút an toàn (Tiếp tục, Đóng...)."""
+        if self.dang_danh is None or not co_ocr():
+            return False
+        if time.time() - self.danh_tu > self.cq.get("toi_da_tran_giay", 600):
+            self.log(f"  Đánh {self.dang_danh['ten']} quá lâu → bỏ")
+            self.luu_anh_loi(s, "đánh trận quá lâu")
+            self.dang_danh = None
+            return False
+        ds = doc(s)
+        nguy_hiem = any(x in gon(c.text) for c in ds for x in ("mua", "nap", "kimcuong", "naptien"))
+        for chu in ("tienlen", "tieptuc", "boqua", "dong", "nhanthuong", "nhan", "hoanthanh", "xacnhan"):
+            if nguy_hiem and chu in ("xacnhan", "nhan"):
+                continue
+            c = next((c for c in ds if gon(c.text) == chu or (chu == "tienlen" and "tienlen" in gon(c.text))), None)
+            if c:
+                if chu != "tienlen" or not getattr(self, "da_log_tien_len", False):
+                    self.log(f"  Trận: bấm '{c.text.strip()}'")
+                    self.da_log_tien_len = chu == "tienlen"
+                self.tap(c.x, c.y)
+                self.sleep(1.0)
+                return True
+        if any("hiep" in gon(c.text) for c in ds):
+            self.sleep(1.0)  # đang đánh, chờ
+            return True
+        return False
+
     # ---------- càn quét x5 / x10 ----------
     def boi_so(self, khu):
         """Số lần mỗi lượt bấm cho khu này: 5/10 nếu chọn và còn dùng được, ngược lại 1."""
@@ -400,6 +498,8 @@ class SweepBot(BanDoMixin, Bot):
         if n <= 1 or khu["ten"] in self.boi_hong or not self.templates.exists(f"cq_nut_x{n}"):
             return 1
         con = []
+        if self.con_lai.get(khu["ten"]) is not None:
+            con.append(self.con_lai[khu["ten"]])
         if self.stop_after:
             con.append(self.stop_after - self.stats["can_quet"])
         if self.cq.get("so_lan_moi_khu", 0) > 0:
@@ -477,8 +577,11 @@ class SweepBot(BanDoMixin, Bot):
         self.sleep(1.5)
         return True
 
-    def dung_khu(self, s, m_x, khu):
-        """Popup đang mở có đúng tiêu đề khu (ảnh lưu lúc dò) không. Khu không có ảnh thì coi là đúng."""
+    def dung_khu(self, s, m_x, khu, ten_ocr=None):
+        """Popup đang mở có đúng khu không: so tên đọc được (nếu có), không thì so ảnh tiêu đề lúc dò."""
+        if ten_ocr and khu.get("ten_ocr"):
+            from difflib import SequenceMatcher
+            return SequenceMatcher(None, gon(ten_ocr), gon(khu["ten_ocr"])).ratio() >= 0.75
         ten_anh = khu.get("tieu_de")
         if not ten_anh:
             return True
@@ -494,6 +597,10 @@ class SweepBot(BanDoMixin, Bot):
         self.reset_kq()
         self.boi_xac_nhan = None  # về bản đồ sau khi xác nhận xN: coi như đã quét
         self.cho_boi = None
+        if self.dang_danh is not None:
+            self.log(f"  Đánh xong {self.dang_danh['ten']}, về bản đồ → mở lại khu để càn quét")
+            self.stats["tham_hiem"] += 1
+            self.dang_danh = None
         ti_le = None if self.cq.get("bo_qua_the_luc") else doc_thanh_the_luc(s, m)
         if self.cq.get("bo_qua_the_luc"):
             self.the_luc = None

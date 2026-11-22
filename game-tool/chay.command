@@ -22,6 +22,12 @@ if [ ! -x .venv/bin/python ]; then
   "$PY" -m venv .venv || { echo "Không tạo được môi trường Python."; dung_lai; }
 fi
 .venv/bin/python -m pip install -q --disable-pip-version-check -r requirements.txt || { echo "Cài thư viện bị lỗi (kiểm tra mạng)."; dung_lai; }
+# Bộ đọc chữ (cho chế độ tự động vượt ải). Lỗi thì tool vẫn chạy, chỉ không đọc chữ được.
+if ! .venv/bin/python -c "import rapidocr_onnxruntime" 2>/dev/null; then
+  echo "Đang cài bộ đọc chữ (lần đầu, khoảng 1 phút)..."
+  .venv/bin/python -m pip install -q --disable-pip-version-check "rapidocr_onnxruntime==1.2.3" \
+    || echo "⚠ Không cài được bộ đọc chữ: tool vẫn chạy nhưng không tự vượt ải được."
+fi
 
 # adb: dùng bản có sẵn, nếu không có thì tải platform-tools chính thức của Google
 if ! command -v adb >/dev/null 2>&1 && [ ! -x platform-tools/adb ]; then

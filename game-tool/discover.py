@@ -9,6 +9,7 @@ khu lưu theo toạ độ trên cả bản đồ (xy_map), nên lúc quét tool 
 import os
 
 from ban_do import cat_tieu_de, giong_nhau
+from ocr import gon
 from bot import StopBot
 from matcher import ghi_anh
 from sweep import SweepBot
@@ -20,7 +21,7 @@ VUNG_BO = [
     (0.00, 0.78, 0.16, 1.00),  # Điểm thu hồi
     (0.55, 0.82, 0.87, 1.00),  # Trang bị / Đồng đội / Trận hình
 ]
-BUOC_X, BUOC_Y = 0.09, 0.11
+BUOC_X, BUOC_Y = 0.11, 0.135  # toà nhà rộng ≥ 0.12 màn hình nên lưới này vẫn không sót
 TOI_DA_MAN = 40
 
 
@@ -59,15 +60,18 @@ class DiscoverBot(SweepBot):
 
     def sau_khi_cham(self):
         """Trả về ('popup', ảnh, nút X, có_càn_quét) / ('ban_do', ...) / ('la', ...)."""
-        self.sleep(0.7)
-        for lan in range(4):
+        self.sleep(0.35)
+        thay_ban_do = 0
+        for lan in range(6):
             s = self.shot()
             m_x = self.find(s, "cq_x_popup")
             if m_x and self.find(s, "cq_nut_tham_hiem"):
                 return "popup", s, m_x, bool(self.find(s, "cq_nut_can_quet"))
-            if self.la_ban_do(s) and lan >= 1:
-                return "ban_do", s, None, False
-            self.sleep(0.4)
+            if self.la_ban_do(s):
+                thay_ban_do += 1
+                if thay_ban_do >= 2:  # 2 lần liền vẫn là bản đồ → chỗ này không có khu
+                    return "ban_do", s, None, False
+            self.sleep(0.25)
         return "la", s, None, False
 
     def loop(self):
@@ -156,11 +160,17 @@ class DiscoverBot(SweepBot):
             kieu, s2, m_x, co_cq = self.sau_khi_cham()
             if kieu == "popup":
                 td = cat_tieu_de(s2, m_x)
-                cu = next((t for t in self.tim if giong_nhau(t["tieu_de"], td)), None)
+                ten_ocr, con = self.doc_popup(s2, m_x)
+                if ten_ocr:  # có đọc chữ: so theo tên khu (ảnh tiêu đề có hiệu ứng sáng nên hay lệch)
+                    cu = next((t for t in self.tim if t.get("ten_ocr") and gon(t["ten_ocr"]) == gon(ten_ocr)), None)
+                else:
+                    cu = next((t for t in self.tim if giong_nhau(t["tieu_de"], td)), None)
                 if cu is None:
-                    cu = {"tieu_de": td, "diem": [], "can_quet": co_cq}
+                    cu = {"tieu_de": td, "diem": [], "can_quet": co_cq, "ten_ocr": ten_ocr, "con": con}
                     self.tim.append(cu)
-                    self.log(f"  + Khu {len(self.tim)}" + ("" if co_cq else " (chưa có nút Càn quét)"))
+                    self.log(f"  + Khu {len(self.tim)}" + (f" {ten_ocr}" if ten_ocr else "")
+                             + (f" (còn {con})" if con is not None else "")
+                             + ("" if co_cq else " (chưa thám hiểm)"))
                 cu["diem"].append((round(ax, 4), round(ay, 4)))
                 self.tap_match(m_x)
                 self.sleep(0.8)
@@ -186,8 +196,15 @@ class DiscoverBot(SweepBot):
             ax, ay = min(ds, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cy) ** 2)  # điểm thật gần giữa nhất
             ten_anh = f"{tien_to}khu_{j}.png"
             ghi_anh(os.path.join(thu_muc, ten_anh), t["tieu_de"])
-            ten = f"Khu {j}" + ("" if t["can_quet"] else " (chưa quét được)")
-            ket_qua.append({"ten": ten, "bat": t["can_quet"], "xy_map": [ax, ay], "tieu_de": ten_anh})
+            ten = t.get("ten_ocr") or f"Khu {j}"
+            if any(k["ten"] == ten for k in ket_qua):
+                ten = f"{ten} ({j})"
+            tham_hiem = bool(self.cq.get("tu_dong_tham_hiem"))
+            khu = {"ten": ten + ("" if t["can_quet"] or tham_hiem else " (chưa thám hiểm)"),
+                   "bat": t["can_quet"] or tham_hiem, "xy_map": [ax, ay], "tieu_de": ten_anh}
+            if t.get("ten_ocr"):
+                khu["ten_ocr"] = t["ten_ocr"]
+            ket_qua.append(khu)
         thu_muc_moc = self.thu_muc_moc()
         os.makedirs(thu_muc_moc, exist_ok=True)
         for moc, anh in zip(self.moc_moi, self.anh_moc_moi):

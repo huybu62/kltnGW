@@ -78,6 +78,23 @@ Cách tool tiêu thể lực:
 - Nếu game hiện popup báo **không đủ thể lực**, bạn nên cắt mẫu đó đặt tên `cq_khong_du`. Gặp popup này tool sẽ bấm X rồi dừng, **không bao giờ bấm mua**.
 - Gặp màn lạ quá 90 giây thì tool dừng.
 
+### Tự động vượt ải (khuyên dùng)
+Tick **"Tự động vượt ải"** (bật sẵn). Chế độ này cần **bộ đọc chữ (OCR)**, được `chay.command` / `chay.bat` tự cài ở lần chạy đầu, mất khoảng 1 phút. Trên overlay có dòng **"Đọc chữ: có ✔"** là đã sẵn sàng.
+
+Bấm **▶ Chạy** khi đang ở **màn chương** (Singapore…) hoặc trong một ải. Tool sẽ:
+1. **Đọc chữ trên màn chương**: tên nước và số ải 1–4. Nhãn ải bị nhân vật che mất một phần vẫn đọc được.
+2. **Vào lần lượt ải 1 → 2 → 3 → 4**. Lần đầu vào một ải, tool **dò khu**, sau đó nhớ luôn. Tên khu là tên thật đọc từ popup, ví dụ "Ngôi đình nhỏ".
+3. Mở từng khu và **đọc "Số lần còn lại"**:
+   - Khu đã hết lượt thì bỏ qua ngay.
+   - Khu **chưa thám hiểm** (chỉ có nút *Thám hiểm*): bấm Thám hiểm. Trong trận, cứ thấy **"Tiến lên"** thì bấm, hết trận thì bấm các nút như *Tiếp tục* / *Đóng*. Xong thì quay lại càn quét khu đó.
+   - **Càn quét bằng x5**: bấm x5, rồi bấm Xác định ở bảng hỏi "Càn quét 5 lần: tốn … Xu". Còn dưới 5 lượt thì quét lẻ cho đủ. Trên màn kết quả, tool đọc "Số lần: N/99" và đóng ngay khi về 0.
+4. Hết khu thì bấm **Trở lại**, vào ải kế. Xong 4 ải thì bấm **mũi tên xanh ▶** sang nước sau.
+5. Dừng khi không sang được nước sau, hoặc hết thể lực.
+
+Các ải đã xong trong ngày được ghi lại (dấu ✔ trên overlay) để lần chạy sau không vào lại. Muốn quét lại thì bấm **"Quét lại các ải đã xong hôm nay"**. Muốn dò lại khu của một ải thì bấm **Dò lại** ở ải đó.
+
+⚠ **Tắt app auto click khác** khi chạy tool. Các nút nổi của app đó có thể che chữ và bấm chồng lên tool.
+
 ### Quét qua nhiều ải (1-1 → 1-2 → 1-3 → …)
 Tick **"Hết khu thì Trở lại, sang ải kế"** (bật sẵn). Danh sách khu trên overlay sẽ đổi thành **danh sách ải**. Chương 1 (Singapore, từ 1-1 tới 1-4) đã có sẵn mẫu nhãn ải.
 

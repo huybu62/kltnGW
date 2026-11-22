@@ -80,7 +80,11 @@
     "bo_qua_the_luc": false,
     "cho_mo_khu_giay": 6,
     "kiem_tra_moi_giay": 1.0,
-    "kieu_quet": 1
+    "kieu_quet": 5,
+    "tu_dong_vuot_ai": true,
+    "tu_dong_tham_hiem": true,
+    "ai_tu_dong": {},
+    "xong_tu_dong": {}
   },
   "mo_ta_mau": {
     "cq_the_luc": "[Càn quét] Chữ 'Thể lực' cạnh thanh thể lực trên bản đồ",

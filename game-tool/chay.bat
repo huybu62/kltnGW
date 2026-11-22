@@ -8,5 +8,6 @@ if not exist .venv (
 )
 call .venv\Scripts\activate.bat
 python -m pip install -q -r requirements.txt
+python -c "import rapidocr_onnxruntime" 2>NUL || python -m pip install -q "rapidocr_onnxruntime==1.2.3"
 python main.py
 if errorlevel 1 pause

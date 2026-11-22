@@ -58,7 +58,9 @@ class FakeGame:
             img[21:47, x0:x0 + dai] = (0, 129, 255)  # phần cam
         if self.man == "ket_qua":
             # số lần còn lại thay đổi sau mỗi lần quét
-            cv2.putText(img, str(len(self.lich_su)), (1080, 435), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+            img[402:442, 1021:1232] = (20, 30, 30)
+            cv2.putText(img, f"So lan: {self.luot.get(self.khu, 99)}/99", (1026, 434), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
+                        (0, 255, 0), 2)
         return img
 
     def quet(self):
