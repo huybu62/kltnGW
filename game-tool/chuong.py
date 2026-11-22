@@ -370,21 +370,24 @@ class ChuongBot(DiscoverBot):
             self.ra_chuong()
 
     def ten_nuoc(self, s, nuoc_doc):
-        """Tên nước dùng làm khoá lưu dữ liệu. Đọc chữ hỏng thì nhận theo HÌNH dải tiêu đề (so với các
-        nước đã gặp), để không bao giờ dùng chung một khoá "?" cho nhiều nước."""
+        """Tên nước dùng làm khoá lưu dữ liệu. Đọc được chữ thì dùng chữ; đọc hỏng thì nhận theo HÌNH vùng
+        chữ trên dải tiêu đề (so với các nước đã gặp), không bao giờ dùng chung một khoá "?"."""
         import cv2
         gx, gy, gw, gh = self.templates.vung(s)
-        dai = s[gy:gy + int(0.15 * gh), gx + int(0.45 * gw):gx + int(0.72 * gw)]
+        dai = s[gy + int(0.02 * gh):gy + int(0.12 * gh), gx + int(0.5 * gw):gx + int(0.68 * gw)]
         g = cv2.resize(cv2.cvtColor(dai, cv2.COLOR_BGR2GRAY), (32, 8), interpolation=cv2.INTER_AREA)
         bit = "".join("1" if v > g.mean() else "0" for v in g.flatten())
         ds = self.cq.setdefault("hinh_nuoc", [])  # [[bit, tên]]
-        gan = min(ds, key=lambda d: sum(a != b for a, b in zip(d[0], bit)), default=None)
-        khop = gan is not None and sum(a != b for a, b in zip(gan[0], bit)) <= 24
+
+        def lech(d):
+            return sum(a != b for a, b in zip(d[0], bit))
+
         if nuoc_doc and len(gon(nuoc_doc)) >= 3:
-            if not khop:
+            if not any(d[1] == nuoc_doc and lech(d) <= 10 for d in ds):
                 ds.append([bit, nuoc_doc])
-            return gan[1] if khop else nuoc_doc
-        if khop:
+            return nuoc_doc
+        gan = min(ds, key=lech, default=None)
+        if gan is not None and lech(gan) <= 10:
             return gan[1]
         ten = f"Nuoc{len(ds) + 1}"
         ds.append([bit, ten])
