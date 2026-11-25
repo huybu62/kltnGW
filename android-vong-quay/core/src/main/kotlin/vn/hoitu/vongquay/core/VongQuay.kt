@@ -32,7 +32,7 @@ class VongQuay(
     private val cd: CaiDat,
     private val mauX1: Anh,
     private val mau: Map<Loai, MauMon>,
-    private val choKetQuaMs: Long = 5000,
+    private val choKetQuaMs: Long = 8000,
     private val choManMs: Long = 60000,
     private val choTaoMoiMs: Long = 3000,
 ) {
@@ -45,9 +45,6 @@ class VongQuay(
     private fun ngu(ms: Long) { if (!dung) tb.ngu(ms) }
 
     private fun chamTrong(a: Anh) { val (x, y) = NhanDien.choTrong(a); tb.cham(x, y) }
-
-    /** Độ sáng trung bình (để nhận ra danh sách quà làm tối màn hình). */
-    private fun sang(a: Anh): Float = Anh.trungBinh(a.doiCo(64, 36).xam())
 
     /** Chờ tới khi thấy màn vòng quay; nếu [chamTat] thì chạm chỗ trống liên tục trong lúc chờ (tắt danh sách quà). */
     private fun choVong(chamTat: Boolean, han: Long = choManMs): Pair<Anh, Neo>? {
@@ -64,19 +61,54 @@ class VongQuay(
         return null
     }
 
-    /**
-     * Sau khi bấm x10: chạm chỗ trống liên tục để bỏ hoạt ảnh quay, tới khi danh sách quà hiện
-     * (không thấy vòng quay, hoặc màn hình tối hẳn đi). Trả về false nếu bấm chưa ăn.
-     */
-    private fun choQuayXong(sangTruoc: Float): Boolean {
+    /** Như [choVong] nhưng đợi màn vòng quay đứng yên (2 khung liền nhau cùng số điểm, không còn hiệu ứng che). */
+    private fun choVongYen(chamTat: Boolean): Pair<Anh, Neo>? {
+        var cu: FloatArray? = null
         var t = 0L
+        while (!dung && t < choManMs) {
+            val m = choVong(chamTat) ?: return null
+            val d = NhanDien.vungDiem(m.first, m.second)
+            val c = cu
+            if (c != null && !NhanDien.diemKhac(d, c)) return m
+            cu = d
+            ngu(nhip); t += nhip
+        }
+        return null
+    }
+
+    /**
+     * Sau khi bấm x10: chạm chỗ trống liên tục để bỏ hoạt ảnh quay và tắt danh sách quà.
+     * CHỈ tính là đã quay khi số "Điểm hiện tại" đổi so với lúc bấm (điểm chỉ tăng khi quay thật),
+     * và màn vòng quay đã đứng yên trở lại. Trả về false nếu bấm chưa ăn (điểm không đổi).
+     */
+    private fun choQuayXong(diemTruoc: FloatArray): Boolean {
+        var t = 0L
+        var thayDanhSach = false
+        var doi = false
+        var cu: FloatArray? = null
         while (!dung && t < choKetQuaMs) {
             ngu(nhip); t += nhip
             val a = tb.chup() ?: continue
-            if (NhanDien.timVong(a, mauX1) == null || sang(a) < sangTruoc * 0.8f) return true
-            chamTrong(a)
+            val neo = NhanDien.timVong(a, mauX1)
+            if (neo == null) { thayDanhSach = true; cu = null; chamTrong(a); continue }
+            val d = NhanDien.vungDiem(a, neo)
+            if (NhanDien.diemKhac(d, diemTruoc)) {
+                doi = true
+                val c = cu
+                if (thayDanhSach && c != null && !NhanDien.diemKhac(d, c)) return true
+                cu = d
+                if (!thayDanhSach) chamTrong(a) // điểm đã đổi nhưng chưa hiện danh sách quà: đang quay → bỏ hoạt ảnh
+            } else {
+                cu = null
+                chamTrong(a) // chưa đổi: đang quay (hoặc bấm chưa ăn) → chạm bỏ hoạt ảnh
+            }
         }
-        return false
+        if (!doi && thayDanhSach && !dung) {
+            // đã thấy danh sách quà mà điểm không đổi: không chắc → dừng cho an toàn, không đoán
+            tb.log("⛔ Thấy danh sách quà nhưng Điểm hiện tại không đổi → dừng, hãy kiểm tra bộ đếm")
+            dung = true
+        }
+        return doi
     }
 
     /** "Chữ ký" các ô trên vòng quay để biết Tạo mới đã đổi món chưa. */
@@ -131,7 +163,7 @@ class VongQuay(
         tb.log("🎡 Bắt đầu: đã bấm x10 ${cd.dem}/${cd.moc}")
         var luiLai = 0
         while (!dung) {
-            val vong = choVong(chamTat = daBam > 0) ?: run {
+            val vong = choVongYen(chamTat = daBam > 0) ?: run {
                 if (!dung) tb.log("⛔ Không thấy màn Vòng quay liên server → dừng")
                 return
             }
@@ -143,13 +175,13 @@ class VongQuay(
                 val sau = taoMoiToiKhiCoMon(vong) ?: return
                 a = sau.first; neo = sau.second
             }
-            val sangTruoc = sang(a)
+            val diemTruoc = NhanDien.vungDiem(a, neo)
             val (x, y) = neo.ra(NhanDien.NUT_X10.first, NhanDien.NUT_X10.second)
             tb.cham(x, y)
-            if (!choQuayXong(sangTruoc)) {
+            if (!choQuayXong(diemTruoc)) {
                 if (dung) return
                 luiLai++
-                tb.log("  Bấm chưa ăn → bấm lại")
+                tb.log("  Điểm chưa đổi (bấm chưa ăn) → bấm lại, không tính")
                 if (luiLai >= 5) { tb.log("⛔ Bấm 5 lần không ăn → dừng"); return }
                 continue
             }

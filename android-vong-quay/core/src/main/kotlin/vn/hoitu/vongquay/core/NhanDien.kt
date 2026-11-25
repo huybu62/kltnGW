@@ -112,6 +112,18 @@ object NhanDien {
         KetQuaO(ten, tot, dm, dh)
     }
 
+    /** Vùng số "Điểm hiện tại" (chỉ tăng khi quay thật) – dùng để biết lần bấm x10 đã ăn chưa. */
+    val VUNG_DIEM = floatArrayOf(450f, 700f, 680f, 760f)
+
+    fun vungDiem(a: Anh, neo: Neo): FloatArray {
+        val (x0, y0) = neo.ra(VUNG_DIEM[0], VUNG_DIEM[1])
+        val (x1, y1) = neo.ra(VUNG_DIEM[2], VUNG_DIEM[3])
+        return a.cat(x0.toInt(), y0.toInt(), x1.toInt(), y1.toInt()).doiCo(90, 20).xam()
+    }
+
+    /** Số điểm đã đổi chưa (so số điểm ảnh khác hẳn nhau; 1 chữ số đổi ≈ 20–60 điểm ảnh). */
+    fun diemKhac(a: FloatArray, b: FloatArray): Boolean = a.indices.count { kotlin.math.abs(a[it] - b[it]) > 50f } >= 8
+
     /** Cắt ảnh một ô (cũng dùng để người chơi chọn làm mẫu). */
     fun catO(a: Anh, neo: Neo, ten: String): Anh {
         val (x, y) = O.getValue(ten)

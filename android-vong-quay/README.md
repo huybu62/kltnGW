@@ -3,7 +3,8 @@
 App Android **chạy độc lập** (không cần máy tính) để tự quay **Vòng quay liên server**. Chạy được trên **BlueStacks** và **điện thoại Android 7 trở lên**.
 
 ## App làm gì
-- Bấm **"Khởi động 10 lần"** liên tục. Mỗi lần bấm, bộ đếm +1.
+- Bấm **"Khởi động 10 lần"** liên tục. App **chỉ cộng 1 vào bộ đếm khi số "Điểm hiện tại" đổi**: điểm chỉ tăng khi quay thật, nên bấm hụt hay màn hình nháy đều không bị đếm. Đừng để nút nổi che ô Điểm hiện tại.
+- Nếu đã thấy danh sách quà mà điểm không đổi, app **dừng lại** để bạn kiểm tra bộ đếm, không đoán.
 - Bấm xong, app **chạm chỗ trống liên tục như auto click** để bỏ hoạt ảnh quay và tắt danh sách quà. App không chạm vào vật phẩm.
 - Tốc độ chạm chỉnh ở ô *Nghỉ giữa 2 lần chạm* (mặc định 80 ms). Nếu app đếm sai trên máy yếu, tăng lên 150.
 - Tới **lần bấm thứ 73** (mốc, sửa được): app bấm **"Tạo mới"** cho tới khi vòng quay có món hạn định thật bạn đã chọn, rồi mới bấm x10. Sau đó bộ đếm về **0**.
