@@ -4,7 +4,8 @@ App Android **chạy độc lập** (không cần máy tính) để tự quay **
 
 ## App làm gì
 - Bấm **"Khởi động 10 lần"** liên tục. Mỗi lần bấm, bộ đếm +1.
-- Quay xong, game hiện danh sách quà. App **chạm vào chỗ trống** để tắt, không chạm vào vật phẩm.
+- Bấm xong, app **chạm chỗ trống liên tục như auto click** để bỏ hoạt ảnh quay và tắt danh sách quà. App không chạm vào vật phẩm.
+- Tốc độ chạm chỉnh ở ô *Nghỉ giữa 2 lần chạm* (mặc định 80 ms). Nếu app đếm sai trên máy yếu, tăng lên 150.
 - Tới **lần bấm thứ 73** (mốc, sửa được): app bấm **"Tạo mới"** cho tới khi vòng quay có món hạn định thật bạn đã chọn, rồi mới bấm x10. Sau đó bộ đếm về **0**.
   - 3 món thật: **Phiếu Hủy Diệt** (rương vàng nền đỏ), **Đá vận mệnh** (rương vàng), **Tướng hạn định** (hiện là Vegeta).
   - Các tướng khác có nhãn "Hạn định" là món **giả**, app không tính.
@@ -29,6 +30,7 @@ App Android **chạy độc lập** (không cần máy tính) để tự quay **
 4. **Tắt các app auto click khác** khi chạy. Vòng tròn hay nút nổi của chúng có thể che nút và làm app nhận diện sai.
 
 ## Lưu ý
+- **Android 13+ báo "Restricted setting" khi bật Trợ năng:** vào Cài đặt → Ứng dụng → Vòng Quay Auto → dấu ⋮ → *Allow restricted settings*, rồi bật Trợ năng lại.
 - Nếu cài bản mới mà báo lỗi chữ ký, gỡ bản cũ rồi cài lại. Khi đó bộ đếm sẽ mất, bạn nhập lại.
 - App tìm vòng quay nhờ nút **"Khởi động-1 lần"**. Nếu game đổi giao diện màn này, app sẽ báo *Không thấy màn Vòng quay*.
 

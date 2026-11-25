@@ -41,7 +41,7 @@ object NhanDien {
     val X1 = Pair(684f, 920f)
     val NUT_X10 = Pair(1163f, 962f)
     val NUT_TAO_MOI = Pair(996f, 582f)
-    val CHO_TRONG = Pair(1700f, 1072f) // chỗ trống để chạm tắt danh sách quà
+    val CHO_TRONG = Pair(1375f, 1080f) // chỗ trống (giữa nút x10 và Danh sách quà, sát mép dưới): tắt danh sách quà, bỏ hoạt ảnh quay
     val O = linkedMapOf(
         "trên-trái" to Pair(876f, 360f), "trên-phải" to Pair(1022f, 360f),
         "trái-trên" to Pair(762f, 477f), "phải-trên" to Pair(1135f, 477f),

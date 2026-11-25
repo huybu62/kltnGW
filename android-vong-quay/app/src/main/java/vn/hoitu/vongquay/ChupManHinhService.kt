@@ -118,14 +118,25 @@ class ChupManHinhService : Service() {
             val ps = pl.pixelStride; val rs = pl.rowStride
             val iw = img.width; val ih = img.height
             val px = IntArray(iw * ih)
-            for (y in 0 until ih) {
-                var o = y * rs
-                for (x in 0 until iw) {
-                    val rr = buf.get(o).toInt() and 0xFF
-                    val gg = buf.get(o + 1).toInt() and 0xFF
-                    val bb = buf.get(o + 2).toInt() and 0xFF
-                    px[y * iw + x] = (0xFF shl 24) or (rr shl 16) or (gg shl 8) or bb
-                    o += ps
+            if (ps == 4) {
+                // đọc cả hàng một lần (nhanh hơn nhiều so với từng byte), rồi đổi RGBA → ARGB
+                val ib = buf.order(java.nio.ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+                val moiHang = rs / 4
+                for (y in 0 until ih) { ib.position(y * moiHang); ib.get(px, y * iw, iw) }
+                for (i in px.indices) {
+                    val v = px[i] // little-endian: 0xAABBGGRR
+                    px[i] = (0xFF shl 24) or ((v and 0xFF) shl 16) or (v and 0xFF00) or ((v shr 16) and 0xFF)
+                }
+            } else {
+                for (y in 0 until ih) {
+                    var o = y * rs
+                    for (x in 0 until iw) {
+                        val rr = buf.get(o).toInt() and 0xFF
+                        val gg = buf.get(o + 1).toInt() and 0xFF
+                        val bb = buf.get(o + 2).toInt() and 0xFF
+                        px[y * iw + x] = (0xFF shl 24) or (rr shl 16) or (gg shl 8) or bb
+                        o += ps
+                    }
                 }
             }
             anhCuoi = Anh(iw, ih, px)

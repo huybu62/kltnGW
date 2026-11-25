@@ -30,6 +30,7 @@ class MainActivity : Activity() {
     private lateinit var oMoc: EditText
     private lateinit var oTaoMoi: EditText
     private lateinit var oDungSau: EditText
+    private lateinit var oNhip: EditText
     private val chon = HashMap<Loai, CheckBox>()
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -62,6 +63,7 @@ class MainActivity : Activity() {
         col.addView(chu("Mốc chắc chắn ra hạn định:", 13f)); oMoc = so("73"); col.addView(oMoc)
         col.addView(chu("Tạo mới tối đa ở lượt mốc:", 13f)); oTaoMoi = so("60"); col.addView(oTaoMoi)
         col.addView(chu("Dừng sau N lần bấm (0 = không giới hạn):", 13f)); oDungSau = so("0"); col.addView(oDungSau)
+        col.addView(chu("Nghỉ giữa 2 lần chạm liên tục, ms (nhỏ = nhanh; 80 là vừa, máy yếu thì tăng lên 150):", 13f)); oNhip = so("80"); col.addView(oNhip)
         col.addView(chu("Ở lượt mốc, Tạo mới tới khi vòng quay có:", 13f))
         for (loai in Loai.values()) {
             val cb = CheckBox(this).apply { text = loai.ten }
@@ -91,7 +93,7 @@ class MainActivity : Activity() {
         super.onResume()
         val cd = Kho.docCaiDat(this)
         oDem.setText(cd.dem.toString()); oMoc.setText(cd.moc.toString())
-        oTaoMoi.setText(cd.taoMoiToiDa.toString()); oDungSau.setText(cd.dungSau.toString())
+        oTaoMoi.setText(cd.taoMoiToiDa.toString()); oDungSau.setText(cd.dungSau.toString()); oNhip.setText(cd.nhip.toString())
         for ((loai, cb) in chon) cb.isChecked = loai in cd.muon
         val bat = troNangDangBat()
         ttTroNang.text = if (bat) "✔ Đã bật" else "✘ Chưa bật"
@@ -107,6 +109,7 @@ class MainActivity : Activity() {
         cd.dem = (oDem.text.toString().toIntOrNull() ?: 0).coerceIn(0, cd.moc - 1)
         cd.taoMoiToiDa = oTaoMoi.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 60
         cd.dungSau = oDungSau.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
+        cd.nhip = (oNhip.text.toString().toIntOrNull() ?: 80).coerceIn(20, 1000)
         cd.muon = chon.filter { it.value.isChecked }.keys.toMutableSet()
         if (cd.muon.isEmpty()) { Toast.makeText(this, "Chọn ít nhất 1 món", Toast.LENGTH_SHORT).show(); return }
         Kho.luuCaiDat(this, cd)

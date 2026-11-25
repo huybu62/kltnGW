@@ -124,7 +124,7 @@ class TroNangService : AccessibilityService() {
     private fun cham(x: Float, y: Float) {
         val s = ChupManHinhService.instance?.heSo ?: 1f
         val path = Path().apply { moveTo(x / s, y / s) }
-        val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, 60)).build()
+        val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, 15)).build()
         val xong = CountDownLatch(1)
         ui.post {
             dispatchGesture(g, object : GestureResultCallback() {
@@ -132,7 +132,7 @@ class TroNangService : AccessibilityService() {
                 override fun onCancelled(gestureDescription: GestureDescription?) { xong.countDown() }
             }, null)
         }
-        xong.await(2, TimeUnit.SECONDS)
+        xong.await(1, TimeUnit.SECONDS)
     }
 
     private fun chay() {

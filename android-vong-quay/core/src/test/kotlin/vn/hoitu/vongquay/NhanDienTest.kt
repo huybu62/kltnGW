@@ -62,6 +62,8 @@ class NhanDienTest {
     /** Game giả: màn vòng quay (lần lượt các vòng khi Tạo mới) và màn danh sách quà sau khi bấm x10. */
     private inner class GameGia(var vong: String, val taoMoi: MutableList<String>) : ThietBi {
         var danhSach = false
+        var quay = 0 // số khung hình hoạt ảnh quay còn lại (chạm chỗ trống thì bỏ qua)
+        var soBoHoatAnh = 0
         var soX10 = 0
         var soTaoMoi = 0
         val log = mutableListOf<String>()
@@ -69,18 +71,21 @@ class NhanDienTest {
         private val anh = HashMap<String, Anh>()
         private fun lay(t: String) = anh.getOrPut(t) { anhTest(t) }
 
-        override fun chup() = if (danhSach) lay("vq_ket_qua_1600") else lay("${vong}_1600")
+        override fun chup(): Anh {
+            if (quay > 0 && --quay == 0) danhSach = true
+            return anhHien()
+        }
+        private fun anhHien() = if (danhSach) lay("vq_ket_qua_1600") else lay("${vong}_1600")
         override fun cham(x: Float, y: Float) {
-            val a = chup()
-            if (danhSach) {
-                val (tx, ty) = NhanDien.choTrong(a)
-                if (abs(x - tx) < 30 && abs(y - ty) < 30) danhSach = false
-                return
-            }
+            val a = anhHien()
+            val (tx, ty) = NhanDien.choTrong(a)
+            val trong = abs(x - tx) < 30 && abs(y - ty) < 30
+            if (danhSach) { if (trong) danhSach = false; return }
+            if (quay > 0) { if (trong) { quay = 0; danhSach = true; soBoHoatAnh++ }; return }
             val neo = NhanDien.timVong(a, x1) ?: return
             val (bx, by) = neo.ra(NhanDien.NUT_X10.first, NhanDien.NUT_X10.second)
             val (mx, my) = neo.ra(NhanDien.NUT_TAO_MOI.first, NhanDien.NUT_TAO_MOI.second)
-            if (abs(x - bx) < 40 && abs(y - by) < 25) { soX10++; danhSach = true }
+            if (abs(x - bx) < 40 && abs(y - by) < 25) { soX10++; quay = 20 }
             else if (abs(x - mx) < 40 && abs(y - my) < 25) { soTaoMoi++; if (taoMoi.isNotEmpty()) vong = taoMoi.removeAt(0) }
         }
         override fun ngu(ms: Long) {}
@@ -108,5 +113,6 @@ class NhanDienTest {
         assertEquals(3, g.soX10)
         assertEquals(0, g.soTaoMoi)
         assertEquals(listOf(11, 12, 13), g.dem)
+        assertEquals(3, g.soBoHoatAnh) // chạm chỗ trống để bỏ hoạt ảnh quay
     }
 }

@@ -24,13 +24,14 @@ object Kho {
             taoMoiToiDa = p.getInt("tao_moi_toi_da", 60),
             dungSau = p.getInt("dung_sau", 0),
             muon = muon,
+            nhip = p.getInt("nhip", 80),
         )
     }
 
     fun luuCaiDat(ctx: Context, cd: CaiDat) {
         ctx.getSharedPreferences(TEN, Context.MODE_PRIVATE).edit()
             .putInt("dem", cd.dem).putInt("moc", cd.moc).putInt("tao_moi_toi_da", cd.taoMoiToiDa)
-            .putInt("dung_sau", cd.dungSau).putStringSet("muon", cd.muon.map { it.name }.toSet())
+            .putInt("dung_sau", cd.dungSau).putInt("nhip", cd.nhip).putStringSet("muon", cd.muon.map { it.name }.toSet())
             .apply()
     }
 
