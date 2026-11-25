@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vòng Quay Auto</string>
+    <string name="tro_nang_mo_ta">Tự bấm "Khởi động 10 lần" và "Tạo mới" ở màn Vòng quay liên server. App chỉ chạm vào 3 chỗ: nút Khởi động 10 lần, nút Tạo mới và chỗ trống để tắt danh sách quà. App không đọc nội dung các app khác.</string>
+</resources>
