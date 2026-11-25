@@ -263,5 +263,12 @@
       "dem": "xuc_xac",
       "nghi_sau": 2.5
     }
-  ]
+  ],
+  "vong_quay": {
+    "dem": 0,
+    "moc": 73,
+    "xu_toi_thieu": 0,
+    "tao_moi_toi_da": 60,
+    "dung_khi_trung": false
+  }
 }

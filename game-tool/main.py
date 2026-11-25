@@ -14,12 +14,13 @@ from matcher import Templates
 from chuong import ChuongBot
 from discover import DiscoverBot
 from sweep import SweepBot
+from vong_quay import VongQuayBot
 
 GOC = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(GOC, "config.json")
 MAU_DIR = os.path.join(GOC, "mau")
 
-TEN_DEM = {"do": "🔎", "khu": "🏠", "the_luc": "⚡", "can_quet": "🧹", "xuc_xac": "🎲", "boss": "👹", "oan_tu_xi": "✊", "mua": "🛒", "phai_doi": "🚩", "binh_the_luc": "🧪"}
+TEN_DEM = {"vq": "🎡", "bam": "x10:", "do": "🔎", "khu": "🏠", "the_luc": "⚡", "can_quet": "🧹", "xuc_xac": "🎲", "boss": "👹", "oan_tu_xi": "✊", "mua": "🛒", "phai_doi": "🚩", "binh_the_luc": "🧪"}
 
 
 def doc_config():
@@ -86,7 +87,7 @@ class App:
         hang0.pack(fill="x")
         ttk.Label(hang0, text="Chế độ:").pack(side="left")
         self.v_che_do = tk.StringVar(value=self.cfg.get("che_do", "can_quet"))
-        for gt, nhan in (("can_quet", "Càn quét map"), ("xuc_xac", "Xúc xắc (sự kiện)")):
+        for gt, nhan in (("can_quet", "Càn quét map"), ("vong_quay", "Vòng quay"), ("xuc_xac", "Xúc xắc")):
             ttk.Radiobutton(hang0, text=nhan, value=gt, variable=self.v_che_do,
                             command=self.doi_che_do).pack(side="left", padx=4)
         hang = ttk.Frame(f_opt)
@@ -97,6 +98,35 @@ class App:
         self.e_luot.pack(side="left", padx=3)
         self.lbl_luot = ttk.Label(hang, text="")
         self.lbl_luot.pack(side="left")
+
+        # --- tuỳ chọn vòng quay ---
+        self.f_vq = ttk.Frame(f_opt)
+        v1 = ttk.Frame(self.f_vq)
+        v1.pack(fill="x", pady=(3, 0))
+        ttk.Label(v1, text="Đã bấm x10:").pack(side="left")
+        self.e_vq_dem = ttk.Spinbox(v1, from_=0, to=999, width=5, command=self.luu_vq)
+        self.e_vq_dem.pack(side="left", padx=3)
+        ttk.Label(v1, text="/ mốc").pack(side="left")
+        self.e_vq_moc = ttk.Spinbox(v1, from_=1, to=999, width=5, command=self.luu_vq)
+        self.e_vq_moc.pack(side="left", padx=3)
+        ttk.Label(v1, text="(tới mốc: Tạo mới ra tướng hạn định rồi quay, về 0)").pack(side="left")
+        v2 = ttk.Frame(self.f_vq)
+        v2.pack(fill="x", pady=(3, 0))
+        ttk.Label(v2, text="Dừng khi Xu còn dưới").pack(side="left")
+        self.e_vq_xu = ttk.Spinbox(v2, from_=0, to=999999999, increment=10000, width=11, command=self.luu_vq)
+        self.e_vq_xu.pack(side="left", padx=3)
+        ttk.Label(v2, text="  Tạo mới tối đa").pack(side="left")
+        self.e_vq_tm = ttk.Spinbox(v2, from_=0, to=999, width=5, command=self.luu_vq)
+        self.e_vq_tm.pack(side="left", padx=3)
+        ttk.Label(v2, text="lần").pack(side="left")
+        v3 = ttk.Frame(self.f_vq)
+        v3.pack(fill="x", pady=(3, 0))
+        self.v_vq_dung = tk.BooleanVar(value=False)
+        ttk.Checkbutton(v3, text="Dừng khi trúng hạn định", variable=self.v_vq_dung, command=self.luu_vq).pack(side="left")
+        ttk.Label(self.f_vq, text="Mở màn Vòng quay liên server rồi bấm ▶ Chạy. Tool chỉ bấm 'Khởi động 10 lần' và 'Tạo mới'.",
+                  foreground="#555").pack(anchor="w", pady=(3, 0))
+        for e in (self.e_vq_dem, self.e_vq_moc, self.e_vq_xu, self.e_vq_tm):
+            e.bind("<FocusOut>", lambda _e: self.luu_vq())
 
         # --- tuỳ chọn càn quét ---
         self.f_cq = ttk.Frame(f_opt)
@@ -196,7 +226,14 @@ class App:
 
     def doi_che_do(self, luu=True):
         che_do = self.v_che_do.get()
-        if che_do == "can_quet":
+        self.f_vq.pack_forget()
+        if che_do == "vong_quay":
+            self.f_luat.pack_forget()
+            self.f_cq.pack_forget()
+            self.f_vq.pack(fill="x")
+            self.build_vq()
+            self.lbl_luot.config(text="lần bấm x10 (0 = không giới hạn)")
+        elif che_do == "can_quet":
             self.f_luat.pack_forget()
             self.f_cq.pack(fill="x")
             self.lbl_luot.config(text="lần càn quét (0 = tới khi hết thể lực)")
@@ -207,6 +244,25 @@ class App:
         if luu:
             self.cfg["che_do"] = che_do
             self.save_config()
+
+    def build_vq(self):
+        vq = self.cfg.setdefault("vong_quay", {})
+        self.e_vq_dem.set(vq.get("dem", 0))
+        self.e_vq_moc.set(vq.get("moc", 73))
+        self.e_vq_xu.set(vq.get("xu_toi_thieu", 0))
+        self.e_vq_tm.set(vq.get("tao_moi_toi_da", 60))
+        self.v_vq_dung.set(vq.get("dung_khi_trung", False))
+
+    def luu_vq(self):
+        vq = self.cfg.setdefault("vong_quay", {})
+        for e, k in ((self.e_vq_dem, "dem"), (self.e_vq_moc, "moc"), (self.e_vq_xu, "xu_toi_thieu"),
+                     (self.e_vq_tm, "tao_moi_toi_da")):
+            try:
+                vq[k] = int(e.get())
+            except ValueError:
+                pass
+        vq["dung_khi_trung"] = bool(self.v_vq_dung.get())
+        self.save_config()
 
     def build_cq(self):
         cq = self.cfg.setdefault("can_quet", {})
@@ -470,7 +526,11 @@ class App:
         except ValueError:
             luot = 0
         self.luu_cq()
-        if self.cfg.get("che_do", "can_quet") != "can_quet":
+        if self.cfg.get("che_do", "can_quet") == "vong_quay":
+            self.luu_vq()
+            self.cfg["vong_quay"]["toi_da_bam"] = luot
+            lop = VongQuayBot
+        elif self.cfg.get("che_do", "can_quet") != "can_quet":
             lop = Bot
         elif self.cfg.get("can_quet", {}).get("qua_ai", True) or self.cfg.get("can_quet", {}).get("tu_dong_vuot_ai"):
             lop = ChuongBot
@@ -520,6 +580,8 @@ class App:
                                         foreground="#1a8f3a" if msg[1] else "#c0392b")
                 elif kieu == "luu_cfg":
                     self.save_config()
+                    if self.cfg.get("che_do") == "vong_quay":
+                        self.build_vq()
                     self.build_cq()
                 elif kieu == "khu_moi":
                     self.nhan_khu_moi(msg[2], msg[3] if len(msg) > 3 else [])

@@ -117,6 +117,20 @@ Quản lý ải:
 - **Thêm ải ở chương khác:** mở màn chương đó, bấm **✂**, **kéo chuột khoanh phần chữ** của nhãn ải (ví dụ *2-1 …*), bấm **➕ Thêm ải** rồi đặt tên.
 - Ảnh tiêu đề các khu của từng ải lưu tên dạng `mau/tieu_de_khu/ai_1_2_khu_3.png`.
 
+## Chế độ Vòng quay liên server
+Chọn **Chế độ: Vòng quay**, mở màn **Vòng quay liên server** rồi bấm **▶ Chạy**. Tool chỉ bấm 2 nút: **"Khởi động 10 lần"** và **"Tạo mới"**. Tool không bấm *Nạp thẻ* hay nút mua nào.
+
+Cách tool đếm:
+- Mỗi lần bấm x10 tính là 1. Ô **"Đã bấm x10: N / mốc 73"** trên overlay hiện bộ đếm. Bộ đếm được lưu lại; nếu lệch so với game thì bạn sửa tay trên overlay.
+- **Trúng món hạn định** (hình món đó hiện ra giữa màn hình) thì bộ đếm về 0. Trúng tướng thường thì không.
+- **Lần bấm thứ 73**: trước khi bấm, tool bấm **Tạo mới** cho tới khi vòng quay có **tướng** hạn định (không tính rương), rồi bấm x10 và đưa bộ đếm về 0.
+
+Cách tool nhận biết:
+- Ô hạn định là ô có nhãn vàng **"Hạn định"** ở góc trên-phải. Tool so cả nét chữ lẫn màu vàng.
+- Phân biệt rương với tướng bằng mẫu `mau/vq_ruong_*.png`. Hiện mới có mẫu **rương M**. Nếu tool tưởng rương vàng (rương đá vận mệnh) là tướng, bạn dùng ✂ cắt ô đó trên vòng quay, đặt tên `vq_ruong_2`.
+- Tool đọc **"Xu còn"** để biết lần bấm có ăn không, và để dừng khi Xu xuống dưới mức bạn đặt (đọc 2 lần cho chắc).
+- 5 lần đầu tool lưu ảnh kết quả vào `anh_loi/`. Gửi các ảnh này cho người hỗ trợ để kiểm tra phần nhận biết trúng hạn định.
+
 ## 4. Cắt ảnh mẫu (cho chế độ Xúc xắc, hoặc khi cần cắt lại)
 Tool nhận ra nút nhờ ảnh mẫu do **bạn cắt từ chính game của mình**.
 
@@ -211,5 +225,6 @@ python test_discover.py
 python test_ban_do.py
 python test_chuong.py
 python test_x10.py
+python test_vong_quay.py
 ```
 Hai lệnh này chạy thử bộ luật xúc xắc trên màn hình tổng hợp, và chế độ càn quét trên ảnh chụp thật của game trong `anh_test/`. Không cần giả lập.
