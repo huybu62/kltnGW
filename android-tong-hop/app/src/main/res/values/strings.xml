@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hội Tụ Auto</string>
+    <string name="tro_nang_mo_ta">Bong bóng nổi để chọn và chạy các tool cho game: Vòng quay liên server, Ban sức vận mệnh. App chỉ chạm và vuốt trong game theo tool bạn chạy, không đọc nội dung các app khác.</string>
+</resources>
