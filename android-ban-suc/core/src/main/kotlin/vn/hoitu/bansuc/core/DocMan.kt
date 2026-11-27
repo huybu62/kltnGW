@@ -129,6 +129,32 @@ object DocMan {
         return HieuQua(p, he)
     }
 
+    /**
+     * Ô đá của bảng có đá chưa, xem bằng hình: ô trống là dấu "+" vàng (chéo góc tối),
+     * ô có đá thì chéo góc sáng. null nếu không có ảnh / không rõ.
+     */
+    fun oCoDa(a: Anh?, vung: IntArray, diemHoa: Boolean): Boolean? {
+        if (a == null) return null
+        val k = vung[2] / REF_W
+        val cx = if (diemHoa) 1480f else 1456f; val cy = 505f
+        fun sang(x: Float, y: Float): Int {
+            val px = (vung[0] + x * k).toInt(); val py = (vung[1] + y * k).toInt()
+            if (px !in 0 until a.w || py !in 0 until a.h) return 0
+            val v = a.px[py * a.w + px]
+            return maxOf((v shr 16) and 0xFF, (v shr 8) and 0xFF, v and 0xFF)
+        }
+        var tay = 0; var nTay = 0
+        for (d in -30..30 step 6) { tay += sang(cx + d, cy) + sang(cx, cy + d); nTay += 2 }
+        var cheo = 0; var nCheo = 0
+        for (d in listOf(18f, 26f, 34f)) for (sx in listOf(-1, 1)) for (sy in listOf(-1, 1)) { cheo += sang(cx + d * sx, cy + d * sy); nCheo++ }
+        val tb = tay / nTay; val tc = cheo / nCheo
+        return when {
+            tc > 90 -> true
+            tb > 150 && tc < 75 -> false
+            else -> null
+        }
+    }
+
     /** Màu nhãn thẻ → bậc (1 xanh lam, 2 tím, 3 vàng), null nếu thẻ trống/khóa. */
     fun bacTheoMau(a: Anh?, vung: IntArray, cot: Float, hang: Int): Int? {
         if (a == null) return null
@@ -211,10 +237,11 @@ object DocMan {
         val laDiemHoa = VanBan.coGanDung("DIEMHOAVAN", tieuDeBang, 2)
         val laThacAn = VanBan.coGanDung("THACANVAN", tieuDeBang, 2)
         if (laDiemHoa || laThacAn) {
+            // ô đá: xem hình trước (chữ "Đã Thêm" hay bị dòng chữ xanh "Sau In thì..." đè lên), không rõ mới đọc chữ
             val nhan = VanBan.chuan(noi(o(NHAN_O)))
-            val daThem = when {
-                VanBan.coGanDung("DATHEM", nhan, 1) && !nhan.contains("THEMDA") -> true
-                nhan.contains("THEM") -> false
+            val daThem = oCoDa(a, vung, laDiemHoa) ?: when {
+                nhan.contains("THEMDAIN") || nhan.contains("THEMDADIEM") -> false
+                VanBan.coGanDung("DATHEM", nhan, 1) -> true
                 else -> null
             }
             return ManHinh(

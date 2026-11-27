@@ -166,7 +166,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                 val t = timThe(m)
                 if (t != null) {
                     tb.cham(t.x, t.y)
-                    val b = cho(4000) { it.loai == loai && it.daThem == true }
+                    val b = cho(4000) { it.loai == loai && it.daThem != false } // đã chọn thẻ và về lại bảng
                     if (b != null) return true
                     m = cho(2000) { it.loai == LoaiMan.CHON_DA } ?: return false
                     return@repeat
@@ -331,7 +331,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             tb.log("▶ Bắt đầu: hệ ${he.ten}, mục tiêu ${cd.mucTieu}, " + cd.soLuong.filter { it.value > 0 }.entries.joinToString { "${it.key.ten} ${it.value}" })
             while (!dung) {
                 val ds = quetDanhSach()
-                tb.log("  Danh sách: ${ds.size} hàng đá")
+                tb.log("  Đọc hết danh sách: ${ds.size} hàng đá (" + ds.groupBy { it.da.lv }.entries.sortedByDescending { it.key }.joinToString { "LV${it.key}: ${it.value.size}" } + ")")
                 val cs = thieu(ds)
                 if (cs == null) { tb.log("🎉 Đã đủ số đá ${cd.mucTieu}·${he.ten} → dừng"); return }
                 val ung = ds.map { it.da }.filter { it.lv == 6 && it.chiSo == cs && !daXong(it) && (it.pham == null || it.he == he) }

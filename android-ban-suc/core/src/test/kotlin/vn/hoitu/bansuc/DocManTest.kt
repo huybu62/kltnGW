@@ -98,6 +98,12 @@ class DocManTest {
         assertEquals(HieuQua('B', He.LANHCHUA), co.sau)
         assertEquals(true, co.daThem)
 
+        // ô đã có Đá In, chữ "Đã Thêm" bị dòng chữ xanh "Sau In thì Đá Vận Mệnh sẽ về như cũ" đè lên
+        val taCo = Mau.man("thac_an_co_da")
+        assertEquals(LoaiMan.THAC_AN, taCo.loai)
+        assertEquals(HieuQua('B', He.LANHCHUA), taCo.hien)
+        assertEquals(true, taCo.daThem)
+
         val ta = Mau.man("thac_an")
         assertEquals(LoaiMan.THAC_AN, ta.loai)
         assertEquals(HieuQua('C', He.LANHCHUA), ta.hien)
