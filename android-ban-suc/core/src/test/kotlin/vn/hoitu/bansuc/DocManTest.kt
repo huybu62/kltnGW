@@ -65,6 +65,12 @@ class DocManTest {
         // chạm vào hàng: nằm trong danh sách bên trái (ảnh 1600 rộng, vùng game bắt đầu y≈84)
         for (h in m.hang) assertTrue(h.x in 250f..650f && h.y in 280f..800f)
 
+        // màn chính sau khi game tự đóng bảng Điểm Hóa (có nút nổi của app ở góc trên trái)
+        val sau = Mau.man("chinh_sau_diem_hoa")
+        assertEquals(LoaiMan.CHINH, sau.loai)
+        assertEquals(Da(6, 'C', He.LANHCHUA, ChiSo.HP), sau.daChon)
+        assertEquals(Da(6, 'C', He.LANHCHUA, ChiSo.HP), sau.hang.first { it.daChon }.da)
+
         val m4 = Mau.man("chinh_lv4")
         assertEquals(listOf(ChiSo.PHONG, ChiSo.HP, ChiSo.TOCDO, ChiSo.VATCONG), m4.hang.map { it.da.chiSo })
         assertTrue(m4.hang.all { it.da.lv == 4 && it.da.pham == null })

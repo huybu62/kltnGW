@@ -193,11 +193,21 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             cham(m, DocMan.NUT_LAM)
             lan++; soLanDiemHoa++
             ngu(cd.nghiMs.toLong())
-            m = cho(3000) { it.loai == LoaiMan.DIEM_HOA && it.hien != null } ?: throw DungLai("Mất bảng Điểm Hóa")
-            val hq = m.hien!!
+            // game có thể giữ bảng Điểm Hóa, hoặc tự đóng bảng và về màn chính sau mỗi lần bấm
+            val kq = cho(5000) { (it.loai == LoaiMan.DIEM_HOA && it.hien != null) || (it.loai == LoaiMan.CHINH && it.daChon != null) }
+                ?: throw DungLai("Không thấy kết quả sau khi bấm Điểm Hóa")
+            val hq = if (kq.loai == LoaiMan.CHINH) HieuQua(kq.daChon!!.pham, kq.daChon.he) else kq.hien!!
+            if (kq.loai == LoaiMan.DIEM_HOA) m = kq
             if (hq != truoc) tb.log("  Điểm hóa ${tenDa(bac, false)} lần $lan: ${chu(truoc)} → ${chu(hq)}")
             else if (lan % 10 == 0) tb.log("  Điểm hóa ${tenDa(bac, false)} lần $lan: vẫn ${chu(hq)}")
             if (xong(hq)) return KetQua.Dat(hq)
+            if (kq.loai == LoaiMan.CHINH) {
+                m = moBang(LoaiMan.DIEM_HOA) // mở lại bảng để bấm tiếp (đá điểm hóa thường vẫn còn trong ô)
+                if (m.daThem == true && m.sau?.he != null && m.sau.he != he) {
+                    if (!themDa(LoaiMan.DIEM_HOA, bac, false)) return KetQua.HetDa(hq)
+                    m = cho(3000) { it.loai == LoaiMan.DIEM_HOA } ?: throw DungLai("Mất bảng Điểm Hóa")
+                }
+            }
         }
     }
 
@@ -215,7 +225,8 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         cham(b, DocMan.NUT_LAM)
         soLanThacAn++
         ngu(cd.nghiMs.toLong())
-        cho(5000) { it.loai == LoaiMan.THAC_AN && it.hien?.pham == null } ?: throw DungLai("Thác Ấn không ăn (đá vẫn còn ${chu(truoc)})")
+        cho(5000) { (it.loai == LoaiMan.THAC_AN && it.hien?.pham == null) || (it.loai == LoaiMan.CHINH && it.daChon != null && it.daChon.pham == null) }
+            ?: throw DungLai("Thác Ấn không ăn (đá vẫn còn ${chu(truoc)})")
         tb.log("  Thác Ấn ${chu(truoc)} bằng ${tenDa(bacIn, true)} → +1 ${when (bacIn) { 2 -> "B-SS"; 3 -> "A-SSS"; else -> "B-S" }} ${he.ten}")
         veManChinh()
     }

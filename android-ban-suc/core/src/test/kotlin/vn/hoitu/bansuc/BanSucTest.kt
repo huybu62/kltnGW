@@ -30,7 +30,9 @@ class GameGia(
     val daIn: MutableMap<Int, Int>, // bậc → số viên
     seed: Int = 1,
     val tiLe: Double = 0.3, // tỉ lệ thành công
+    val dongSauLam: Boolean = false, // game tự đóng bảng sau mỗi lần bấm (như game thật)
 ) : ThietBi {
+    private val nhoO = HashMap<Pair<LoaiMan, Int>, Pair<Int, He?>>() // đá còn trong ô khi mở lại bảng của cùng viên
     private val r = Random(seed)
     var man = LoaiMan.CHINH
     var chon = 0
@@ -83,14 +85,18 @@ class GameGia(
     override fun cham(x: Float, y: Float) {
         when (man) {
             LoaiMan.CHINH -> {
-                if (gan(x, y, DocMan.NUT_DIEM_HOA)) { man = LoaiMan.DIEM_HOA; oDa = null; return }
-                if (gan(x, y, DocMan.NUT_THAC_AN)) { man = LoaiMan.THAC_AN; oDa = null; return }
+                if (gan(x, y, DocMan.NUT_DIEM_HOA)) { man = LoaiMan.DIEM_HOA; oDa = nhoO[Pair(man, chon)]; return }
+                if (gan(x, y, DocMan.NUT_THAC_AN)) { man = LoaiMan.THAC_AN; oDa = nhoO[Pair(man, chon)]; return }
                 for (i in 0 until 4) if (gan(x, y, Pair(600f, 300f + i * 176f), 60f) && cuon + i < da.size) chon = cuon + i
             }
             LoaiMan.DIEM_HOA, LoaiMan.THAC_AN -> {
                 if (gan(x, y, DocMan.DONG_BANG)) { man = LoaiMan.CHINH; return }
                 if (gan(x, y, DocMan.NUT_O)) { bangChon = man; man = LoaiMan.CHON_DA; trang = 0; return }
-                if (gan(x, y, DocMan.NUT_LAM)) lam()
+                if (gan(x, y, DocMan.NUT_LAM)) {
+                    lam()
+                    if (oDa != null) nhoO[Pair(man, chon)] = oDa!! else nhoO.remove(Pair(man, chon))
+                    if (dongSauLam) man = LoaiMan.CHINH
+                }
             }
             LoaiMan.CHON_DA -> {
                 if (gan(x, y, DocMan.QUAY_LAI)) { man = bangChon!!; return }
@@ -186,7 +192,7 @@ class BanSucTest {
     @Test
     fun nhieuLanNgauNhien() {
         for (seed in 1..20) {
-            val g = GameGia(bo(), mutableMapOf(Pair(1, He.LANHCHUA) to 100000), mutableMapOf(2 to 5000, 3 to 500), seed = seed, tiLe = 0.15)
+            val g = GameGia(bo(), mutableMapOf(Pair(1, He.LANHCHUA) to 100000), mutableMapOf(2 to 5000, 3 to 500), seed = seed, tiLe = 0.15, dongSauLam = seed % 3 != 0)
             val cd = CaiDat(he = He.LANHCHUA, mucTieu = if (seed % 2 == 0) 'A' else 'S', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1), nhaMayLv6 = true)
             BanSuc(g, cd).chay()
             val xong = g.da.filter { it.lv == 6 && it.he == He.LANHCHUA && Pham.datToi(it.pham, cd.mucTieu) }
@@ -195,6 +201,15 @@ class BanSucTest {
             assertTrue("seed $seed", xong.count { it.chiSo == ChiSo.PHONG } >= 1)
             assertTrue(g.da.contains(lv6('B', He.TITAN, ChiSo.HP)))
         }
+    }
+
+    @Test
+    fun gameTuDongBangSauMoiLanBam() {
+        val g = GameGia(bo(), mutableMapOf(Pair(1, He.LANHCHUA) to 3000, Pair(1, He.TINHTHAN) to 50), mutableMapOf(1 to 100, 2 to 500, 3 to 5), seed = 3, dongSauLam = true)
+        val cd = CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1))
+        BanSuc(g, cd).chay()
+        val xong = g.da.filter { it.lv == 6 && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') }
+        assertEquals(3, xong.count { it.chiSo == ChiSo.HP })
     }
 
     @Test
