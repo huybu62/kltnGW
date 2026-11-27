@@ -1,5 +1,7 @@
 package vn.hoitu.bansuc.core
 
+import kotlin.math.abs
+
 /** Cài đặt người chơi. */
 data class CaiDat(
     var he: He = He.LANHCHUA,
@@ -214,6 +216,42 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         tonKho[key]?.let { tonKho[key] = it + 1 }
     }
 
+    /** "Dấu vân" vùng thẻ của bảng chọn đá (để biết trang đã đổi chưa) – chỉ chụp ảnh. */
+    private fun vanTrang(): FloatArray? = tb.anh()?.let { a ->
+        val v = DocMan.vungGame(a); val k = v[2] / DocMan.REF_W
+        a.cat((v[0] + 260 * k).toInt(), (v[1] + 230 * k).toInt(), (v[0] + 1800 * k).toInt(), (v[1] + 1050 * k).toInt()).doiCo(64, 32).xam()
+    }
+
+    private fun khacTrang(a: FloatArray?, b: FloatArray?): Boolean {
+        if (a == null || b == null || a.size != b.size) return true
+        var d = 0f; for (i in a.indices) d += abs(a[i] - b[i])
+        return d / a.size > 6f
+    }
+
+    /**
+     * Sang trang sau / trước của bảng chọn đá: vuốt ngang trên vùng thẻ; trang không đổi thì chạm mũi tên,
+     * rồi chạm chấm trang. false nếu trang không đổi (đã hết trang theo hướng đó).
+     */
+    private fun latTrang(m: ManHinh, sau: Boolean): Boolean {
+        val truoc = vanTrang()
+        val cach = listOf<() -> Unit>(
+            {
+                val (x0, y0) = m.ra(if (sau) 1500f else 500f, 600f); val (x1, y1) = m.ra(if (sau) 500f else 1500f, 600f)
+                tb.vuot(x0, y0, x1, y1)
+            },
+            { cham(m, if (sau) DocMan.TRANG_SAU else DocMan.TRANG_TRUOC) },
+            { cham(m, if (sau) Pair(1056f, 1105f) else Pair(1020f, 1105f)) }, // chấm trang
+        )
+        for (c in cach) {
+            c()
+            repeat(4) {
+                ngu(250)
+                if (khacTrang(truoc, vanTrang())) { ngu(250); return true }
+            }
+        }
+        return false
+    }
+
     /**
      * Bấm ô "+ Thêm Đá ..." rồi chọn thẻ đúng loại. false: không có thẻ đó (hết đá).
      * Nhanh: đã biết hết thì thôi; đã biết vị trí thì bấm thẳng (kiểm màu thẻ trước); trang không có màu cần tìm thì lật qua luôn.
@@ -229,7 +267,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         moChon()
         // 1) vị trí đã nhớ
         viTri[key]?.let { (trang, vi) ->
-            repeat(trang) { cham(bang, DocMan.TRANG_SAU); ngu(350) }
+            repeat(trang) { latTrang(bang, sau = true) }
             // chờ bảng chọn hiện và thẻ ở ô đã nhớ đúng màu (chỉ xem ảnh, không đọc chữ)
             var dungMau = false
             for (lan in 0 until 10) {
@@ -267,7 +305,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         }
         // 2) dò từng trang: trang không có thẻ đúng màu thì lật qua, có thì mới đọc chữ
         fun timThe(m: ManHinh) = m.the.firstOrNull { it.bac == bac && it.daIn == daIn && (daIn || it.he == he) && (it.soLuong ?: 1) > 0 }
-        for ((luot, huong) in listOf(DocMan.TRANG_SAU, DocMan.TRANG_TRUOC).withIndex()) {
+        for (luot in 0..1) {
             for (trang in 0 until 5) {
                 val mau = tb.bacCacO()
                 if (mau == null || mau.all { it == null } || bac in mau) {
@@ -287,7 +325,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                         if (b != null) moChon()
                     }
                 }
-                if (trang < 4) { cham(bang, huong); ngu(400) }
+                if (trang == 4 || !latTrang(bang, sau = luot == 0)) break // hết trang theo hướng này
             }
         }
         tb.log("  Không thấy thẻ ${tenDa(bac, daIn)} → coi như hết")

@@ -115,8 +115,8 @@ class GameGia(
             }
             LoaiMan.CHON_DA -> {
                 if (gan(x, y, DocMan.QUAY_LAI)) { man = bangChon!!; return }
-                if (gan(x, y, DocMan.TRANG_SAU)) { if ((trang + 1) * 8 < 1 + theHienCo().size) trang++; return }
-                if (gan(x, y, DocMan.TRANG_TRUOC)) { if (trang > 0) trang--; return }
+                // như game thật: chạm mũi tên không lật trang (chỉ vuốt ngang mới lật)
+                if (gan(x, y, DocMan.TRANG_SAU) || gan(x, y, DocMan.TRANG_TRUOC)) return
                 trangThe().forEachIndexed { i, t ->
                     if (t != null && gan(x, y, Pair(DocMan.COT[i % 4], DocMan.HANG_CHAM[i / 4]), 80f)) { oDa = t; man = bangChon!!; return }
                 }
@@ -153,6 +153,11 @@ class GameGia(
     }
 
     override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) {
+        if (man == LoaiMan.CHON_DA) {
+            if (x1 < x0 - 300 && (trang + 1) * 8 < 1 + theHienCo().size) trang++
+            if (x1 > x0 + 300 && trang > 0) trang--
+            return
+        }
         if (man != LoaiMan.CHINH) return
         val hang = maxOf(1, (abs(y1 - y0) / 176f).toInt()) + (if (troi) r.nextInt(0, 4) else 0)
         cuon = if (y1 < y0) minOf(maxOf(0, da.size - 4), cuon + hang) else maxOf(0, cuon - hang)
@@ -270,5 +275,18 @@ class BanSucTest {
         val b = BanSuc(g, CaiDat(soLuong = mutableMapOf(ChiSo.HP to 1, ChiSo.PHONG to 1)))
         b.chay()
         assertEquals(0, b.soLanDiemHoa)
+    }
+
+    @Test
+    fun daDiemHoaOTrang2() {
+        // hệ Con Lắc: thẻ B-S Con Lắc nằm ở trang 2 (trang 1 đầy các hệ khác) – phải vuốt sang trang 2 mới thấy
+        val nhieu = mutableMapOf<Pair<Int, He>, Int>()
+        for (h in He.values()) nhieu[Pair(1, h)] = 1200
+        nhieu[Pair(2, He.HUYDIET)] = 4
+        val g = GameGia(bo().map { if (it.he == He.LANHCHUA) it.copy(he = null, pham = null) else it }.toMutableList(), nhieu,
+            mutableMapOf(1 to 100, 2 to 5000, 3 to 5), seed = 4, tiLe = 0.3, dongSauLam = true)
+        val cd = CaiDat(he = He.CONLAC, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 1))
+        BanSuc(g, cd).chay()
+        assertTrue(g.da.any { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.CONLAC && Pham.datToi(it.pham, 'A') })
     }
 }
