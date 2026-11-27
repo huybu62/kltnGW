@@ -289,6 +289,10 @@ object DocMan {
                     ?.n?.trimStart('X')?.toIntOrNull() ?: 1
                 hang += Hang(da, gx + (t.cx) * k, gy + (t.cy + 30f) * k, daChon2, sl)
             }
+            // hàng đang chọn bị làm mờ nên hay đọc sót: chỗ có nhãn "Đã chọn" mà không có hàng nào → dùng tên ở bảng phải
+            if (daChon != null) for (c in chon) {
+                if (hang.none { abs((it.y - gy) / k - (c.cy - 30f)) < 110f }) hang += Hang(daChon, gx + 600f * k, gy + (c.cy - 30f) * k, true)
+            }
             return ManHinh(LoaiMan.CHINH, gx, gy, k, daChon = daChon, hang = hang.sortedBy { it.y }, tenDaChonTho = tenTho)
         }
         val the = docThe(cs, a, vung, k)

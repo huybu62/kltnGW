@@ -80,6 +80,15 @@ class DocManTest {
         assertEquals(Da(5, null, null, ChiSo.HP), cuoi.daChon)
         assertTrue(cuoi.hang.all { it.da.lv == 4 })
 
+        // hàng đang chọn bị mờ: đọc được hay sót thì vẫn phải có đủ 3 viên LV6 (viên Vật công lấy tên từ bảng phải)
+        val vc = Mau.man("chinh_vat_cong")
+        assertEquals(Da(6, null, null, ChiSo.VATCONG), vc.daChon)
+        assertEquals(3, vc.hang.count { it.da.lv == 6 })
+        val aVc = Mau.anh("chinh_vat_cong")
+        val sot = DocMan.doc(Mau.chu("chinh_vat_cong").filter { !it.text.contains("VatCo") || it.x0 > 800 }, aVc, DocMan.vungGame(aVc))
+        assertEquals(listOf(Da(6, 'C', He.CONLAC, ChiSo.HP), Da(6, null, null, ChiSo.VATCONG), Da(6, null, null, ChiSo.HP), Da(5, null, null, ChiSo.HP)), sot.hang.map { it.da })
+        assertTrue(sot.hang[1].daChon)
+
         val m4 = Mau.man("chinh_lv4")
         assertEquals(listOf(ChiSo.PHONG, ChiSo.HP, ChiSo.TOCDO, ChiSo.VATCONG), m4.hang.map { it.da.chiSo })
         assertTrue(m4.hang.all { it.da.lv == 4 && it.da.pham == null })

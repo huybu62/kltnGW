@@ -100,11 +100,12 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
 
     private fun lenDau(): ManHinh {
         var m = veManChinh()
-        repeat(20) {
+        var khongDoi = 0
+        repeat(25) {
             val truoc = m.hang.map { it.da }
             vuotXuong(m); ngu(500)
             m = veManChinh()
-            if (m.hang.map { it.da } == truoc) return m
+            if (m.hang.isNotEmpty() && m.hang.map { it.da } == truoc) { if (++khongDoi >= 2) return m } else khongDoi = 0
         }
         return m
     }
@@ -124,33 +125,45 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         return trung
     }
 
-    /** Đọc cả danh sách đá (gộp các trang, bỏ phần trùng do vuốt chồng lên nhau). */
-    private fun quetDanhSach(): List<Hang> {
+    /**
+     * Duyệt danh sách đá từ đầu tới cuối, gọi [xem] với từng trang (dừng khi [xem] trả true).
+     * Vuốt trôi quá xa (trang mới không nối được với phần đã xem) thì kéo ngược từng chút để không sót hàng.
+     */
+    private fun duyetDanhSach(xem: (ManHinh) -> Boolean): Boolean {
         var m = lenDau()
-        val tatCa = ArrayList<Hang>(m.hang)
+        if (xem(m)) return true
+        val daXem = ArrayList<Da>(m.hang.map { it.da })
         var khongDoi = 0
         repeat(60) {
             vuotLen(m); ngu(500)
             var moi = veManChinh()
             if (moi.hang.map { it.da } == m.hang.map { it.da }) {
-                if (++khongDoi >= 2) return tatCa // 2 lần vuốt mà trang không đổi: hết danh sách
+                if (++khongDoi >= 2) return false // 2 lần vuốt mà trang không đổi: hết danh sách
                 return@repeat
             }
             khongDoi = 0
-            val a = tatCa.map { it.da }; val b = moi.hang.map { it.da }
-            val coTrung = (1..minOf(a.size, b.size)).any { t -> a.takeLast(t) == b.take(t) }
-            if (!coTrung) {
-                // danh sách trôi quá xa (sót hàng ở giữa): kéo ngược từng chút tới khi nối được với phần đã đọc
-                repeat(6) {
+            fun noi(b: List<Da>) = (1..minOf(daXem.size, b.size)).any { t -> daXem.takeLast(t) == b.take(t) }
+            if (!noi(moi.hang.map { it.da })) {
+                for (lan in 0 until 6) {
                     vuotNguocNgan(moi); ngu(500)
                     moi = veManChinh()
-                    val b2 = moi.hang.map { it.da }
-                    if ((1..minOf(a.size, b2.size)).any { t -> a.takeLast(t) == b2.take(t) }) return@repeat
+                    if (noi(moi.hang.map { it.da })) break
                 }
             }
-            gop(tatCa, moi.hang)
+            if (xem(moi)) return true
+            val b = moi.hang.map { it.da }
+            var trung = 0
+            for (t in minOf(daXem.size, b.size) downTo 1) if (daXem.takeLast(t) == b.take(t)) { trung = t; break }
+            daXem += b.drop(trung)
             m = moi
         }
+        return false
+    }
+
+    /** Đọc cả danh sách đá (gộp các trang, bỏ phần trùng do vuốt chồng lên nhau). */
+    private fun quetDanhSach(): List<Hang> {
+        val tatCa = ArrayList<Hang>()
+        duyetDanhSach { m -> gop(tatCa, m.hang); false }
         return tatCa
     }
 
@@ -172,15 +185,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             return ok != null
         }
         if (thu(veManChinh())) return true
-        var m = lenDau()
-        repeat(40) {
-            if (thu(m)) return true
-            val truoc = m.hang.map { it.da }
-            vuotLen(m); ngu(500)
-            m = veManChinh()
-            if (m.hang.map { it.da } == truoc) return false
-        }
-        return false
+        return duyetDanhSach { thu(it) }
     }
 
     private fun moBang(loai: LoaiMan, daThay: ManHinh? = null): ManHinh {
@@ -252,88 +257,118 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         return false
     }
 
+    private enum class Them { DUOC, HET, LOI }
+
     /**
-     * Bấm ô "+ Thêm Đá ..." rồi chọn thẻ đúng loại. false: không có thẻ đó (hết đá).
-     * Nhanh: đã biết hết thì thôi; đã biết vị trí thì bấm thẳng (kiểm màu thẻ trước); trang không có màu cần tìm thì lật qua luôn.
+     * Bấm ô "+ Thêm Đá ..." rồi chọn thẻ đúng loại. false: chắc chắn không có thẻ đó (đã xem hết các trang).
+     * Không mở được bảng chọn / chọn hỏng thì thử lại (không coi là hết đá).
      */
     private fun themDa(loai: LoaiMan, bac: Int, daIn: Boolean): Boolean {
-        val key = khoa(bac, daIn)
-        if (key in chacHet) return false
-        val bang = cho(3000) { it.loai == loai } ?: return false
-        fun ve(b: ManHinh?) = b != null && (daIn || b.sau?.he == null || b.sau.he == he)
-        fun moChon() { cham(bang, DocMan.NUT_O); ngu(450) }
-        fun ra(vi: Int) = bang.ra(DocMan.COT[vi % 4], DocMan.HANG_CHAM[vi / 4])
-
-        moChon()
-        // 1) vị trí đã nhớ
-        viTri[key]?.let { (trang, vi) ->
-            repeat(trang) { latTrang(bang, sau = true) }
-            // chờ bảng chọn hiện và thẻ ở ô đã nhớ đúng màu (chỉ xem ảnh, không đọc chữ)
-            var dungMau = false
-            for (lan in 0 until 10) {
-                val mau = tb.bacCacO() ?: break
-                if (mau.getOrNull(vi) == bac) { dungMau = true; break }
-                ngu(150)
+        repeat(3) { lan ->
+            when (themDaMotLan(loai, bac, daIn)) {
+                Them.DUOC -> return true
+                Them.HET -> return false
+                Them.LOI -> {
+                    tb.log("  Chọn ${tenDa(bac, daIn)} chưa được (lần ${lan + 1}) → thử lại")
+                    // về đúng bảng Điểm Hóa / Thác Ấn rồi thử lại
+                    val m = nhin()
+                    if (m.loai == LoaiMan.CHON_DA) { cham(m, DocMan.QUAY_LAI); ngu(600) }
+                    if (cho(2500) { it.loai == loai } == null) {
+                        val c = veManChinh()
+                        cham(c, if (loai == LoaiMan.DIEM_HOA) DocMan.NUT_DIEM_HOA else DocMan.NUT_THAC_AN)
+                        cho(5000) { it.loai == loai }
+                    }
+                }
             }
-            // đá điểm hóa: thẻ ở ô đã nhớ phải giống hình mẫu đã lưu (đúng hệ) – so hình, không đọc chữ
-            val mauHinh = hinhMau[key]
-            var dungHinh = false
-            if (dungMau && !daIn && mauHinh != null) {
-                for (lan in 0 until 4) {
-                    val a = tb.anh() ?: break
-                    if (DocMan.giongThe(a, vi, mauHinh) >= 0.97f) { dungHinh = true; break }
+        }
+        throw DungLai("Chọn ${tenDa(bac, daIn)} không được sau 3 lần → dừng (xem màn hình)")
+    }
+
+    private fun themDaMotLan(loai: LoaiMan, bac: Int, daIn: Boolean): Them {
+        val key = khoa(bac, daIn)
+        if (key in chacHet) return Them.HET
+        val bang = cho(3000) { it.loai == loai } ?: return Them.LOI
+        fun ve(b: ManHinh?) = b != null && (daIn || b.sau?.he == null || b.sau.he == he)
+        fun ra(vi: Int) = bang.ra(DocMan.COT[vi % 4], DocMan.HANG_CHAM[vi / 4])
+        /** Bấm ô thêm đá và chờ bảng chọn hiện (xem màu thẻ – nhanh; không rõ thì đọc chữ). */
+        fun moChon(): Boolean {
+            cham(bang, DocMan.NUT_O)
+            for (lan in 0 until 8) {
+                ngu(200)
+                val mau = tb.bacCacO() ?: break
+                if (mau.count { it != null } >= 2) return true
+            }
+            return cho(2500) { it.loai == LoaiMan.CHON_DA } != null
+        }
+        fun dongChon() {
+            val m = nhin()
+            if (m.loai == LoaiMan.CHON_DA) { cham(m, DocMan.QUAY_LAI); cho(3000) { it.loai == loai } }
+        }
+        /** Chạm thẻ ở ô vi; true nếu đá đã vào ô (và đúng hệ với đá điểm hóa). */
+        fun chonO(vi: Int, x: Float, y: Float, daKiemHinh: Boolean): Boolean {
+            tb.cham(x, y)
+            if (daIn || daKiemHinh) {
+                for (lan in 0 until 15) {
+                    if (tb.oCoDa(!daIn) == true) return true
                     ngu(150)
                 }
             }
-            if (dungMau) {
-                val (x, y) = ra(vi); tb.cham(x, y)
-                if (daIn || dungHinh) {
-                    // Đá In: chỉ cần thấy viên đá đã vào ô (xem hình), không cần đọc chữ
-                    for (lan in 0 until 15) {
-                        if (tb.oCoDa(!daIn) == true) return true
-                        ngu(150)
-                    }
-                }
-                val b = cho(4000) { it.loai == loai && it.daThem != false }
-                if (ve(b)) return true
-                if (b != null) { moChon() } // thẻ sai hệ: chọn lại
-            }
-            viTri.remove(key)
-            // về lại bảng rồi mở bảng chọn từ đầu
-            val m = nhin()
-            if (m.loai == LoaiMan.CHON_DA) { cham(m, DocMan.QUAY_LAI); cho(3000) { it.loai == loai }; moChon() }
+            return ve(cho(4000) { it.loai == loai && it.daThem != false })
         }
-        // 2) dò từng trang: trang không có thẻ đúng màu thì lật qua, có thì mới đọc chữ
-        fun timThe(m: ManHinh) = m.the.firstOrNull { it.bac == bac && it.daIn == daIn && (daIn || it.he == he) && (it.soLuong ?: 1) > 0 }
-        for (luot in 0..1) {
-            for (trang in 0 until 5) {
-                val mau = tb.bacCacO()
-                if (mau == null || mau.all { it == null } || bac in mau) {
-                    val m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return false
-                    val t = timThe(m)
-                    if (t != null) {
-                        val hinh = if (!daIn && t.vi >= 0) tb.anh()?.let { DocMan.hinhThe(it, DocMan.vungGame(it), t.vi) } else null
-                        tb.cham(t.x, t.y)
-                        val b = cho(4000) { it.loai == loai && it.daThem != false }
-                        if (ve(b)) {
-                            if (luot == 0 && t.vi >= 0) viTri[key] = Pair(trang, t.vi)
-                            if (luot == 0 && hinh != null) hinhMau[key] = hinh
-                            t.soLuong?.let { tonKho[key] = it }
-                            chacHet -= key
-                            return true
-                        }
-                        if (b != null) moChon()
-                    }
-                }
-                if (trang == 4 || !latTrang(bang, sau = luot == 0)) break // hết trang theo hướng này
+
+        if (!moChon()) return Them.LOI
+        // 1) vị trí đã nhớ: kiểm màu (và hình với đá điểm hóa) rồi bấm thẳng
+        viTri[key]?.let { (trang, vi) ->
+            var dungTrang = true
+            repeat(trang) { if (!latTrang(bang, sau = true)) dungTrang = false }
+            var dungMau = false
+            if (dungTrang) for (lan in 0 until 6) {
+                if (tb.bacCacO()?.getOrNull(vi) == bac) { dungMau = true; break }
+                ngu(150)
             }
+            val mauHinh = hinhMau[key]
+            val dungHinh = dungMau && !daIn && mauHinh != null && (0 until 4).any { lan ->
+                if (lan > 0) ngu(150)
+                tb.anh()?.let { DocMan.giongThe(it, vi, mauHinh) >= 0.97f } ?: false
+            }
+            if (dungMau && (daIn || dungHinh)) {
+                val (x, y) = ra(vi)
+                if (chonO(vi, x, y, true)) return Them.DUOC
+            }
+            // chỗ nhớ không còn đúng: dò lại từ đầu
+            viTri.remove(key); hinhMau.remove(key)
+            dongChon()
+            if (!moChon()) return Them.LOI
         }
-        tb.log("  Không thấy thẻ ${tenDa(bac, daIn)} → coi như hết")
+        // 2) về trang 1 rồi xem lần lượt từng trang: trang không có thẻ đúng màu thì lật qua, có mới đọc chữ
+        repeat(3) { if (!latTrang(bang, sau = false)) return@repeat }
+        var thayThe = false
+        for (trang in 0 until 5) {
+            val mau = tb.bacCacO()
+            if (mau != null && mau.any { it != null }) thayThe = true
+            if (mau == null || mau.all { it == null } || bac in mau) {
+                val m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return Them.LOI
+                if (m.the.isNotEmpty()) thayThe = true
+                val t = m.the.firstOrNull { it.bac == bac && it.daIn == daIn && (daIn || it.he == he) && (it.soLuong ?: 1) > 0 }
+                if (t != null) {
+                    val hinh = if (!daIn && t.vi >= 0) tb.anh()?.let { DocMan.hinhThe(it, DocMan.vungGame(it), t.vi) } else null
+                    if (chonO(t.vi, t.x, t.y, false)) {
+                        if (t.vi >= 0) viTri[key] = Pair(trang, t.vi)
+                        if (hinh != null) hinhMau[key] = hinh
+                        t.soLuong?.let { tonKho[key] = it }
+                        chacHet -= key
+                        return Them.DUOC
+                    }
+                    return Them.LOI // chạm thẻ mà không vào ô / sai hệ: thử lại từ đầu
+                }
+            }
+            if (trang == 4 || !latTrang(bang, sau = true)) break // hết trang
+        }
+        if (!thayThe) { dongChon(); return Them.LOI } // không thấy thẻ nào: bảng chọn chưa hiện đúng
+        tb.log("  Đã xem hết các trang, không có thẻ ${tenDa(bac, daIn)} → hết")
         tonKho[key] = 0; chacHet += key
-        val m = nhin()
-        if (m.loai == LoaiMan.CHON_DA) cham(m, DocMan.QUAY_LAI)
-        cho(3000) { it.loai == loai }
-        return false
+        dongChon()
+        return Them.HET
     }
 
     private sealed class KetQua {
