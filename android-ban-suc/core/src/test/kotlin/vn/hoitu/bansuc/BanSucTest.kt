@@ -43,6 +43,7 @@ class GameGia(
     var trang = 0
     val nhatKy = ArrayList<String>()
     var soLanMoChon = 0
+    var soLanMoDiemHoa = 0
     var soLanDoc = 0 // số lần đọc chữ (chậm trên máy thật)
 
     private val nhanDiemHoa = listOf<Pair<Int, He>?>(null) // ô "Bỏ trống" ở trang 1
@@ -51,14 +52,20 @@ class GameGia(
         if (bangChon == LoaiMan.THAC_AN) daIn.filter { it.value > 0 }.keys.sorted().map { Pair(it, null) }
         else diemHoa.filter { it.value > 0 }.keys.sortedWith(compareBy({ it.second.ordinal }, { it.first })).map { Pair(it.first, it.second) }
 
-    private fun trangThe(): List<Pair<Int, He?>?> = (nhanDiemHoa + theHienCo()).chunked(8).getOrElse(trang) { emptyList() }
+    private fun trangThe(): List<Pair<Int, He?>?> =
+        if (bangChon == LoaiMan.THAC_AN) // giống game: Bỏ trống | In S | khóa | khóa / In SS | In SSS | khóa | khóa
+            if (trang > 0) emptyList() else listOf(null, Pair(1, null), null, null, Pair(2, null), Pair(3, null), null, null)
+                .map { t -> t?.takeIf { (daIn[it.first] ?: 0) > 0 } }
+        else (nhanDiemHoa + theHienCo()).chunked(8).getOrElse(trang) { emptyList() }
 
     private fun hq(d: Da) = HieuQua(d.pham, d.he)
 
     override fun bacCacO(): List<Int?> = if (man != LoaiMan.CHON_DA) List(8) { null } else
         trangThe().let { t -> List(8) { i -> t.getOrNull(i)?.first } }
 
-    override fun nhin(): ManHinh = also { soLanDoc++ }.let { nhinThat() }
+    var docKhiChonDaIn = 0
+    override fun nhin(): ManHinh = also { soLanDoc++; if (man == LoaiMan.CHON_DA && bangChon == LoaiMan.THAC_AN) docKhiChonDaIn++ }.let { nhinThat() }
+    override fun oCoDa(diemHoa: Boolean): Boolean? = if (man == LoaiMan.DIEM_HOA || man == LoaiMan.THAC_AN) oDa != null else null
 
     private fun nhinThat(): ManHinh = when (man) {
         LoaiMan.CHINH -> {
@@ -93,7 +100,7 @@ class GameGia(
     override fun cham(x: Float, y: Float) {
         when (man) {
             LoaiMan.CHINH -> {
-                if (gan(x, y, DocMan.NUT_DIEM_HOA)) { man = LoaiMan.DIEM_HOA; oDa = nhoO[Pair(man, chon)]; return }
+                if (gan(x, y, DocMan.NUT_DIEM_HOA)) { man = LoaiMan.DIEM_HOA; oDa = nhoO[Pair(man, chon)]; soLanMoDiemHoa++; return }
                 if (gan(x, y, DocMan.NUT_THAC_AN)) { man = LoaiMan.THAC_AN; oDa = nhoO[Pair(man, chon)]; return }
                 for (i in 0 until 4) if (gan(x, y, Pair(600f, 300f + i * 176f), 60f) && cuon + i < da.size) chon = cuon + i
             }
@@ -231,9 +238,13 @@ class BanSucTest {
         b.chay()
         assertEquals(3, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
         val soThacAn = g.nhatKy.size
-        println("điểm hóa ${b.soLanDiemHoa}, thác ấn $soThacAn, mở bảng chọn ${g.soLanMoChon}, đọc chữ ${g.soLanDoc}")
+        println("điểm hóa ${b.soLanDiemHoa}, thác ấn $soThacAn, mở bảng chọn ${g.soLanMoChon}, đọc chữ ${g.soLanDoc}, đọc chữ khi chọn Đá In ${g.docKhiChonDaIn}")
+        assertEquals("chọn Đá In không cần đọc chữ", 0, g.docKhiChonDaIn)
         // mỗi viên B-SS làm ra: 1 lần chọn B-SS + 1 lần chọn Đá In + vài lần chọn B-S khi đổi nhà máy
         assertTrue("mở bảng chọn ${g.soLanMoChon} lần cho $soThacAn lần thác ấn", g.soLanMoChon <= soThacAn * 3 + 5)
+        // mỗi lần mở bảng Điểm Hóa đều phải có lần bấm Điểm Hóa (không mở thừa khi đã hết đá)
+        println("mở bảng Điểm Hóa ${g.soLanMoDiemHoa} lần, bấm ${b.soLanDiemHoa} lần")
+        assertTrue("mở thừa ${g.soLanMoDiemHoa - b.soLanDiemHoa} lần", g.soLanMoDiemHoa - b.soLanDiemHoa <= 2)
     }
 
     @Test

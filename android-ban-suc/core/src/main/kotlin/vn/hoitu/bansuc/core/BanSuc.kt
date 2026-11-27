@@ -14,6 +14,8 @@ interface ThietBi {
     fun nhin(): ManHinh?
     /** Bậc theo màu của 8 ô thẻ ở bảng chọn đá đang hiện (chỉ chụp ảnh, không đọc chữ – nhanh). null: không xem được. */
     fun bacCacO(): List<Int?>? = null
+    /** Ô đá của bảng Điểm Hóa / Thác Ấn đang mở có đá chưa (chỉ xem hình – nhanh). null: không rõ. */
+    fun oCoDa(diemHoa: Boolean): Boolean? = null
     fun cham(x: Float, y: Float)
     fun vuot(x0: Float, y0: Float, x1: Float, y1: Float)
     fun ngu(ms: Long)
@@ -186,7 +188,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     // nhớ tồn kho (đọc từ số "xN" trên thẻ, trừ mỗi lần dùng, cộng khi Thác Ấn ra) và vị trí thẻ (trang, ô)
     private val tonKho = HashMap<String, Int>()
     private val chacHet = HashSet<String>() // đã biết chắc là hết (không tìm thấy thẻ, hoặc dùng hết từ số nhỏ đọc được)
-    private val viTri = HashMap<String, Pair<Int, Int>>()
+    private val viTri = hashMapOf("IN1" to Pair(0, 1), "IN2" to Pair(0, 4), "IN3" to Pair(0, 5)) // Đá In: vị trí cố định, kiểm màu trước khi bấm
 
     private fun khoa(bac: Int, daIn: Boolean) = if (daIn) "IN$bac" else "DH$bac${he.name}"
 
@@ -221,9 +223,22 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         // 1) vị trí đã nhớ
         viTri[key]?.let { (trang, vi) ->
             repeat(trang) { cham(bang, DocMan.TRANG_SAU); ngu(350) }
-            val mau = tb.bacCacO()
-            if (mau != null && mau.getOrNull(vi) == bac) {
+            // chờ bảng chọn hiện và thẻ ở ô đã nhớ đúng màu (chỉ xem ảnh, không đọc chữ)
+            var dungMau = false
+            for (lan in 0 until 10) {
+                val mau = tb.bacCacO() ?: break
+                if (mau.getOrNull(vi) == bac) { dungMau = true; break }
+                ngu(150)
+            }
+            if (dungMau) {
                 val (x, y) = ra(vi); tb.cham(x, y)
+                if (daIn) {
+                    // Đá In: chỉ cần thấy viên đá đã vào ô (xem hình), không cần đọc chữ
+                    for (lan in 0 until 15) {
+                        if (tb.oCoDa(false) == true) return true
+                        ngu(150)
+                    }
+                }
                 val b = cho(4000) { it.loai == loai && it.daThem != false }
                 if (ve(b)) return true
                 if (b != null) { moChon() } // thẻ sai hệ: chọn lại
@@ -272,6 +287,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
 
     /** Mở bảng Điểm Hóa của đá đang chọn, thêm đá điểm hóa bậc [bac] hệ đã chọn, bấm tới khi [xong]. */
     private fun diemHoaToiKhi(bac: Int, xong: (HieuQua) -> Boolean): KetQua {
+        if (khoa(bac, false) in chacHet) return KetQua.HetDa(null) // biết là hết: khỏi mở bảng
         var m = moBang(LoaiMan.DIEM_HOA)
         m.hien?.let { if (xong(it)) return KetQua.Dat(it) }
         if (!themDa(LoaiMan.DIEM_HOA, bac, false)) return KetQua.HetDa(m.hien)
@@ -280,6 +296,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         if (sau?.he != null && sau.he != he) throw DungLai("Đá điểm hóa đã thêm không phải hệ ${he.ten} (thấy ${sau.he.ten}) → dừng cho an toàn")
         var lan = 0
         while (true) {
+            if (khoa(bac, false) in chacHet && m.daThem != true) return KetQua.HetDa(m.hien)
             if (m.daThem == false && !themDa(LoaiMan.DIEM_HOA, bac, false)) return KetQua.HetDa(m.hien)
             val truoc = m.hien
             cham(m, DocMan.NUT_LAM)
@@ -294,6 +311,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             if (hq != truoc) tb.log("  Điểm hóa ${tenDa(bac, false)} lần $lan: ${chu(truoc)} → ${chu(hq)}")
             else if (lan % 10 == 0) tb.log("  Điểm hóa ${tenDa(bac, false)} lần $lan: vẫn ${chu(hq)}")
             if (xong(hq)) return KetQua.Dat(hq)
+            if (khoa(bac, false) in chacHet) { veManChinh(); return KetQua.HetDa(hq) } // vừa dùng viên cuối: đi nhà máy luôn
             if (kq.loai == LoaiMan.CHINH) {
                 m = moBang(LoaiMan.DIEM_HOA, kq) // mở lại bảng để bấm tiếp (đá điểm hóa thường vẫn còn trong ô)
                 if (m.daThem == true && m.sau?.he != null && m.sau.he != he) {

@@ -154,6 +154,7 @@ class TroNangService : AccessibilityService() {
         val tb = object : ThietBi {
             override fun nhin(): ManHinh? = this@TroNangService.nhin()
             override fun bacCacO(): List<Int?>? = ChupManHinhService.instance?.chup()?.let { DocMan.bacCacO(it) }
+            override fun oCoDa(diemHoa: Boolean): Boolean? = ChupManHinhService.instance?.chup()?.let { DocMan.oCoDa(it, DocMan.vungGame(it), diemHoa) }
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y)
             override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1)
             override fun ngu(ms: Long) = Thread.sleep(ms)
