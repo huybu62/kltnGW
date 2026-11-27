@@ -52,8 +52,9 @@ object DocMan {
     val VUNG_DS = floatArrayOf(395f, 235f, 830f, 1010f) // tên đá ở danh sách trái
     val NUT_DIEM_HOA = Pair(1304f, 954f)
     val NUT_THAC_AN = Pair(1588f, 954f)
-    val VUOT_DS_TREN = Pair(560f, 360f)
-    val VUOT_DS_DUOI = Pair(560f, 860f)
+    // vuốt ngắn (~2,3 hàng) để mỗi trang chồng lên trang trước, không sót hàng
+    val VUOT_DS_TREN = Pair(560f, 420f)
+    val VUOT_DS_DUOI = Pair(560f, 830f)
 
     // bảng Điểm Hóa / Thác Ấn
     val TIEU_DE_BANG = floatArrayOf(820f, 150f, 1260f, 222f)

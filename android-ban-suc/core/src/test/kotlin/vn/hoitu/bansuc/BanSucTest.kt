@@ -31,6 +31,7 @@ class GameGia(
     seed: Int = 1,
     val tiLe: Double = 0.3, // tỉ lệ thành công
     val dongSauLam: Boolean = false, // game tự đóng bảng sau mỗi lần bấm (như game thật)
+    val troi: Boolean = false, // vuốt bị trôi quán tính: danh sách đi xa hơn ngẫu nhiên
 ) : ThietBi {
     private val nhoO = HashMap<Pair<LoaiMan, Int>, Pair<Int, He?>>() // đá còn trong ô khi mở lại bảng của cùng viên
     private val r = Random(seed)
@@ -146,7 +147,8 @@ class GameGia(
 
     override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) {
         if (man != LoaiMan.CHINH) return
-        cuon = if (y1 < y0) minOf(maxOf(0, da.size - 4), cuon + 3) else maxOf(0, cuon - 3)
+        val hang = maxOf(1, (abs(y1 - y0) / 176f).toInt()) + (if (troi) r.nextInt(0, 4) else 0)
+        cuon = if (y1 < y0) minOf(maxOf(0, da.size - 4), cuon + hang) else maxOf(0, cuon - hang)
     }
 
     override fun ngu(ms: Long) {}
@@ -232,6 +234,23 @@ class BanSucTest {
         println("điểm hóa ${b.soLanDiemHoa}, thác ấn $soThacAn, mở bảng chọn ${g.soLanMoChon}, đọc chữ ${g.soLanDoc}")
         // mỗi viên B-SS làm ra: 1 lần chọn B-SS + 1 lần chọn Đá In + vài lần chọn B-S khi đổi nhà máy
         assertTrue("mở bảng chọn ${g.soLanMoChon} lần cho $soThacAn lần thác ấn", g.soLanMoChon <= soThacAn * 3 + 5)
+    }
+
+    @Test
+    fun danhSachDaiVuotBiTroiVanThayDaLv5() {
+        // danh sách dài, đá LV5 nằm giữa, vuốt bị trôi xa hơn ngẫu nhiên
+        for (seed in 1..15) {
+            val ds = mutableListOf<Da>()
+            // game thật gộp đá giống nhau thành 1 hàng "xN", nên các hàng liền nhau khác nhau
+            for (i in 1..6) ds += lv6("DCBAS"[i % 5], He.values()[i], ChiSo.TOCDO)
+            ds += listOf(lv6('C', He.LANHCHUA, ChiSo.HP), lv6(null, null, ChiSo.HP), lv6(null, null, ChiSo.HP))
+            for (cs in listOf(ChiSo.MACONG, ChiSo.HP, ChiSo.TOCDO, ChiSo.VATCONG)) ds += Da(4, null, null, cs)
+            ds += Da(5, null, null, ChiSo.HP)
+            for (i in 1..8) ds += Da(4, "DCBAS"[i % 5], He.values()[i], ChiSo.PHONG)
+            val g = GameGia(ds, mutableMapOf(Pair(1, He.LANHCHUA) to 100000), mutableMapOf(2 to 5000), seed = seed, tiLe = 0.3, dongSauLam = true, troi = true)
+            BanSuc(g, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 1))).chay()
+            assertTrue("seed $seed", g.da.any { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
+        }
     }
 
     @Test

@@ -125,7 +125,9 @@ class TroNangService : AccessibilityService() {
 
     private fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) {
         val (a, b) = cu(x0, y0); val (c, d) = cu(x1, y1)
-        lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, 450)
+        // vuốt chậm để danh sách không trôi theo quán tính (trôi thì app sót hàng đá)
+        lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, 1000)
+        Thread.sleep(300)
     }
 
     /** Chụp màn hình, đọc chữ, đọc màn. */

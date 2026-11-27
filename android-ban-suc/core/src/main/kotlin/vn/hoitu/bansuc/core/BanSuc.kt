@@ -100,25 +100,51 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         return m
     }
 
+    private fun vuotNguocNgan(m: ManHinh) { // kéo nội dung xuống một đoạn ngắn (~1 hàng)
+        val (x0, y0) = m.ra(DocMan.VUOT_DS_TREN.first, DocMan.VUOT_DS_TREN.second)
+        val (x1, y1) = m.ra(DocMan.VUOT_DS_TREN.first, DocMan.VUOT_DS_TREN.second + 200f)
+        tb.vuot(x0, y0, x1, y1)
+    }
+
+    /** Gộp trang mới vào cuối danh sách (bỏ phần trùng). Trả về số hàng trùng. */
+    private fun gop(tatCa: MutableList<Hang>, trang: List<Hang>): Int {
+        val a = tatCa.map { it.da }; val b = trang.map { it.da }
+        var trung = 0
+        for (t in minOf(a.size, b.size) downTo 1) if (a.takeLast(t) == b.take(t)) { trung = t; break }
+        tatCa += trang.drop(trung)
+        return trung
+    }
+
     /** Đọc cả danh sách đá (gộp các trang, bỏ phần trùng do vuốt chồng lên nhau). */
     private fun quetDanhSach(): List<Hang> {
         var m = lenDau()
         val tatCa = ArrayList<Hang>(m.hang)
-        repeat(40) {
+        var khongDoi = 0
+        repeat(60) {
             vuotLen(m); ngu(500)
-            val moi = veManChinh()
-            if (moi.hang.map { it.da } == m.hang.map { it.da }) return tatCa
-            // độ trùng lớn nhất giữa đuôi danh sách đã có và đầu trang mới
+            var moi = veManChinh()
+            if (moi.hang.map { it.da } == m.hang.map { it.da }) {
+                if (++khongDoi >= 2) return tatCa // 2 lần vuốt mà trang không đổi: hết danh sách
+                return@repeat
+            }
+            khongDoi = 0
             val a = tatCa.map { it.da }; val b = moi.hang.map { it.da }
-            var trung = 0
-            for (t in minOf(a.size, b.size) downTo 1) if (a.takeLast(t) == b.take(t)) { trung = t; break }
-            tatCa += moi.hang.drop(trung)
+            val coTrung = (1..minOf(a.size, b.size)).any { t -> a.takeLast(t) == b.take(t) }
+            if (!coTrung) {
+                // danh sách trôi quá xa (sót hàng ở giữa): kéo ngược từng chút tới khi nối được với phần đã đọc
+                repeat(6) {
+                    vuotNguocNgan(moi); ngu(500)
+                    moi = veManChinh()
+                    val b2 = moi.hang.map { it.da }
+                    if ((1..minOf(a.size, b2.size)).any { t -> a.takeLast(t) == b2.take(t) }) return@repeat
+                }
+            }
+            gop(tatCa, moi.hang)
             m = moi
         }
         return tatCa
     }
 
-    /** Chọn (chạm) một viên giống [da] ở danh sách: tìm ở trang đang xem trước, không thấy thì dò từ đầu. */
     /** Hai viên giống nhau (chỉ số có thể không đọc được ở một bên). */
     private fun giong(a: Da?, b: Da) = a != null && a.lv == b.lv && a.pham == b.pham && a.he == b.he &&
         (a.chiSo == null || b.chiSo == null || a.chiSo == b.chiSo)
@@ -278,6 +304,9 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         }
     }
 
+    private fun tomTat(ds: List<Hang>) = "${ds.size} hàng: " +
+        ds.groupBy { it.da.lv }.entries.sortedByDescending { it.key }.joinToString { "LV${it.key}: ${it.value.size}" }
+
     private fun capNhat(d: Da, hq: HieuQua?) = if (hq == null) d else d.copy(pham = hq.pham, he = hq.he)
 
     private fun chu(h: HieuQua?) = if (h?.pham == null) "trống" else "${h.pham}·${h.he?.ten}"
@@ -305,7 +334,12 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     private fun lamBSS(): Boolean {
         var f: Da? = nhaMayLv5
         if (f == null || !chonDa(f)) {
-            val ds = quetDanhSach().map { it.da }.filter { it.lv == 5 }
+            var tatCa = quetDanhSach()
+            if (tatCa.none { it.da.lv == 5 }) {
+                tb.log("  Chưa thấy đá LV5 (đọc được ${tomTat(tatCa)}) → quét lại")
+                tatCa = quetDanhSach()
+            }
+            val ds = tatCa.map { it.da }.filter { it.lv == 5 }
             f = ds.sortedBy {
                 when {
                     it.he == he && it.pham == 'B' -> 0
@@ -313,7 +347,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                     it.pham == null -> 2
                     else -> 3
                 }
-            }.firstOrNull() ?: throw DungLai("Không có đá LV5 làm nhà máy")
+            }.firstOrNull() ?: throw DungLai("Không có đá LV5 làm nhà máy (danh sách đọc được ${tomTat(tatCa)})")
             if (!chonDa(f)) throw DungLai("Không chọn được đá LV5 nhà máy $f ($docDuocLanCuoi)")
         }
         f!!
@@ -390,7 +424,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             tb.log("▶ Bắt đầu: hệ ${he.ten}, mục tiêu ${cd.mucTieu}, " + cd.soLuong.filter { it.value > 0 }.entries.joinToString { "${it.key.ten} ${it.value}" })
             while (!dung) {
                 val ds = quetDanhSach()
-                tb.log("  Đọc hết danh sách: ${ds.size} hàng đá (" + ds.groupBy { it.da.lv }.entries.sortedByDescending { it.key }.joinToString { "LV${it.key}: ${it.value.size}" } + ")")
+                tb.log("  Đọc hết danh sách: ${tomTat(ds)}")
                 val cs = thieu(ds)
                 if (cs == null) { tb.log("🎉 Đã đủ số đá ${cd.mucTieu}·${he.ten} → dừng"); return }
                 val ung = ds.map { it.da }.filter { it.lv == 6 && it.chiSo == cs && !daXong(it) && (it.pham == null || it.he == he) }
