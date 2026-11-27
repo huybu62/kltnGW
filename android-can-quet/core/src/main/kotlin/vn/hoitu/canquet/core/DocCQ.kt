@@ -246,14 +246,17 @@ object DocCQ {
      * nhiều miếng đồng ý nhất. [goiY]: độ dịch dự đoán (chuẩn) – chỉ dò trong khoảng từ 0 tới gợi ý (± lề),
      * nhanh hơn nhiều. null nếu không đo chắc.
      */
-    fun doLech(a: Triple<FloatArray, Int, Int>, b: Triple<FloatArray, Int, Int>, buoc: Float = 8f, goiY: Pair<Float, Float>? = null): Pair<Float, Float>? {
+    fun doLech(a: Triple<FloatArray, Int, Int>, b: Triple<FloatArray, Int, Int>, buoc: Float = 8f, goiY: Pair<Float, Float>? = null, chiQuanh: Boolean = false): Pair<Float, Float>? {
         val (pa, w, h) = a; val pb = b.first
         if (b.second != w || b.third != h) return null
         val pw = (w * 0.16f).toInt(); val ph = (h * 0.18f).toInt()
         val le = 14
         val gx = ((goiY?.first ?: 0f) / buoc).toInt(); val gy = ((goiY?.second ?: 0f) / buoc).toInt()
-        val dx0 = if (goiY == null) -w else minOf(0, gx) - le; val dx1 = if (goiY == null) w else maxOf(0, gx) + le
-        val dy0 = if (goiY == null) -h else minOf(0, gy) - le; val dy1 = if (goiY == null) h else maxOf(0, gy) + le
+        // chiQuanh: chỉ dò quanh gợi ý (± lề); không thì dò từ 0 tới gợi ý (± lề)
+        val dx0 = if (goiY == null) -w else if (chiQuanh) gx - le else minOf(0, gx) - le
+        val dx1 = if (goiY == null) w else if (chiQuanh) gx + le else maxOf(0, gx) + le
+        val dy0 = if (goiY == null) -h else if (chiQuanh) gy - le else minOf(0, gy) - le
+        val dy1 = if (goiY == null) h else if (chiQuanh) gy + le else maxOf(0, gy) + le
         val ung = ArrayList<Triple<Float, Int, Int>>()
         for (iy in 0 until 5) for (ix in 0 until 8) {
             val x0 = (w * (0.06f + ix * 0.11f)).toInt(); val y0 = (h * (0.14f + iy * 0.12f)).toInt()
@@ -282,9 +285,48 @@ object DocCQ {
             if (tot > 0.8f) kq += Triple(bx.toFloat(), by.toFloat(), tot)
         }
         if (kq.isEmpty()) return null
-        fun dongY(t: Triple<Float, Float, Float>) = kq.count { abs(it.first - t.first) <= 1.5f && abs(it.second - t.second) <= 1.5f }
-        val tot = kq.maxWith(compareBy({ dongY(it) }, { it.third }))
-        if (dongY(tot) == 1 && kq.size >= 2 && tot.third < 0.95f) return null
-        return Pair(tot.first * buoc, tot.second * buoc)
+        // kiểm lại từng độ dịch ứng viên trên CẢ phần ảnh trùng nhau (đường dài khớp được nhiều chỗ, cả ảnh thì không)
+        val tot = kq.map { Pair(it.first.toInt(), it.second.toInt()) }.distinct()
+            .map { Triple(it, saiLech(pa, pb, w, h, it.first, it.second), kq.count { k -> abs(k.first - it.first) <= 1.5f && abs(k.second - it.second) <= 1.5f }) }
+            .minWith(compareBy({ it.second }, { -it.third }))
+        if (tot.second > 14f) return null
+        return Pair(tot.first.first * buoc, tot.first.second * buoc)
+    }
+
+    /** Độ khác trung bình giữa a và b dịch (dx, dy) trên phần trùng nhau (bỏ thanh trên / dưới). */
+    private fun saiLech(pa: FloatArray, pb: FloatArray, w: Int, h: Int, dx: Int, dy: Int): Float {
+        var s = 0.0; var n = 0
+        val y0 = maxOf(h / 8, h / 8 - dy); val y1 = minOf(h * 7 / 8, h * 7 / 8 - dy)
+        val x0 = maxOf(w / 12, -dx); val x1 = minOf(w * 11 / 12, w - dx)
+        var y = y0
+        while (y < y1) {
+            var x = x0
+            while (x < x1) { s += abs(pa[y * w + x] - pb[(y + dy) * w + x + dx]); n++; x += 2 }
+            y += 2
+        }
+        return if (n < 200) 999f else (s / n).toFloat()
+    }
+
+    /** Ảnh thu nhỏ một nửa (để đo thô trên cả ảnh cho nhanh). */
+    fun nuaCo(a: Triple<FloatArray, Int, Int>): Triple<FloatArray, Int, Int> {
+        val (p, w, h) = a
+        val w2 = w / 2; val h2 = h / 2
+        return Triple(FloatArray(w2 * h2) { i -> val x = (i % w2) * 2; val y = (i / w2) * 2
+            (p[y * w + x] + p[y * w + x + 1] + p[(y + 1) * w + x] + p[(y + 1) * w + x + 1]) / 4f }, w2, h2)
+    }
+
+    /** Đo dịch thô trên cả ảnh (khi đo nhanh quanh độ dịch dự đoán không ra – vd game kéo bản đồ nhanh/chậm hơn ngón tay). */
+    fun doLechTho(a: Triple<FloatArray, Int, Int>, b: Triple<FloatArray, Int, Int>, buoc: Float = 8f): Pair<Float, Float>? {
+        val tho = doLech(nuaCo(a), nuaCo(b), buoc * 2, null) ?: return null
+        // tinh chỉnh lại quanh kết quả thô
+        return doLech(a, b, buoc, tho) ?: tho
+    }
+
+    /** Hai ảnh gần như giống hệt (bản đồ không dịch). */
+    fun giongHet(a: Triple<FloatArray, Int, Int>, b: Triple<FloatArray, Int, Int>): Boolean {
+        val (pa, w, h) = a; val pb = b.first
+        var d = 0.0; var n = 0
+        for (y in h / 6 until h * 5 / 6 step 2) for (x in w / 8 until w * 7 / 8 step 2) { d += abs(pa[y * w + x] - pb[y * w + x]); n++ }
+        return d / maxOf(1, n) < 3.0
     }
 }

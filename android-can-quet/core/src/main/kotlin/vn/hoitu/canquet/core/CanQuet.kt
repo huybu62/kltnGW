@@ -16,6 +16,7 @@ data class CaiDatCQ(
     var nhipMs: Int = 150, // nhịp bấm "Càn quét lần nữa"
     var ngay: String = "", // ngày của danh sách ải đã xong
     var xong: MutableSet<String> = mutableSetOf(), // ải đã quét xong hôm nay ("Nước N")
+    var khuAi: MutableMap<String, MutableSet<String>> = mutableMapOf(), // dữ liệu ải: "Nước N" → tên các khu đã dò được
 )
 
 /** Những gì Càn quét cần từ điện thoại. */
@@ -56,6 +57,7 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
     private val thamHiemLan = HashMap<String, Int>()
     private var theLuc: Int? = null
     private var gioiHan = floatArrayOf(-1e9f, -1e9f, 1e9f, 1e9f) // camX min, camY min, camX max, camY max
+    private var daBaoUocLuong = false
 
     companion object {
         const val BUOC_X = 1000f // vuốt nửa màn
@@ -64,7 +66,7 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
         val LUOI_X = (0 until 9).map { 200f + it * 190f }
         val LUOI_Y = (0 until 5).map { 230f + it * 150f }
         const val CHI_TIET_TOI_THIEU = 8f // chỉ bỏ chỗ phẳng hẳn (vùng đen ngoài bản đồ, nước)
-        const val BK_X = 170f; const val BK_Y = 130f // quanh khu đã mở: không chạm lại
+        const val BK_X = 120f; const val BK_Y = 90f // quanh khu đã mở: không chạm lại
     }
 
     private fun ngu(ms: Long) { if (dung) throw DungCQ("đã dừng"); tb.ngu(ms) }
@@ -172,12 +174,25 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
         if (abs(d.first) > 12f || abs(d.second) > 12f) { camX -= d.first; camY -= d.second }
     }
 
-    /** Vuốt để camera dời (dx, dy) toạ độ chuẩn (dương = sang phải / xuống). Trả về độ dời thật, null nếu không đo được. */
+    // tỉ lệ bản đồ dịch / ngón tay (game có thể kéo nhanh hay chậm hơn ngón tay): tự học từ các lần vuốt
+    private val mauTiLe = ArrayList<Float>()
+    // vuốt bị mép chặn chỉ làm tỉ lệ đo được nhỏ đi → lấy giá trị lớn (lớn thứ 2 khi đủ mẫu, phòng đo sai)
+    private fun tiLeKeo(): Float? = when {
+        mauTiLe.isEmpty() -> null
+        mauTiLe.size < 3 -> mauTiLe.max()
+        else -> mauTiLe.sortedDescending()[1]
+    }
+
+    /** Vuốt để camera dời (dx, dy) toạ độ chuẩn (dương = sang phải / xuống). Trả về độ dời thật, null nếu không chụp được. */
     private fun dichCamera(dx: Float, dy: Float): Pair<Float, Float>? {
         val truoc = khung() ?: return null
-        val vx = -dx.coerceIn(-BUOC_X, BUOC_X); val vy = -dy.coerceIn(-BUOC_Y, BUOC_Y) // ngón tay đi ngược hướng camera
-        val (x0, y0) = truoc.ra(1000f - vx / 2, 500f - vy / 2)
-        val (x1, y1) = truoc.ra(1000f + vx / 2, 500f + vy / 2)
+        val tl = tiLeKeo()
+        // ngón tay đi ngược hướng camera; đã biết tỉ lệ kéo thì vuốt đúng khoảng cần đi
+        // bản đồ chỉ nên chạy tối đa nửa màn mỗi lần (còn đủ phần trùng để đo); chưa biết tỉ lệ thì vuốt ngắn
+        val fx = if (tl == null) dx.coerceIn(-600f, 600f) else (dx.coerceIn(-BUOC_X, BUOC_X) / tl).coerceIn(-1200f, 1200f)
+        val fy = if (tl == null) dy.coerceIn(-340f, 340f) else (dy.coerceIn(-BUOC_Y, BUOC_Y) / tl).coerceIn(-680f, 680f)
+        val (x0, y0) = truoc.ra(1000f + fx / 2, 500f + fy / 2)
+        val (x1, y1) = truoc.ra(1000f - fx / 2, 500f - fy / 2)
         tb.vuot(x0, y0, x1, y1, 700)
         // chờ bản đồ đứng yên (có thể trôi)
         var cu = khung() ?: return null
@@ -188,8 +203,25 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
             cu = moi
             if (d == null || (abs(d.first) < 9f && abs(d.second) < 9f)) break
         }
-        // nội dung dịch ngược hướng camera: gợi ý (-dx, -dy)
-        val d = DocCQ.doLech(truoc.g, cu.g, goiY = Pair(-dx.coerceIn(-BUOC_X, BUOC_X), -dy.coerceIn(-BUOC_Y, BUOC_Y))) ?: return null
+        // đo: chưa biết tỉ lệ kéo thì đo thô cả ảnh; biết rồi thì dò quanh độ dịch dự đoán (kết quả sát rìa khoảng dò là đáng ngờ → đo thô)
+        val goiY = tl?.let { Pair(-fx * it, -fy * it) }
+        val goiY0 = goiY ?: Pair(-fx, -fy)
+        var d = goiY?.let { g -> DocCQ.doLech(truoc.g, cu.g, goiY = g, chiQuanh = true) } // đi đủ như dự đoán
+            ?: DocCQ.doLech(truoc.g, cu.g, goiY = goiY0) // từ 0 tới dự đoán: bị mép chặn một phần
+            ?: DocCQ.doLechTho(truoc.g, cu.g) // đo thô cả ảnh (tỉ lệ kéo khác hẳn...)
+            ?: DocCQ.doLech(truoc.g, cu.g, goiY = Pair(0f, 0f), chiQuanh = true) // bị mép chặn hẳn
+        if (d == null) {
+            d = if (DocCQ.giongHet(truoc.g, cu.g)) Pair(0f, 0f)
+            else {
+                if (!daBaoUocLuong) { tb.log("  · Không đo chính xác được bản đồ dịch → ước lượng theo cú vuốt"); daBaoUocLuong = true }
+                Pair(-fx * (tl ?: 1f), -fy * (tl ?: 1f))
+            }
+        } else {
+            // học tỉ lệ kéo từ những lần vuốt đủ dài và không bị mép chặn
+            if (abs(fx) > 300f) (-d.first / fx).takeIf { it in 0.3f..3f }?.let { mauTiLe += it }
+            if (abs(fy) > 200f) (-d.second / fy).takeIf { it in 0.3f..3f }?.let { mauTiLe += it }
+            if (mauTiLe.size > 15) mauTiLe.removeAt(0)
+        }
         camX -= d.first; camY -= d.second
         return Pair(-d.first, -d.second)
     }
@@ -214,13 +246,15 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
         }
     }
 
-    /** Quét hết bản đồ đang mở. */
-    private fun quetBanDo() {
+    /** Quét hết bản đồ đang mở. [key]: "Nước N" (đi qua ải) để dùng / lưu dữ liệu khu của ải. */
+    private fun quetBanDo(key: String? = null) {
         datLaiBanDo()
+        val biet = key?.let { cd.khuAi[it] }?.takeIf { it.isNotEmpty() }
+        fun duKhuBiet() = biet != null && biet.all { it in daXong }
         var m = veBanDo()
         if (m.loai != LoaiCQ.BAN_DO) return
         capNhatTheLuc(m)
-        tb.log("🗺 Quét bản đồ (thể lực ${theLuc ?: "?"})")
+        tb.log("🗺 Quét bản đồ (thể lực ${theLuc ?: "?"})" + if (biet != null) " – ải đã có dữ liệu: ${biet.size} khu" else if (key != null) " – ải chưa có dữ liệu: dò cả bản đồ" else "")
         // các vị trí camera đã xem; ô kế bên → đích (đặt ngay mép nếu đã biết mép), chỉ bỏ khi chỗ đó đã xem rồi
         val daXem = ArrayList<Pair<Float, Float>>()
         val khongToi = ArrayList<Pair<Float, Float>>()
@@ -229,20 +263,35 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
         daXem += Pair(camX, camY)
         lamManHinh()
         var lan = 0
+        var hetBanDo = false
         while (!dung && lan++ < 40) {
             if (duSoLan()) return
+            if (duKhuBiet()) { tb.log("  Đã quét đủ ${biet!!.size} khu đã biết của ải"); break }
             val o = daXem.map { Pair((it.first / BUOC_X).roundToInt(), (it.second / BUOC_Y).roundToInt()) }.toSet()
             val dichDen = o.flatMap { (i, j) -> listOf(Pair(i + 1, j), Pair(i - 1, j), Pair(i, j + 1), Pair(i, j - 1)) }
                 .map { dich(it.first, it.second) }.distinct()
                 .filter { t -> daXem.none { gan(it, t) } && khongToi.none { gan(it, t) } }
-                .minByOrNull { abs(it.first - camX) / BUOC_X + abs(it.second - camY) / BUOC_Y } ?: break
+                .minByOrNull { abs(it.first - camX) / BUOC_X + abs(it.second - camY) / BUOC_Y } ?: run { hetBanDo = true; null } ?: break
             if (!toiO(dichDen.first, dichDen.second)) { khongToi += dichDen; continue }
             if (daXem.any { gan(it, Pair(camX, camY)) }) { khongToi += dichDen; continue } // bị chặn, vẫn ở chỗ đã xem
             daXem += Pair(camX, camY)
             tb.log("  · Xem vùng camera ${camX.toInt()}, ${camY.toInt()}")
             lamManHinh()
         }
+        if (key != null && hetBanDo && khuViTri.isNotEmpty()) {
+            // dò hết bản đồ: lưu tên các khu (lần sau quét xong các khu này là sang ải kế, khỏi dò lại)
+            cd.khuAi[key] = khuViTri.keys.toMutableSet()
+            tb.luu(cd)
+            tb.log("  Lưu dữ liệu ải $key: ${khuViTri.size} khu")
+        }
         tb.log("✔ Xong bản đồ: ${daXong.size} khu, đã quét $soLan lần")
+    }
+
+    /** Ghi mép bản đồ; mâu thuẫn với mép đối diện (do đo sai trước đó) thì bỏ mép kia. */
+    private fun datMep(i: Int, v: Float) {
+        gioiHan[i] = v
+        if (gioiHan[0] > gioiHan[2]) { if (i == 0) gioiHan[2] = 1e9f else gioiHan[0] = -1e9f }
+        if (gioiHan[1] > gioiHan[3]) { if (i == 1) gioiHan[3] = 1e9f else gioiHan[1] = -1e9f }
     }
 
     /** Vuốt tới vị trí camera (tx, ty). false nếu bị chặn (mép bản đồ) trước khi tới. */
@@ -264,11 +313,11 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
             // trục nào đi được quá ít → mép bản đồ phía đó
             var chan = false
             if (dxx != 0f && abs(d.first) < abs(dxx) * 0.25f) {
-                if (dxx > 0) gioiHan[2] = camX else gioiHan[0] = camX
+                datMep(if (dxx > 0) 2 else 0, camX)
                 chan = true
             }
             if (dyy != 0f && abs(d.second) < abs(dyy) * 0.25f) {
-                if (dyy > 0) gioiHan[3] = camY else gioiHan[1] = camY
+                datMep(if (dyy > 0) 3 else 1, camY)
                 chan = true
             }
             if (chan) {
@@ -307,22 +356,28 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
             val m = choSauCham(truoc) ?: continue
             when (m.loai) {
                 LoaiCQ.POPUP -> {
-                    khuViTri[khoa(m.ten)] = Pair(ax, ay)
-                    var mo = xuLyKhu(m)
+                    var mk: ManCQ? = m
                     var lanMo = 0
-                    while (mo && lanMo++ < 3) {
-                        // vừa thám hiểm xong: mở lại khu để càn quét
-                        val v = veBanDo(); if (v.loai != LoaiCQ.BAN_DO) return
+                    while (mk != null && mk.loai == LoaiCQ.POPUP && lanMo++ < 6) {
+                        val tenK = khoa(mk.ten)
+                        if (tenK !in khuViTri) khuViTri[tenK] = Pair(ax, ay)
+                        xuLyKhu(mk)
+                        val v = veBanDo()
+                        if (v.loai != LoaiCQ.BAN_DO) return
+                        capNhatTheLuc(v)
+                        doLaiCamera(truoc)
+                        if (tenK in daXong || duSoLan() || dung) break
+                        // khu còn lượt (game đóng bảng giữa chừng / vừa thám hiểm xong): chạm lại toà nhà để quét tiếp
                         val kk = khung() ?: return
-                        val (x2, y2) = kk.ra(ax - camX, ay - camY)
+                        val p = khuViTri[tenK] ?: Pair(ax, ay)
+                        val sx2 = p.first - camX; val sy2 = p.second - camY
+                        if (DocCQ.trongVungCam(sx2, sy2) || sx2 < 60f || sx2 > 1940f || sy2 < 60f || sy2 > 1060f) break
+                        tb.log("  Mở lại ${mk.ten ?: "khu"} để quét tiếp")
+                        val (x2, y2) = kk.ra(sx2, sy2)
                         tb.cham(x2, y2)
-                        val m2 = choSauCham(kk) ?: break
-                        mo = if (m2.loai == LoaiCQ.POPUP) xuLyKhu(m2) else false
+                        mk = choSauCham(kk)
                     }
-                    val v = veBanDo()
-                    if (v.loai != LoaiCQ.BAN_DO) return
-                    capNhatTheLuc(v)
-                    doLaiCamera(truoc)
+                    if (mk != null && mk.loai != LoaiCQ.POPUP) veBanDo()
                 }
                 LoaiCQ.CHUONG -> return
                 else -> veBanDo()
@@ -449,6 +504,7 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
         try {
             var doiCuoi = System.nanoTime()
             var khongThay = 0
+            var docKhongDoi = 0 // số lần đọc được "Số lần" mà không đổi
             while (!dung) {
                 ngu(450)
                 val m = tb.nhin() ?: continue
@@ -457,13 +513,14 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
                     val c = m.conLai
                     if (c != null && con != null && c < con && con - c <= 60) {
                         soLan += con - c; theLuc = theLuc?.let { it - (con!! - c) * cd.chiPhi }
-                        doiCuoi = System.nanoTime()
-                    }
+                        doiCuoi = System.nanoTime(); docKhongDoi = 0
+                    } else if (c != null) docKhongDoi++
                     if (c != null) con = c
                     if (con == 0) { danhDauXong(ten, null); break }
                     if (duSoLan()) break
                     if (bam.xong && (System.nanoTime() - doiCuoi) / 1_000_000 > 1500) break
-                    if ((System.nanoTime() - doiCuoi) / 1_000_000 > 4000) {
+                    val lau = (System.nanoTime() - doiCuoi) / 1_000_000
+                    if ((lau > 4000 && docKhongDoi >= 5) || lau > 15000) {
                         tb.log("  'Lần nữa' không còn tác dụng (hết thể lực?)")
                         theLuc = 0
                         break
@@ -554,7 +611,7 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
                 if (thatBai[key]!! >= 2) xongAi(key)
                 continue
             }
-            quetBanDo()
+            quetBanDo(key)
             xongAi(key)
         }
     }

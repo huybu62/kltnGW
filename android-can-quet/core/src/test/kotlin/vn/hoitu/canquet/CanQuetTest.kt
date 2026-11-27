@@ -31,7 +31,10 @@ class GameCQ(
     var aiI: Int = 0,
     var man: LoaiCQ = LoaiCQ.BAN_DO,
     camX0: Float = 0f, camY0: Float = 0f,
+    val tiLeKeo: Float = 1f, // bản đồ dịch bao nhiêu so với ngón tay
+    val docHong: Double = 0.0, // tỉ lệ đọc hụt "Số lần" ở màn kết quả
 ) : ThietBiCQ {
+    private val rr = Random(99)
     val k = 0.4f
     val W = 800; val H = 450
     var camX = camX0; var camY = camY0
@@ -42,6 +45,7 @@ class GameCQ(
     val chamCam = ArrayList<Pair<Float, Float>>()
     var soVuot = 0
     var soCham = 0
+    val chamBanDo = ArrayList<Pair<Float, Float>>() // các điểm chạm trên bản đồ (toạ độ bản đồ thật)
     private val vanCache = HashMap<Int, Pair<FloatArray, Pair<Int, Int>>>()
     val ai get() = nuoc[nuocI].second[aiI]
 
@@ -56,7 +60,7 @@ class GameCQ(
         val mang = List(60) { Triple(r.nextInt(w), r.nextInt(h), 60f + r.nextFloat() * 120f) }
         for (y in 0 until h) for (x in 0 until w) {
             val m = mang.minBy { (mx, my, _) -> (mx - x) * (mx - x) + (my - y) * (my - y) }
-            nen[y * w + x] = m.third + r.nextFloat() * 6f
+            nen[y * w + x] = m.third + r.nextFloat() * 50f - 25f // bản đồ thật nhiều chi tiết ở khắp nơi
         }
         for (t in a.nha) for (y in (t.y0 / 8).toInt() until (t.y1 / 8).toInt()) for (x in (t.x0 / 8).toInt() until (t.x1 / 8).toInt()) {
             if (x in 0 until w && y in 0 until h) nen[y * w + x] = if ((x + y) % 2 == 0) 40f + r.nextFloat() * 60f else 170f + r.nextFloat() * 70f
@@ -91,7 +95,7 @@ class GameCQ(
                 if (t.moCQ && t.coBoi) { nut["X5"] = p(1220f, 975f); nut["X10"] = p(1380f, 975f) }
                 ManCQ(LoaiCQ.POPUP, 0f, 0f, k, ten = t.ten, conLai = t.conLai, nut = nut)
             }
-            LoaiCQ.KET_QUA -> ManCQ(LoaiCQ.KET_QUA, 0f, 0f, k, conLai = t!!.conLai, nut = mapOf("LAN_NUA" to p(1760f, 470f), "DONG" to p(1760f, 840f)))
+            LoaiCQ.KET_QUA -> ManCQ(LoaiCQ.KET_QUA, 0f, 0f, k, conLai = if (rr.nextDouble() < docHong) null else t!!.conLai, nut = mapOf("LAN_NUA" to p(1760f, 470f), "DONG" to p(1760f, 840f)))
             LoaiCQ.QUET_LAI -> ManCQ(LoaiCQ.QUET_LAI, 0f, 0f, k, conLai = t!!.conLai, nut = mapOf("QUET_LAI" to p(1200f, 900f), "DONG" to p(1760f, 840f)))
             LoaiCQ.HOI -> ManCQ(LoaiCQ.HOI, 0f, 0f, k, hoiCanQuet = hoiSo > 0, hoiSo = if (hoiSo > 0) hoiSo else null, nut = mapOf("XAC_DINH" to p(950f, 715f)))
             LoaiCQ.TRAN -> ManCQ(LoaiCQ.TRAN, 0f, 0f, k, nut = mapOf("TIEN_LEN" to p(1660f, 750f)))
@@ -118,6 +122,7 @@ class GameCQ(
                     return
                 }
                 val ax = camX + rx; val ay = camY + ry
+                chamBanDo += Pair(ax, ay)
                 nha = ai.nha.firstOrNull { ax in it.x0..it.x1 && ay in it.y0..it.y1 }
                 if (nha != null) man = LoaiCQ.POPUP
             }
@@ -164,8 +169,8 @@ class GameCQ(
     @Synchronized override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float, ms: Long) {
         soVuot++
         if (man != LoaiCQ.BAN_DO) return
-        camX = (camX - (x1 - x0) / k).coerceIn(0f, maxOf(0f, ai.rong - 2000f))
-        camY = (camY - (y1 - y0) / k).coerceIn(0f, maxOf(0f, ai.cao - 1125f))
+        camX = (camX - (x1 - x0) / k * tiLeKeo).coerceIn(0f, maxOf(0f, ai.rong - 2000f))
+        camY = (camY - (y1 - y0) / k * tiLeKeo).coerceIn(0f, maxOf(0f, ai.cao - 1125f))
     }
 
     @Synchronized override fun quayLai() {
@@ -205,6 +210,42 @@ class CanQuetTest {
         assertTrue("chạm vùng cấm: ${g.chamCam}", g.chamCam.isEmpty())
         println("vuốt ${g.soVuot} lần, chạm ${g.soCham} lần")
         assertTrue("vuốt quá nhiều: ${g.soVuot}", g.soVuot <= 40)
+    }
+
+    @Test
+    fun banDoKeoNhanhHoacChamHonNgonTay() {
+        for (tl in listOf(1.6f, 0.6f)) {
+            val g = GameCQ(listOf("Singapore" to listOf(aiMau(6))), camX0 = 1200f, camY0 = 500f, tiLeKeo = tl)
+            val cq = CanQuet(g, CaiDatCQ(kieu = 1, quaAi = false))
+            cq.chay()
+            assertTrue("kéo ×$tl còn: ${g.ai.nha.filter { it.conLai > 0 }.map { it.ten }}", g.ai.nha.all { it.conLai == 0 })
+            assertTrue(g.chamCam.isEmpty())
+        }
+    }
+
+    @Test
+    fun docHutSoLanVanQuetHet() {
+        val g = GameCQ(listOf("Singapore" to listOf(aiMau(7))), docHong = 0.5)
+        val cq = CanQuet(g, CaiDatCQ(kieu = 1, quaAi = false))
+        cq.chay()
+        assertTrue("còn: ${g.ai.nha.filter { it.conLai > 0 }.map { it.ten to it.conLai }}", g.ai.nha.all { it.conLai == 0 })
+        assertEquals(74, g.demQuet)
+    }
+
+    @Test
+    fun aiDaCoDuLieuThiKhongDoLai() {
+        fun ai1() = AiGia(4400f, 2250f, listOf(ToaNha("A", 700f, 400f, 950f, 620f, 3), ToaNha("B", 1500f, 300f, 1720f, 520f, 3)), 21)
+        val cd = CaiDatCQ(kieu = 1, quaAi = true)
+        val g1 = GameCQ(listOf("Singapore" to listOf(ai1())), man = LoaiCQ.CHUONG)
+        CanQuet(g1, cd).chay()
+        assertEquals(setOf("A", "B"), cd.khuAi["Singapore 1"])
+        // hôm sau: cùng ải, đã có dữ liệu → quét xong 2 khu là thôi, không vuốt khắp bản đồ
+        cd.xong.clear()
+        val g2 = GameCQ(listOf("Singapore" to listOf(ai1())), man = LoaiCQ.CHUONG)
+        CanQuet(g2, cd).chay()
+        assertTrue(g2.ai.nha.all { it.conLai == 0 })
+        println("lần đầu vuốt ${g1.soVuot}, lần sau vuốt ${g2.soVuot}")
+        assertTrue("lần sau phải ít vuốt hơn", g2.soVuot < g1.soVuot)
     }
 
     @Test
@@ -268,9 +309,10 @@ class CanQuetTest {
             val tong = ds.sumOf { it.conLai }
             val a = AiGia(rong, cao, ds, seed)
             val g = GameCQ(listOf("X" to listOf(a)), camX0 = r.nextFloat() * rong, camY0 = r.nextFloat() * cao)
+            val g0x = g.camX; val g0y = g.camY
             val cq = CanQuet(g, CaiDatCQ(kieu = 1, quaAi = false))
             cq.chay()
-            assertTrue("seed $seed còn: ${ds.filter { it.conLai > 0 }.map { it.ten }}", ds.all { it.conLai == 0 })
+            assertTrue("seed $seed bản đồ ${rong}x$cao còn: ${ds.filter { it.conLai > 0 }.map { "${it.ten} ${it.x0},${it.y0}" }} camera đầu ${g0x},${g0y}", ds.all { it.conLai == 0 })
             assertEquals("seed $seed", tong, g.demQuet)
             assertTrue("seed $seed chạm vùng cấm", g.chamCam.isEmpty())
         }

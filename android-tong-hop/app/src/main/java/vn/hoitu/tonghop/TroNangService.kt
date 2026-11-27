@@ -428,6 +428,8 @@ class TroNangService : AccessibilityService() {
             val daXong = if (cd.ngay == Kho.homNay()) cd.xong.size else 0
             if (daXong > 0) c.addView(hang(chu("Hôm nay đã xong $daXong ải", 12f, mau = Color.LTGRAY),
                 nut("Quét lại từ đầu") { cd.xong.clear(); luu(); moCQ() }))
+            if (cd.khuAi.isNotEmpty()) c.addView(hang(chu("Dữ liệu bản đồ: ${cd.khuAi.size} ải đã dò", 12f, mau = Color.LTGRAY),
+                nut("Xoá, dò lại") { cd.khuAi.clear(); luu(); moCQ() }))
             c.addView(chu("Mở bản đồ một ải (hoặc màn chương nếu bật Qua ải) rồi bấm Chạy. Hết thể lực app dừng, không mua.", 11f, mau = Color.LTGRAY))
         }
         c.addView(hang(dongChay(Tool.CQ) { chayCQ() }, nut("📜") { moNhatKy(Tool.CQ) }, nut("‹") { moMenu() }, nut("✕") { dongBang() }))

@@ -87,6 +87,8 @@ object Kho {
             kieu = p.getInt("kieu", 10), quaAi = p.getBoolean("qua_ai", true), nguoc = p.getBoolean("nguoc", false),
             thamHiem = p.getBoolean("tham_hiem", false), dungSau = p.getInt("dung_sau", 0), nhipMs = p.getInt("nhip", 150),
             ngay = p.getString("ngay", "")!!, xong = (p.getStringSet("xong", null) ?: emptySet()).toMutableSet(),
+            khuAi = (p.getStringSet("khu_ai", null) ?: emptySet()).mapNotNull { it.split('\t').takeIf { x -> x.size == 2 } }
+                .groupBy({ it[0] }, { it[1] }).mapValues { it.value.toMutableSet() }.toMutableMap(),
         )
     }
 
@@ -95,6 +97,7 @@ object Kho {
             .putInt("kieu", cd.kieu).putBoolean("qua_ai", cd.quaAi).putBoolean("nguoc", cd.nguoc)
             .putBoolean("tham_hiem", cd.thamHiem).putInt("dung_sau", cd.dungSau).putInt("nhip", cd.nhipMs)
             .putString("ngay", cd.ngay).putStringSet("xong", cd.xong.toSet())
+            .putStringSet("khu_ai", cd.khuAi.flatMap { (ai, ds) -> ds.map { "$ai\t$it" } }.toSet())
             .apply()
     }
 
