@@ -20,7 +20,7 @@ data class Hang(val da: Da, val x: Float, val y: Float, val daChon: Boolean, val
  * Một thẻ trong bảng chọn đá. [bac]: 1 = xanh lam (B-S / Đá In S), 2 = tím (B-SS / Đá In SS), 3 = vàng (A-SSS / Đá In SSS).
  * [daIn]: thẻ Đá In (bảng Thác Ấn) hay Đá Điểm Hóa.
  */
-data class The(val bac: Int, val daIn: Boolean, val he: He?, val soLuong: Int?, val x: Float, val y: Float, val chu: String)
+data class The(val bac: Int, val daIn: Boolean, val he: He?, val soLuong: Int?, val x: Float, val y: Float, val chu: String, val vi: Int = -1)
 
 enum class LoaiMan { CHINH, DIEM_HOA, THAC_AN, CHON_DA, KHAC }
 
@@ -155,6 +155,12 @@ object DocMan {
         }
     }
 
+    /** Bậc theo màu của 8 ô thẻ trên bảng chọn đá (xem nhanh bằng ảnh, không đọc chữ). */
+    fun bacCacO(a: Anh): List<Int?> {
+        val v = vungGame(a)
+        return (0 until 8).map { bacTheoMau(a, v, COT[it % 4], it / 4) }
+    }
+
     /** Màu nhãn thẻ → bậc (1 xanh lam, 2 tím, 3 vàng), null nếu thẻ trống/khóa. */
     fun bacTheoMau(a: Anh?, vung: IntArray, cot: Float, hang: Int): Int? {
         if (a == null) return null
@@ -189,7 +195,7 @@ object DocMan {
 
     private fun docThe(cs: List<ChuRef>, a: Anh?, vung: IntArray, k: Float): List<The> {
         val ds = ArrayList<The>()
-        for ((h, yr) in HANG_NHAN.withIndex()) for (cot in COT) {
+        for ((h, yr) in HANG_NHAN.withIndex()) for ((ci, cot) in COT.withIndex()) {
             // chữ nằm trong ô thẻ; dòng bị đọc dính qua nhiều thẻ thì cắt theo tỉ lệ bề ngang
             val phan = ArrayList<Pair<Float, String>>()
             for (c in cs) {
@@ -221,7 +227,7 @@ object DocMan {
             if (bac == null) continue
             val he = if (daIn) null else VanBan.timHe(n.substringAfter("DIEMHOA", n.substringAfter("DIEM", n)))
             val (tx, ty) = Pair(vung[0] + cot * k, vung[1] + HANG_CHAM[h] * k)
-            ds += The(bac, daIn, he, soLuong, tx, ty, chu)
+            ds += The(bac, daIn, he, soLuong, tx, ty, chu, h * 4 + ci)
         }
         return ds
     }

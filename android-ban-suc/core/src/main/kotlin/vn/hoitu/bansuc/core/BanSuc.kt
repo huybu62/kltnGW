@@ -12,6 +12,8 @@ data class CaiDat(
 /** Những gì bộ điều khiển cần từ điện thoại (nhìn màn hình đã đọc chữ, chạm, vuốt...). */
 interface ThietBi {
     fun nhin(): ManHinh?
+    /** Bậc theo màu của 8 ô thẻ ở bảng chọn đá đang hiện (chỉ chụp ảnh, không đọc chữ – nhanh). null: không xem được. */
+    fun bacCacO(): List<Int?>? = null
     fun cham(x: Float, y: Float)
     fun vuot(x0: Float, y0: Float, x1: Float, y1: Float)
     fun ngu(ms: Long)
@@ -146,8 +148,8 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         return false
     }
 
-    private fun moBang(loai: LoaiMan): ManHinh {
-        val m = veManChinh()
+    private fun moBang(loai: LoaiMan, daThay: ManHinh? = null): ManHinh {
+        val m = if (daThay?.loai == LoaiMan.CHINH) daThay else veManChinh()
         cham(m, if (loai == LoaiMan.DIEM_HOA) DocMan.NUT_DIEM_HOA else DocMan.NUT_THAC_AN)
         return cho(5000) { it.loai == loai && it.hien != null } ?: throw DungLai("Không mở được bảng ${if (loai == LoaiMan.DIEM_HOA) "Điểm Hóa" else "Thác Ấn"}")
     }
@@ -155,29 +157,83 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     private fun tenDa(bac: Int, daIn: Boolean) =
         if (daIn) "Đá In " + "S".repeat(bac) else when (bac) { 1 -> "B-S"; 2 -> "B-SS"; else -> "A-SSS" } + " ${he.ten}"
 
-    /** Bấm ô "+ Thêm Đá ..." rồi chọn thẻ đúng loại (dò các trang). false: không có thẻ đó (hết đá). */
+    // nhớ tồn kho (đọc từ số "xN" trên thẻ, trừ mỗi lần dùng, cộng khi Thác Ấn ra) và vị trí thẻ (trang, ô)
+    private val tonKho = HashMap<String, Int>()
+    private val chacHet = HashSet<String>() // đã biết chắc là hết (không tìm thấy thẻ, hoặc dùng hết từ số nhỏ đọc được)
+    private val viTri = HashMap<String, Pair<Int, Int>>()
+
+    private fun khoa(bac: Int, daIn: Boolean) = if (daIn) "IN$bac" else "DH$bac${he.name}"
+
+    private fun daDung(key: String) {
+        val c = tonKho[key] ?: return
+        tonKho[key] = maxOf(0, c - 1)
+        if (c - 1 <= 0) {
+            if (c <= 9) chacHet += key // số nhỏ đọc được: tin là hết, khỏi mở bảng chọn
+            if (key.startsWith("DH")) viTri.keys.removeAll { it.startsWith("DH") } // thẻ biến mất → vị trí các thẻ khác dịch đi
+        }
+    }
+
+    private fun duocThem(key: String) {
+        if (key in chacHet || tonKho[key] == 0) viTri.keys.removeAll { it.startsWith("DH") } // thẻ mới hiện ra
+        chacHet -= key
+        tonKho[key]?.let { tonKho[key] = it + 1 }
+    }
+
+    /**
+     * Bấm ô "+ Thêm Đá ..." rồi chọn thẻ đúng loại. false: không có thẻ đó (hết đá).
+     * Nhanh: đã biết hết thì thôi; đã biết vị trí thì bấm thẳng (kiểm màu thẻ trước); trang không có màu cần tìm thì lật qua luôn.
+     */
     private fun themDa(loai: LoaiMan, bac: Int, daIn: Boolean): Boolean {
+        val key = khoa(bac, daIn)
+        if (key in chacHet) return false
         val bang = cho(3000) { it.loai == loai } ?: return false
-        cham(bang, DocMan.NUT_O)
-        var m = cho(4000) { it.loai == LoaiMan.CHON_DA } ?: return false
+        fun ve(b: ManHinh?) = b != null && (daIn || b.sau?.he == null || b.sau.he == he)
+        fun moChon() { cham(bang, DocMan.NUT_O); ngu(450) }
+        fun ra(vi: Int) = bang.ra(DocMan.COT[vi % 4], DocMan.HANG_CHAM[vi / 4])
+
+        moChon()
+        // 1) vị trí đã nhớ
+        viTri[key]?.let { (trang, vi) ->
+            repeat(trang) { cham(bang, DocMan.TRANG_SAU); ngu(350) }
+            val mau = tb.bacCacO()
+            if (mau != null && mau.getOrNull(vi) == bac) {
+                val (x, y) = ra(vi); tb.cham(x, y)
+                val b = cho(4000) { it.loai == loai && it.daThem != false }
+                if (ve(b)) return true
+                if (b != null) { moChon() } // thẻ sai hệ: chọn lại
+            }
+            viTri.remove(key)
+            // về lại bảng rồi mở bảng chọn từ đầu
+            val m = nhin()
+            if (m.loai == LoaiMan.CHON_DA) { cham(m, DocMan.QUAY_LAI); cho(3000) { it.loai == loai }; moChon() }
+        }
+        // 2) dò từng trang: trang không có thẻ đúng màu thì lật qua, có thì mới đọc chữ
         fun timThe(m: ManHinh) = m.the.firstOrNull { it.bac == bac && it.daIn == daIn && (daIn || it.he == he) && (it.soLuong ?: 1) > 0 }
-        for (huong in listOf(DocMan.TRANG_SAU, DocMan.TRANG_TRUOC)) {
-            repeat(4) {
-                val t = timThe(m)
-                if (t != null) {
-                    tb.cham(t.x, t.y)
-                    val b = cho(4000) { it.loai == loai && it.daThem != false } // đã chọn thẻ và về lại bảng
-                    if (b != null) return true
-                    m = cho(2000) { it.loai == LoaiMan.CHON_DA } ?: return false
-                    return@repeat
+        for ((luot, huong) in listOf(DocMan.TRANG_SAU, DocMan.TRANG_TRUOC).withIndex()) {
+            for (trang in 0 until 5) {
+                val mau = tb.bacCacO()
+                if (mau == null || mau.all { it == null } || bac in mau) {
+                    val m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return false
+                    val t = timThe(m)
+                    if (t != null) {
+                        tb.cham(t.x, t.y)
+                        val b = cho(4000) { it.loai == loai && it.daThem != false }
+                        if (ve(b)) {
+                            if (luot == 0 && t.vi >= 0) viTri[key] = Pair(trang, t.vi)
+                            t.soLuong?.let { tonKho[key] = it }
+                            chacHet -= key
+                            return true
+                        }
+                        if (b != null) moChon()
+                    }
                 }
-                val truoc = m.the.map { it.chu }
-                cham(m, huong); ngu(600)
-                m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return false
-                if (m.the.map { it.chu } == truoc) return@repeat
+                if (trang < 4) { cham(bang, huong); ngu(400) }
             }
         }
-        cham(m, DocMan.QUAY_LAI)
+        tb.log("  Không thấy thẻ ${tenDa(bac, daIn)} → coi như hết")
+        tonKho[key] = 0; chacHet += key
+        val m = nhin()
+        if (m.loai == LoaiMan.CHON_DA) cham(m, DocMan.QUAY_LAI)
         cho(3000) { it.loai == loai }
         return false
     }
@@ -202,6 +258,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             val truoc = m.hien
             cham(m, DocMan.NUT_LAM)
             lan++; soLanDiemHoa++
+            daDung(khoa(bac, false))
             ngu(cd.nghiMs.toLong())
             // game có thể giữ bảng Điểm Hóa, hoặc tự đóng bảng và về màn chính sau mỗi lần bấm
             val kq = cho(5000) { (it.loai == LoaiMan.DIEM_HOA && it.hien != null) || (it.loai == LoaiMan.CHINH && it.daChon != null) }
@@ -212,7 +269,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             else if (lan % 10 == 0) tb.log("  Điểm hóa ${tenDa(bac, false)} lần $lan: vẫn ${chu(hq)}")
             if (xong(hq)) return KetQua.Dat(hq)
             if (kq.loai == LoaiMan.CHINH) {
-                m = moBang(LoaiMan.DIEM_HOA) // mở lại bảng để bấm tiếp (đá điểm hóa thường vẫn còn trong ô)
+                m = moBang(LoaiMan.DIEM_HOA, kq) // mở lại bảng để bấm tiếp (đá điểm hóa thường vẫn còn trong ô)
                 if (m.daThem == true && m.sau?.he != null && m.sau.he != he) {
                     if (!themDa(LoaiMan.DIEM_HOA, bac, false)) return KetQua.HetDa(hq)
                     m = cho(3000) { it.loai == LoaiMan.DIEM_HOA } ?: throw DungLai("Mất bảng Điểm Hóa")
@@ -234,9 +291,11 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         val b = cho(3000) { it.loai == LoaiMan.THAC_AN } ?: throw DungLai("Mất bảng Thác Ấn")
         cham(b, DocMan.NUT_LAM)
         soLanThacAn++
+        daDung(khoa(bacIn, true))
         ngu(cd.nghiMs.toLong())
         cho(5000) { (it.loai == LoaiMan.THAC_AN && it.hien?.pham == null) || (it.loai == LoaiMan.CHINH && it.daChon != null && it.daChon.pham == null) }
             ?: throw DungLai("Thác Ấn không ăn (đá vẫn còn ${chu(truoc)})")
+        if (truoc.he == he) duocThem(khoa(bacIn, false))
         tb.log("  Thác Ấn ${chu(truoc)} bằng ${tenDa(bacIn, true)} → +1 ${when (bacIn) { 2 -> "B-SS"; 3 -> "A-SSS"; else -> "B-S" }} ${he.ten}")
         veManChinh()
     }

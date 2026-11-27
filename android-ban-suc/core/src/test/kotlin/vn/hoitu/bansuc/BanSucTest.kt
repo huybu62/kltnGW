@@ -41,6 +41,8 @@ class GameGia(
     var bangChon: LoaiMan? = null // bảng chọn đá đang mở cho bảng nào
     var trang = 0
     val nhatKy = ArrayList<String>()
+    var soLanMoChon = 0
+    var soLanDoc = 0 // số lần đọc chữ (chậm trên máy thật)
 
     private val nhanDiemHoa = listOf<Pair<Int, He>?>(null) // ô "Bỏ trống" ở trang 1
 
@@ -52,7 +54,12 @@ class GameGia(
 
     private fun hq(d: Da) = HieuQua(d.pham, d.he)
 
-    override fun nhin(): ManHinh = when (man) {
+    override fun bacCacO(): List<Int?> = if (man != LoaiMan.CHON_DA) List(8) { null } else
+        trangThe().let { t -> List(8) { i -> t.getOrNull(i)?.first } }
+
+    override fun nhin(): ManHinh = also { soLanDoc++ }.let { nhinThat() }
+
+    private fun nhinThat(): ManHinh = when (man) {
         LoaiMan.CHINH -> {
             val hien = da.drop(cuon).take(4)
             ManHinh(
@@ -91,7 +98,7 @@ class GameGia(
             }
             LoaiMan.DIEM_HOA, LoaiMan.THAC_AN -> {
                 if (gan(x, y, DocMan.DONG_BANG)) { man = LoaiMan.CHINH; return }
-                if (gan(x, y, DocMan.NUT_O)) { bangChon = man; man = LoaiMan.CHON_DA; trang = 0; return }
+                if (gan(x, y, DocMan.NUT_O)) { bangChon = man; man = LoaiMan.CHON_DA; trang = 0; soLanMoChon++; return }
                 if (gan(x, y, DocMan.NUT_LAM)) {
                     lam()
                     if (oDa != null) nhoO[Pair(man, chon)] = oDa!! else nhoO.remove(Pair(man, chon))
@@ -210,6 +217,21 @@ class BanSucTest {
         BanSuc(g, cd).chay()
         val xong = g.da.filter { it.lv == 6 && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') }
         assertEquals(3, xong.count { it.chiSo == ChiSo.HP })
+    }
+
+    @Test
+    fun hetDaThiKhongMoBangChonNua() {
+        // không có B-SS: mỗi viên B-SS phải làm ở nhà máy LV5; bảng chọn chỉ mở khi cần thật
+        val g = GameGia(bo(), mutableMapOf(Pair(1, He.LANHCHUA) to 100000, Pair(1, He.TINHTHAN) to 50, Pair(2, He.HUYDIET) to 4),
+            mutableMapOf(1 to 100, 2 to 5000, 3 to 5), seed = 5, tiLe = 0.25, dongSauLam = true)
+        val cd = CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1))
+        val b = BanSuc(g, cd)
+        b.chay()
+        assertEquals(3, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
+        val soThacAn = g.nhatKy.size
+        println("điểm hóa ${b.soLanDiemHoa}, thác ấn $soThacAn, mở bảng chọn ${g.soLanMoChon}, đọc chữ ${g.soLanDoc}")
+        // mỗi viên B-SS làm ra: 1 lần chọn B-SS + 1 lần chọn Đá In + vài lần chọn B-S khi đổi nhà máy
+        assertTrue("mở bảng chọn ${g.soLanMoChon} lần cho $soThacAn lần thác ấn", g.soLanMoChon <= soThacAn * 3 + 5)
     }
 
     @Test
