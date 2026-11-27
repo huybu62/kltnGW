@@ -161,4 +161,18 @@ class DocManTest {
         assertNotNull(ss)
         assertEquals(1639, ss.soLuong)
     }
+
+    @Test
+    fun theTimCanhTheXanh() {
+        // ảnh người chơi: B-SS Lãnh Chúa x2 (tím) nằm cạnh B-S Lãnh Chúa x1102 (xanh), B-SS Con Lắc x1 (tím)
+        val m = Mau.man("chon_dh_tim_1")
+        println("TRANG1 " + m.the.map { "${it.vi}:${it.bac}:${it.he}:${it.soLuong}" })
+        assertTrue(m.the.any { it.bac == 2 && it.he == He.LANHCHUA && it.soLuong == 2 })
+        assertTrue(m.the.any { it.bac == 2 && it.he == He.CONLAC })
+        assertTrue(m.the.any { it.bac == 1 && it.he == He.LANHCHUA })
+        val m2 = Mau.man("chon_dh_tim_2")
+        println("TRANG2 " + m2.the.map { "${it.vi}:${it.bac}:${it.he}:${it.soLuong}" })
+        assertTrue(m2.the.any { it.bac == 2 && it.he == He.HUYDIET })
+        assertTrue(m2.the.any { it.bac == 1 && it.he == He.CONLAC })
+    }
 }

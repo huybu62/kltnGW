@@ -45,6 +45,8 @@ class GameGia(
     var soLanMoChon = 0
     var nhoTrang = false // bảng chọn mở lại ở trang lần trước (thay vì trang 1)
     var vuotLui = 0 // số lần vuốt về trang trước
+    var xemKy = 0
+    var mauLuonXanh = false // giả lập nhìn màu sai: thẻ tím cũng thấy là xanh // số lượt xem kỹ (về trang 1 rồi đọc chữ từng trang)
     override fun trang(): Pair<Int, Int>? = if (man == LoaiMan.CHON_DA && bangChon == LoaiMan.DIEM_HOA)
         Pair(trang, (1 + theHienCo().size + 7) / 8) else null
     var soLanMoDiemHoa = 0
@@ -65,7 +67,7 @@ class GameGia(
     private fun hq(d: Da) = HieuQua(d.pham, d.he)
 
     override fun bacCacO(): List<Int?> = if (man != LoaiMan.CHON_DA) List(8) { null } else
-        trangThe().let { t -> List(8) { i -> t.getOrNull(i)?.first } }
+        trangThe().let { t -> List(8) { i -> t.getOrNull(i)?.first?.let { b -> if (mauLuonXanh) 1 else b } } }
 
     var docKhiChonDaIn = 0
     override fun nhin(): ManHinh = also { soLanDoc++; if (man == LoaiMan.CHON_DA && bangChon == LoaiMan.THAC_AN) docKhiChonDaIn++ }.let { nhinThat() }
@@ -168,7 +170,7 @@ class GameGia(
     }
 
     override fun ngu(ms: Long) {}
-    override fun log(s: String) { println(s) }
+    override fun log(s: String) { println(s); if ("Lượt nhanh chưa thấy" in s) xemKy++ }
 }
 
 class BanSucTest {
@@ -292,8 +294,8 @@ class BanSucTest {
         val cd = CaiDat(he = He.CONLAC, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 1))
         BanSuc(g, cd).chay()
         assertTrue(g.da.any { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.CONLAC && Pham.datToi(it.pham, 'A') })
-        // bảng chọn mở ở trang 1 thì không vuốt lùi (trái → phải) lần nào
-        assertEquals(0, g.vuotLui)
+        // bảng chọn mở ở trang 1 thì không vuốt lùi (trái → phải), trừ lượt xem kỹ khi thật sự không có thẻ
+        assertTrue("vuốt lùi ${g.vuotLui}, xem kỹ ${g.xemKy}", g.vuotLui <= g.xemKy)
 
         // bảng chọn nhớ trang cũ (mở ra ở trang 2): vẫn tìm đúng
         val g2 = GameGia(bo().map { if (it.he == He.LANHCHUA) it.copy(he = null, pham = null) else it }.toMutableList(),
@@ -301,5 +303,15 @@ class BanSucTest {
         g2.nhoTrang = true
         BanSuc(g2, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 1))).chay()
         assertTrue(g2.da.any { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
+    }
+
+    @Test
+    fun nhinMauSaiVanTimRaThe() {
+        val g = GameGia(bo(), mutableMapOf(Pair(1, He.LANHCHUA) to 3000, Pair(2, He.LANHCHUA) to 5, Pair(2, He.HUYDIET) to 4),
+            mutableMapOf(2 to 500), seed = 3, tiLe = 0.3, dongSauLam = true)
+        g.mauLuonXanh = true
+        val b = BanSuc(g, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1)))
+        b.chay()
+        assertEquals(3, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
     }
 }

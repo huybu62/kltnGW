@@ -261,7 +261,12 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             c()
             repeat(5) {
                 ngu(150)
-                if (doi()) { ngu(150); return true }
+                if (doi()) {
+                    // chờ trang trượt xong (2 ảnh liền nhau giống nhau)
+                    var cu = vanTrang()
+                    repeat(5) { ngu(120); val moi = vanTrang(); if (!khacTrang(cu, moi)) return true; cu = moi }
+                    return true
+                }
             }
         }
         return false
@@ -359,33 +364,47 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             dongChon()
             if (!moChon()) return Them.LOI
         }
-        // 2) về trang 1 (chỉ khi chấm trang cho biết đang ở trang khác) rồi xem lần lượt từng trang:
-        //    trang không có thẻ đúng màu thì lật qua (kéo phải → trái), có mới đọc chữ
-        toiTrang(bang, 0)
+        // 2) xem lần lượt từng trang từ trang 1 (kéo phải → trái để sang trang sau).
+        //    Lượt nhanh: trang mà màu thẻ (đã đứng yên) không có màu cần tìm thì lật qua không đọc chữ.
+        //    Không thấy thì lượt chắc: về trang 1, đọc chữ mọi trang. Chỉ cả 2 lượt không thấy mới là hết.
         var thayThe = false
-        for (trang in 0 until 5) {
-            val mau = tb.bacCacO()
-            if (mau != null && mau.any { it != null }) thayThe = true
-            if (mau == null || mau.all { it == null } || bac in mau) {
-                val m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return Them.LOI
-                if (m.the.isNotEmpty()) thayThe = true
-                val t = m.the.firstOrNull { it.bac == bac && it.daIn == daIn && (daIn || it.he == he) && (it.soLuong ?: 1) > 0 }
-                if (t != null) {
-                    val hinh = if (!daIn && t.vi >= 0) tb.anh()?.let { DocMan.hinhThe(it, DocMan.vungGame(it), t.vi) } else null
-                    if (chonO(t.vi, t.x, t.y, false)) {
-                        if (t.vi >= 0) viTri[key] = Pair(trang, t.vi)
-                        if (hinh != null) hinhMau[key] = hinh
-                        t.soLuong?.let { tonKho[key] = it }
-                        chacHet -= key
-                        return Them.DUOC
+        fun mauYen(): List<Int?>? {
+            var cu = tb.bacCacO() ?: return null
+            repeat(4) { ngu(150); val moi = tb.bacCacO() ?: return null; if (moi == cu) return moi; cu = moi }
+            return null // trang chưa đứng yên: đừng tin màu
+        }
+        fun veTrangDau() {
+            if (tb.trang() != null) { toiTrang(bang, 0); return }
+            repeat(5) { if (!latTrang(bang, sau = false)) return }
+        }
+        for (luot in 0..1) {
+            if (luot == 0) toiTrang(bang, 0) else veTrangDau()
+            for (trang in 0 until 5) {
+                val mau = if (luot == 0) mauYen() else null
+                if (mau != null && mau.any { it != null }) thayThe = true
+                if (mau == null || mau.all { it == null } || bac in mau) {
+                    val m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return Them.LOI
+                    if (m.the.isNotEmpty()) thayThe = true
+                    val t = m.the.firstOrNull { it.bac == bac && it.daIn == daIn && (daIn || it.he == he) && (it.soLuong ?: 1) > 0 }
+                    if (t != null) {
+                        val hinh = if (!daIn && t.vi >= 0) tb.anh()?.let { DocMan.hinhThe(it, DocMan.vungGame(it), t.vi) } else null
+                        if (chonO(t.vi, t.x, t.y, false)) {
+                            val trangThat = tb.trang()?.first ?: trang
+                            if (t.vi >= 0) viTri[key] = Pair(trangThat, t.vi)
+                            if (hinh != null) hinhMau[key] = hinh
+                            t.soLuong?.let { tonKho[key] = it }
+                            chacHet -= key
+                            return Them.DUOC
+                        }
+                        return Them.LOI // chạm thẻ mà không vào ô / sai hệ: thử lại từ đầu
                     }
-                    return Them.LOI // chạm thẻ mà không vào ô / sai hệ: thử lại từ đầu
                 }
+                if (trang == 4 || !latTrang(bang, sau = true)) break // hết trang
             }
-            if (trang == 4 || !latTrang(bang, sau = true)) break // hết trang
+            if (luot == 0) tb.log("  Lượt nhanh chưa thấy ${tenDa(bac, daIn)} → xem lại kỹ từng trang")
         }
         if (!thayThe) { dongChon(); return Them.LOI } // không thấy thẻ nào: bảng chọn chưa hiện đúng
-        tb.log("  Đã xem hết các trang, không có thẻ ${tenDa(bac, daIn)} → hết")
+        tb.log("  Đã xem kỹ hết các trang, không có thẻ ${tenDa(bac, daIn)} → hết")
         tonKho[key] = 0; chacHet += key
         dongChon()
         return Them.HET
