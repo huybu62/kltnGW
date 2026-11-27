@@ -173,6 +173,40 @@ object DocMan {
         return tot
     }
 
+    /**
+     * Trang đang xem của bảng chọn đá, đọc từ các chấm trang dưới cùng (chấm đang chọn sáng hơn hẳn).
+     * Trả về (trang, số trang), trang tính từ 0; null nếu không thấy chấm.
+     */
+    fun trangChon(a: Anh): Pair<Int, Int>? {
+        val v = vungGame(a); val k = v[2] / REF_W
+        val sang = ArrayList<Pair<Float, Float>>() // (x chuẩn, độ sáng cam lớn nhất của cột)
+        var x = 820f
+        while (x < 1260f) {
+            var tot = 0
+            var y = 1080f
+            while (y < 1125f) {
+                val px = (v[0] + x * k).toInt(); val py = (v[1] + y * k).toInt()
+                if (px in 0 until a.w && py in 0 until a.h) {
+                    val c = a.px[py * a.w + px]
+                    val hsv = Anh.hsv((c shr 16) and 0xFF, (c shr 8) and 0xFF, c and 0xFF)
+                    if (hsv[0] in 9..27 && hsv[1] > 120) tot = maxOf(tot, hsv[2])
+                }
+                y += 3f
+            }
+            if (tot > 75) sang += Pair(x, tot.toFloat())
+            x += 4f
+        }
+        if (sang.isEmpty()) return null
+        // gom thành từng chấm (cách nhau > 8)
+        val cham = ArrayList<MutableList<Pair<Float, Float>>>()
+        for (p in sang) if (cham.isEmpty() || p.first - cham.last().last().first > 8f) cham += mutableListOf(p) else cham.last() += p
+        if (cham.size < 2) return null
+        val do_ = cham.map { c -> c.maxOf { it.second } }
+        val i = do_.indices.maxBy { do_[it] }
+        val nhi = do_.filterIndexed { j, _ -> j != i }.max()
+        return if (do_[i] > nhi * 1.25f) Pair(i, cham.size) else null
+    }
+
     /** Bậc theo màu của 8 ô thẻ trên bảng chọn đá (xem nhanh bằng ảnh, không đọc chữ). */
     fun bacCacO(a: Anh): List<Int?> {
         val v = vungGame(a)

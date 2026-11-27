@@ -43,6 +43,10 @@ class GameGia(
     var trang = 0
     val nhatKy = ArrayList<String>()
     var soLanMoChon = 0
+    var nhoTrang = false // bảng chọn mở lại ở trang lần trước (thay vì trang 1)
+    var vuotLui = 0 // số lần vuốt về trang trước
+    override fun trang(): Pair<Int, Int>? = if (man == LoaiMan.CHON_DA && bangChon == LoaiMan.DIEM_HOA)
+        Pair(trang, (1 + theHienCo().size + 7) / 8) else null
     var soLanMoDiemHoa = 0
     var soLanDoc = 0 // số lần đọc chữ (chậm trên máy thật)
 
@@ -106,7 +110,7 @@ class GameGia(
             }
             LoaiMan.DIEM_HOA, LoaiMan.THAC_AN -> {
                 if (gan(x, y, DocMan.DONG_BANG)) { man = LoaiMan.CHINH; return }
-                if (gan(x, y, DocMan.NUT_O)) { bangChon = man; man = LoaiMan.CHON_DA; trang = 0; soLanMoChon++; return }
+                if (gan(x, y, DocMan.NUT_O)) { if (bangChon != man || !nhoTrang) trang = 0; bangChon = man; man = LoaiMan.CHON_DA; soLanMoChon++; return }
                 if (gan(x, y, DocMan.NUT_LAM)) {
                     lam()
                     if (oDa != null) nhoO[Pair(man, chon)] = oDa!! else nhoO.remove(Pair(man, chon))
@@ -155,7 +159,7 @@ class GameGia(
     override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) {
         if (man == LoaiMan.CHON_DA) {
             if (x1 < x0 - 300 && (trang + 1) * 8 < 1 + theHienCo().size) trang++
-            if (x1 > x0 + 300 && trang > 0) trang--
+            if (x1 > x0 + 300) { vuotLui++; if (trang > 0) trang-- }
             return
         }
         if (man != LoaiMan.CHINH) return
@@ -288,5 +292,14 @@ class BanSucTest {
         val cd = CaiDat(he = He.CONLAC, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 1))
         BanSuc(g, cd).chay()
         assertTrue(g.da.any { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.CONLAC && Pham.datToi(it.pham, 'A') })
+        // bảng chọn mở ở trang 1 thì không vuốt lùi (trái → phải) lần nào
+        assertEquals(0, g.vuotLui)
+
+        // bảng chọn nhớ trang cũ (mở ra ở trang 2): vẫn tìm đúng
+        val g2 = GameGia(bo().map { if (it.he == He.LANHCHUA) it.copy(he = null, pham = null) else it }.toMutableList(),
+            nhieu.toMutableMap(), mutableMapOf(1 to 100, 2 to 5000, 3 to 5), seed = 5, tiLe = 0.3, dongSauLam = true)
+        g2.nhoTrang = true
+        BanSuc(g2, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 1))).chay()
+        assertTrue(g2.da.any { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
     }
 }

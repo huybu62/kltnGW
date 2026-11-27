@@ -475,6 +475,8 @@ class TroNangService : AccessibilityService() {
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y, 40)
             override fun quayLai() { performGlobalAction(GLOBAL_ACTION_BACK) }
             override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 1000)
+            override fun vuotNhanh(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 280)
+            override fun trang(): Pair<Int, Int>? = ChupManHinhService.instance?.chup()?.let { DocMan.trangChon(it.bs()) }
             override fun ngu(ms: Long) = Thread.sleep(ms)
             override fun log(s: String) = this@TroNangService.log(s)
         }
@@ -573,6 +575,6 @@ class TroNangService : AccessibilityService() {
     private fun vuot(x0: Float, y0: Float, x1: Float, y1: Float, ms: Long) {
         val (a, b) = cu(x0, y0); val (c, d) = cu(x1, y1)
         lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, ms, listOf(Pair(a, b), Pair((a + c) / 2, (b + d) / 2), Pair(c, d))) // vuốt chậm để không trôi theo quán tính
-        Thread.sleep(300)
+        Thread.sleep(if (ms < 500) 80 else 300)
     }
 }

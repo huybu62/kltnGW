@@ -20,6 +20,10 @@ interface ThietBi {
     fun anh(): Anh? = null
     /** Ô đá của bảng Điểm Hóa / Thác Ấn đang mở có đá chưa (chỉ xem hình – nhanh). null: không rõ. */
     fun oCoDa(diemHoa: Boolean): Boolean? = null
+    /** Vuốt nhanh (lật trang bảng chọn đá). */
+    fun vuotNhanh(x0: Float, y0: Float, x1: Float, y1: Float) = vuot(x0, y0, x1, y1)
+    /** Trang đang xem của bảng chọn đá (trang, số trang) đọc từ chấm trang; null nếu không biết. */
+    fun trang(): Pair<Int, Int>? = null
     /** Nút Quay lại của máy (dự phòng khi nút quay lại trong game bị che). */
     fun quayLai() {}
     fun cham(x: Float, y: Float)
@@ -238,21 +242,37 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
      * rồi chạm chấm trang. false nếu trang không đổi (đã hết trang theo hướng đó).
      */
     private fun latTrang(m: ManHinh, sau: Boolean): Boolean {
+        val tr = tb.trang()
+        if (tr != null && ((sau && tr.first >= tr.second - 1) || (!sau && tr.first == 0))) return false // đã ở trang cuối / đầu
         val truoc = vanTrang()
+        fun doi(): Boolean {
+            if (tr != null) tb.trang()?.let { return it.first != tr.first }
+            return khacTrang(truoc, vanTrang())
+        }
         val cach = listOf<() -> Unit>(
             {
+                // trang sau: kéo từ phải sang trái; trang trước: từ trái sang phải
                 val (x0, y0) = m.ra(if (sau) 1500f else 500f, 600f); val (x1, y1) = m.ra(if (sau) 500f else 1500f, 600f)
-                tb.vuot(x0, y0, x1, y1)
+                tb.vuotNhanh(x0, y0, x1, y1)
             },
             { cham(m, if (sau) DocMan.TRANG_SAU else DocMan.TRANG_TRUOC) },
-            { cham(m, if (sau) Pair(1056f, 1105f) else Pair(1020f, 1105f)) }, // chấm trang
         )
         for (c in cach) {
             c()
-            repeat(4) {
-                ngu(250)
-                if (khacTrang(truoc, vanTrang())) { ngu(250); return true }
+            repeat(5) {
+                ngu(150)
+                if (doi()) { ngu(150); return true }
             }
+        }
+        return false
+    }
+
+    /** Lật tới trang [dich] (đọc chấm trang); không đọc được chấm thì thôi (coi như đang đúng trang). */
+    private fun toiTrang(m: ManHinh, dich: Int): Boolean {
+        repeat(6) {
+            val tr = tb.trang() ?: return dich == 0
+            if (tr.first == dich) return true
+            if (!latTrang(m, sau = tr.first < dich)) return false
         }
         return false
     }
@@ -319,8 +339,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         if (!moChon()) return Them.LOI
         // 1) vị trí đã nhớ: kiểm màu (và hình với đá điểm hóa) rồi bấm thẳng
         viTri[key]?.let { (trang, vi) ->
-            var dungTrang = true
-            repeat(trang) { if (!latTrang(bang, sau = true)) dungTrang = false }
+            val dungTrang = if (tb.trang() != null) toiTrang(bang, trang) else (0 until trang).all { latTrang(bang, sau = true) }
             var dungMau = false
             if (dungTrang) for (lan in 0 until 6) {
                 if (tb.bacCacO()?.getOrNull(vi) == bac) { dungMau = true; break }
@@ -340,8 +359,9 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             dongChon()
             if (!moChon()) return Them.LOI
         }
-        // 2) về trang 1 rồi xem lần lượt từng trang: trang không có thẻ đúng màu thì lật qua, có mới đọc chữ
-        repeat(3) { if (!latTrang(bang, sau = false)) return@repeat }
+        // 2) về trang 1 (chỉ khi chấm trang cho biết đang ở trang khác) rồi xem lần lượt từng trang:
+        //    trang không có thẻ đúng màu thì lật qua (kéo phải → trái), có mới đọc chữ
+        toiTrang(bang, 0)
         var thayThe = false
         for (trang in 0 until 5) {
             val mau = tb.bacCacO()

@@ -158,6 +158,7 @@ class TroNangService : AccessibilityService() {
             override fun oCoDa(diemHoa: Boolean): Boolean? = ChupManHinhService.instance?.chup()?.let { DocMan.oCoDa(it, DocMan.vungGame(it), diemHoa) }
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y)
             override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1)
+            override fun trang(): Pair<Int, Int>? = ChupManHinhService.instance?.chup()?.let { DocMan.trangChon(it) }
             override fun ngu(ms: Long) = Thread.sleep(ms)
             override fun log(s: String) = this@TroNangService.log(s)
         }

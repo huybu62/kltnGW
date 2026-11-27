@@ -148,6 +148,11 @@ class DocManTest {
             for (vk in listOf(0, 1, 4, 5)) assertTrue("ô $vi vs trang 2 ô $vk", DocMan.giongThe(a2, vk, mau) < 0.97f)
         }
 
+        // chấm trang: trang 1 / trang 2 (bảng Đá In chỉ 1 chấm → không biết, coi như 1 trang)
+        assertEquals(Pair(0, 2), DocMan.trangChon(Mau.anh("chon_diem_hoa_1")))
+        assertEquals(Pair(1, 2), DocMan.trangChon(Mau.anh("chon_diem_hoa_2")))
+        assertEquals(null, DocMan.trangChon(Mau.anh("chon_da_in")))
+
         val di = Mau.man("chon_da_in")
         assertEquals(LoaiMan.CHON_DA, di.loai)
         assertEquals(setOf(1, 2, 3), di.the.map { it.bac }.toSet())
