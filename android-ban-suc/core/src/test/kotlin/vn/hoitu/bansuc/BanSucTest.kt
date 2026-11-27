@@ -124,7 +124,10 @@ class GameGia(
                 // như game thật: chạm mũi tên không lật trang (chỉ vuốt ngang mới lật)
                 if (gan(x, y, DocMan.TRANG_SAU) || gan(x, y, DocMan.TRANG_TRUOC)) return
                 trangThe().forEachIndexed { i, t ->
-                    if (t != null && gan(x, y, Pair(DocMan.COT[i % 4], DocMan.HANG_CHAM[i / 4]), 80f)) { oDa = t; man = bangChon!!; return }
+                    if (t != null && gan(x, y, Pair(DocMan.COT[i % 4], DocMan.HANG_CHAM[i / 4]), 80f)) {
+                        // như game: chạm lại đúng viên đang nằm trong ô thì gỡ nó ra
+                        oDa = if (oDa == t) null else t; man = bangChon!!; return
+                    }
                 }
             }
             else -> {}

@@ -294,6 +294,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                 Them.DUOC -> return true
                 Them.HET -> return false
                 Them.LOI -> {
+                    if (cho(1500) { it.loai == loai } != null && oDungDa(khoa(bac, daIn), daIn)) return true // thật ra đã vào ô
                     tb.log("  Chọn ${tenDa(bac, daIn)} chưa được (lần ${lan + 1}) → thử lại")
                     // về đúng bảng Điểm Hóa / Thác Ấn rồi thử lại
                     val m = nhin()
@@ -309,10 +310,29 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         throw DungLai("Chọn ${tenDa(bac, daIn)} không được sau 3 lần → dừng (xem màn hình)")
     }
 
+    // hình viên đá trong ô sau khi chọn đúng (game giữ đá trong ô giữa các lần: có đúng viên rồi thì khỏi chọn lại,
+    // chọn lại đúng thẻ đang nằm trong ô có thể gỡ nó ra)
+    private val hinhOMau = HashMap<String, FloatArray>()
+
+    private fun oDungDa(key: String, daIn: Boolean): Boolean {
+        if (tb.oCoDa(!daIn) != true) return false
+        val mau = hinhOMau[key] ?: return false
+        val a = tb.anh() ?: return false
+        return Anh.tuongQuan(DocMan.hinhO(a, DocMan.vungGame(a), !daIn), mau) >= 0.97f
+    }
+
+    private fun luuHinhO(key: String, daIn: Boolean) {
+        ngu(150)
+        if (tb.oCoDa(!daIn) != true) return
+        val a = tb.anh() ?: return
+        hinhOMau[key] = DocMan.hinhO(a, DocMan.vungGame(a), !daIn)
+    }
+
     private fun themDaMotLan(loai: LoaiMan, bac: Int, daIn: Boolean): Them {
         val key = khoa(bac, daIn)
         if (key in chacHet) return Them.HET
         val bang = cho(3000) { it.loai == loai } ?: return Them.LOI
+        if (oDungDa(key, daIn)) return Them.DUOC // ô đã có đúng viên đá này
         fun ve(b: ManHinh?) = b != null && (daIn || b.sau?.he == null || b.sau.he == he)
         fun ra(vi: Int) = bang.ra(DocMan.COT[vi % 4], DocMan.HANG_CHAM[vi / 4])
         /** Bấm ô thêm đá và chờ bảng chọn hiện (xem màu thẻ – nhanh; không rõ thì đọc chữ). */
@@ -331,14 +351,19 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         }
         /** Chạm thẻ ở ô vi; true nếu đá đã vào ô (và đúng hệ với đá điểm hóa). */
         fun chonO(vi: Int, x: Float, y: Float, daKiemHinh: Boolean): Boolean {
+            ngu(200) // bảng chọn vừa hiện / vừa lật trang: chờ đứng yên rồi mới chạm
             tb.cham(x, y)
             if (daIn || daKiemHinh) {
                 for (lan in 0 until 15) {
-                    if (tb.oCoDa(!daIn) == true) return true
+                    if (tb.oCoDa(!daIn) == true) { luuHinhO(key, daIn); return true }
                     ngu(150)
                 }
             }
-            return ve(cho(4000) { it.loai == loai && it.daThem != false })
+            val b = cho(4000) { it.loai == loai && it.daThem != false }
+            if (ve(b)) { luuHinhO(key, daIn); return true }
+            val m = nhin()
+            tb.log("  (chạm thẻ ô ${vi + 1} xong thấy: ${m.loai}" + (if (m.loai == loai) ", ô đá ${m.daThem}, sau ${m.sau}" else "") + ")")
+            return false
         }
 
         if (!moChon()) return Them.LOI

@@ -207,6 +207,14 @@ object DocMan {
         return if (do_[i] > nhi * 1.25f) Pair(i, cham.size) else null
     }
 
+    /** Ảnh xám viên đá đang nằm trong ô của bảng Điểm Hóa / Thác Ấn (để biết ô đã có đúng viên đá cần chưa). */
+    fun hinhO(a: Anh, vung: IntArray, diemHoa: Boolean): FloatArray {
+        val k = vung[2] / REF_W
+        val cx = if (diemHoa) 1480f else 1456f; val cy = 505f
+        return a.cat((vung[0] + (cx - 48f) * k).toInt(), (vung[1] + (cy - 48f) * k).toInt(),
+            (vung[0] + (cx + 48f) * k).toInt(), (vung[1] + (cy + 48f) * k).toInt()).doiCo(32, 32).xam()
+    }
+
     /** Bậc theo màu của 8 ô thẻ trên bảng chọn đá (xem nhanh bằng ảnh, không đọc chữ). */
     fun bacCacO(a: Anh): List<Int?> {
         val v = vungGame(a)
