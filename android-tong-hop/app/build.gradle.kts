@@ -11,8 +11,8 @@ android {
         applicationId = "vn.hoitu.tonghop"
         minSdk = 24 // Android 7 trở lên (cần cho thao tác chạm của Trợ năng)
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     buildTypes {
@@ -37,5 +37,6 @@ android {
 dependencies {
     implementation(project(":vq"))
     implementation(project(":bs"))
+    implementation(project(":cq"))
     implementation("com.google.mlkit:text-recognition:16.0.1") // đọc chữ trên máy, không cần mạng
 }

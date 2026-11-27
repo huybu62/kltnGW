@@ -57,12 +57,13 @@ class TroNangService : AccessibilityService() {
     private lateinit var lpChip: WindowManager.LayoutParams
     private var bang: View? = null // bảng đang mở (menu / cài đặt / nhật ký)
 
-    private enum class Tool(val ten: String, val bieuTuong: String) { VQ("Vòng quay liên server", "🎡"), BS("Ban sức vận mệnh", "💎") }
+    private enum class Tool(val ten: String, val bieuTuong: String) { CQ("Càn quét bản đồ", "🗺"), VQ("Vòng quay liên server", "🎡"), BS("Ban sức vận mệnh", "💎") }
 
     private var dangChay: Tool? = null
     private var luong: Thread? = null
     private var vq: VongQuay? = null
     private var bs: BanSuc? = null
+    private var cq: vn.hoitu.canquet.core.CanQuet? = null
     private var docChu: TextRecognizer? = null
     private var capNhatBang: (() -> Unit)? = null
 
@@ -216,8 +217,6 @@ class TroNangService : AccessibilityService() {
     private fun moMenu() {
         val c = cot(chu("Hội Tụ Auto", 17f, true), chu("Chọn tool:", 12f, mau = Color.LTGRAY))
         for (t in Tool.values()) c.addView(nut("${t.bieuTuong}  ${t.ten}") { moTool(t) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { setMargins(0, dp(3), 0, dp(3)) })
-        c.addView(nut("🗺  Càn quét (sắp có)", Color.rgb(50, 50, 55)) { Toast.makeText(this, "Càn quét sẽ có ở bản sau", Toast.LENGTH_SHORT).show() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { setMargins(0, dp(3), 0, dp(3)) })
         c.addView(hang(nut("📜 Nhật ký") { moNhatKy(null) }, nut("✕ Đóng") { dongBang() }))
         hienBang(c, dp(300))
     }
@@ -234,6 +233,7 @@ class TroNangService : AccessibilityService() {
 
     private fun moTool(t: Tool) {
         when (t) {
+            Tool.CQ -> moCQ()
             Tool.VQ -> moVQ()
             Tool.BS -> moBS()
         }
@@ -362,20 +362,101 @@ class TroNangService : AccessibilityService() {
         capNhatBang = { trangThaiChu.text = NhatKy.tatCa().lastOrNull() ?: "" }
     }
 
-    /** Chụp màn hình, đọc chữ, đọc màn Ban Sức. */
-    private fun nhinBS(): ManHinh? {
+    /** Vùng màn hình (toạ độ ảnh chụp) đang có giao diện của app: bong bóng, dòng trạng thái, bảng. */
+    @Volatile private var vungApp: List<android.graphics.RectF> = emptyList()
+
+    private fun capNhatVungApp() {
+        val s = ChupManHinhService.instance?.heSo ?: 1f
+        val ds = ArrayList<android.graphics.RectF>()
+        for (v in listOf<View?>(bongBong, chip, bang)) {
+            if (v == null || v.visibility != View.VISIBLE || v.width == 0) continue
+            val p = IntArray(2); v.getLocationOnScreen(p)
+            ds += android.graphics.RectF(p[0] * s - 4, p[1] * s - 4, (p[0] + v.width) * s + 4, (p[1] + v.height) * s + 4)
+        }
+        vungApp = ds
+    }
+
+    /** Chụp + đọc chữ (ML Kit), bỏ chữ nằm trên giao diện của app (để không đọc nhầm dòng trạng thái là chữ của game). */
+    private fun docChuManHinh(): Pair<Khung, List<Chu>>? {
         val k = ChupManHinhService.instance?.chup() ?: return null
         val nd = docChu ?: TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).also { docChu = it }
         val kq = try {
             Tasks.await(nd.process(InputImage.fromBitmap(Kho.bitmap(k.w, k.h, k.px), 0)), 8, TimeUnit.SECONDS)
         } catch (e: Exception) { return null }
+        ui.post { capNhatVungApp() }
+        val app = vungApp
         val chu = ArrayList<Chu>()
         for (b in kq.textBlocks) for (l in b.lines) {
             val r = l.boundingBox ?: continue
+            if (app.any { it.contains(r.exactCenterX(), r.exactCenterY()) }) continue
             chu += Chu(l.text, r.left.toFloat(), r.top.toFloat(), r.right.toFloat(), r.bottom.toFloat())
         }
+        return Pair(k, chu)
+    }
+
+    /** Chụp màn hình, đọc chữ, đọc màn Ban Sức. */
+    private fun nhinBS(): ManHinh? {
+        val (k, chu) = docChuManHinh() ?: return null
         val a = k.bs()
         return DocMan.doc(chu, a, DocMan.vungGame(a))
+    }
+
+    // ---------- Càn quét ----------
+    private fun moCQ() {
+        val cd = Kho.docCQ(this)
+        fun luu() = Kho.luuCQ(this, cd)
+        val c = cot(chu("🗺 Càn quét bản đồ", 16f, true))
+        val trangThaiChu = chu(NhatKy.tatCa().lastOrNull() ?: "", 11f, mau = Color.LTGRAY)
+        if (dangChay == Tool.CQ) {
+            c.addView(chu("Đang chạy – dừng để sửa cài đặt", 12f, mau = Color.rgb(255, 200, 120)))
+        } else {
+            c.addView(oChon("Kiểu quét:", listOf(10, 5, 1), { if (it == 1) "Lẻ (lần nữa)" else "x$it" }, { cd.kieu }) { cd.kieu = it; luu() })
+            c.addView(CheckBox(this).apply {
+                text = "Qua ải: xong bản đồ thì sang ải kế, hết ải thì sang nước sau"; setTextColor(Color.WHITE); isChecked = cd.quaAi
+                setOnCheckedChangeListener { _, b -> cd.quaAi = b; luu() }
+            })
+            c.addView(CheckBox(this).apply {
+                text = "Đi ngược (ải 4 → 1, nước sau → trước)"; setTextColor(Color.WHITE); isChecked = cd.nguoc
+                setOnCheckedChangeListener { _, b -> cd.nguoc = b; luu() }
+            })
+            c.addView(CheckBox(this).apply {
+                text = "Khu chưa mở càn quét: tự Thám hiểm (đánh) rồi quét"; setTextColor(Color.WHITE); isChecked = cd.thamHiem
+                setOnCheckedChangeListener { _, b -> cd.thamHiem = b; luu() }
+            })
+            c.addView(oSo("Dừng sau (0 = không):", { cd.dungSau }, 10, 0, 9999, { cd.dungSau = it; luu() }))
+            c.addView(oSo("Nhịp 'lần nữa' (ms):", { cd.nhipMs }, 10, 50, 1000, { cd.nhipMs = it; luu() }))
+            val daXong = if (cd.ngay == Kho.homNay()) cd.xong.size else 0
+            if (daXong > 0) c.addView(hang(chu("Hôm nay đã xong $daXong ải", 12f, mau = Color.LTGRAY),
+                nut("Quét lại từ đầu") { cd.xong.clear(); luu(); moCQ() }))
+            c.addView(chu("Mở bản đồ một ải (hoặc màn chương nếu bật Qua ải) rồi bấm Chạy. Hết thể lực app dừng, không mua.", 11f, mau = Color.LTGRAY))
+        }
+        c.addView(hang(dongChay(Tool.CQ) { chayCQ() }, nut("📜") { moNhatKy(Tool.CQ) }, nut("‹") { moMenu() }, nut("✕") { dongBang() }))
+        c.addView(trangThaiChu)
+        hienBang(c, dp(420))
+        capNhatBang = { trangThaiChu.text = NhatKy.tatCa().lastOrNull() ?: "" }
+    }
+
+    private fun chayCQ() {
+        if (!coChup()) return
+        val cd = Kho.docCQ(this)
+        val tb = object : vn.hoitu.canquet.core.ThietBiCQ {
+            override fun nhin(): vn.hoitu.canquet.core.ManCQ? {
+                val (k, chu) = docChuManHinh() ?: return null
+                return vn.hoitu.canquet.core.DocCQ.doc(chu, vn.hoitu.canquet.core.DocCQ.vungGame(k.w, k.h))
+            }
+            override fun anh() = ChupManHinhService.instance?.chup()?.bs()
+            override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y, 40)
+            override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float, ms: Long) = this@TroNangService.vuot(x0, y0, x1, y1, ms)
+            override fun quayLai() { performGlobalAction(GLOBAL_ACTION_BACK) }
+            override fun ngu(ms: Long) = Thread.sleep(ms)
+            override fun log(s: String) = this@TroNangService.log(s)
+            override fun luu(cd: vn.hoitu.canquet.core.CaiDatCQ) = Kho.luuCQ(this@TroNangService, cd)
+            override fun homNay() = Kho.homNay()
+        }
+        val c = vn.hoitu.canquet.core.CanQuet(tb, cd)
+        cq = c
+        batDau(Tool.CQ) { c.chay() }
+        trangThai("🗺 Càn quét")
     }
 
     private fun chayBS() {
@@ -388,7 +469,7 @@ class TroNangService : AccessibilityService() {
             override fun bacCacO(): List<Int?>? = ChupManHinhService.instance?.chup()?.let { DocMan.bacCacO(it.bs()) }
             override fun oCoDa(diemHoa: Boolean): Boolean? = ChupManHinhService.instance?.chup()?.bs()?.let { DocMan.oCoDa(it, DocMan.vungGame(it), diemHoa) }
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y, 40)
-            override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1)
+            override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 1000)
             override fun ngu(ms: Long) = Thread.sleep(ms)
             override fun log(s: String) = this@TroNangService.log(s)
         }
@@ -413,7 +494,7 @@ class TroNangService : AccessibilityService() {
         luong = Thread {
             try { viec() } catch (e: InterruptedException) { } catch (e: Exception) { log("Lỗi: ${e.message}") }
             ui.post {
-                dangChay = null; vq = null; bs = null
+                dangChay = null; vq = null; bs = null; cq = null
                 capNhatBongBong()
                 NhatKy.ghi("■ Kết thúc ${t.ten}")
                 if (bang != null) moTool(t)
@@ -424,6 +505,7 @@ class TroNangService : AccessibilityService() {
     private fun dung() {
         vq?.dung = true
         bs?.dung = true
+        cq?.dung = true
         luong?.interrupt()
     }
 
@@ -457,9 +539,9 @@ class TroNangService : AccessibilityService() {
         lamCu(Path().apply { moveTo(a, b) }, ms)
     }
 
-    private fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) {
+    private fun vuot(x0: Float, y0: Float, x1: Float, y1: Float, ms: Long) {
         val (a, b) = cu(x0, y0); val (c, d) = cu(x1, y1)
-        lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, 1000) // vuốt chậm để danh sách không trôi
+        lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, ms) // vuốt chậm để không trôi theo quán tính
         Thread.sleep(300)
     }
 }

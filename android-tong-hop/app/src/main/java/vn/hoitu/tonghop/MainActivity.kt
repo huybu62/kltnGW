@@ -35,7 +35,7 @@ class MainActivity : Activity() {
         fun nut(s: String, bam: (View) -> Unit) = Button(this).apply { text = s; isAllCaps = false; setOnClickListener(bam) }
 
         col.addView(chu("⚙ Hội Tụ Auto", 22f, true))
-        col.addView(chu("Gộp các tool: 🎡 Vòng quay liên server, 💎 Ban sức vận mệnh (🗺 Càn quét sẽ có sau). Bấm bong bóng nổi để chọn tool, chỉnh cài đặt và Chạy / Dừng ngay trong game.", 13f))
+        col.addView(chu("Gộp các tool: 🗺 Càn quét bản đồ, 🎡 Vòng quay liên server, 💎 Ban sức vận mệnh. Bấm bong bóng nổi để chọn tool, chỉnh cài đặt và Chạy / Dừng ngay trong game.", 13f))
 
         col.addView(chu("Bước 1 – Bật Trợ năng (để app chạm giúp)", 16f, true))
         ttTroNang = chu("", 13f); col.addView(ttTroNang)

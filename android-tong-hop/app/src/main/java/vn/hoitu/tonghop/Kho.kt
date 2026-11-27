@@ -78,6 +78,28 @@ object Kho {
 
     fun xoaMauRieng(ctx: Context) = Loai.values().forEach { fileMau(ctx, it).delete() }
 
+    // ---------- Càn quét ----------
+    private const val CQ = "can_quet"
+
+    fun docCQ(ctx: Context): vn.hoitu.canquet.core.CaiDatCQ {
+        val p = ctx.getSharedPreferences(CQ, Context.MODE_PRIVATE)
+        return vn.hoitu.canquet.core.CaiDatCQ(
+            kieu = p.getInt("kieu", 10), quaAi = p.getBoolean("qua_ai", true), nguoc = p.getBoolean("nguoc", false),
+            thamHiem = p.getBoolean("tham_hiem", false), dungSau = p.getInt("dung_sau", 0), nhipMs = p.getInt("nhip", 150),
+            ngay = p.getString("ngay", "")!!, xong = (p.getStringSet("xong", null) ?: emptySet()).toMutableSet(),
+        )
+    }
+
+    fun luuCQ(ctx: Context, cd: vn.hoitu.canquet.core.CaiDatCQ) {
+        ctx.getSharedPreferences(CQ, Context.MODE_PRIVATE).edit()
+            .putInt("kieu", cd.kieu).putBoolean("qua_ai", cd.quaAi).putBoolean("nguoc", cd.nguoc)
+            .putBoolean("tham_hiem", cd.thamHiem).putInt("dung_sau", cd.dungSau).putInt("nhip", cd.nhipMs)
+            .putString("ngay", cd.ngay).putStringSet("xong", cd.xong.toSet())
+            .apply()
+    }
+
+    fun homNay(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
     // ---------- Ban sức ----------
     private const val BS = "ban_suc"
 
