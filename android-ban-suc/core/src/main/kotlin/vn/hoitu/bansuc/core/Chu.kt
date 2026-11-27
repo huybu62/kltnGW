@@ -31,7 +31,10 @@ object Pham {
 object VanBan {
     /** Bỏ dấu, Đ→D, viết hoa, chỉ giữ chữ và số. */
     fun chuan(s: String): String {
-        val n = Normalizer.normalize(s.replace('Đ', 'D').replace('đ', 'd'), Normalizer.Form.NFD)
+        val n = Normalizer.normalize(
+            s.replace('Đ', 'D').replace('đ', 'd').replace('Ð', 'D').replace('ð', 'd').replace('Ɖ', 'D').replace('ɖ', 'd'),
+            Normalizer.Form.NFD,
+        )
         val b = StringBuilder()
         for (c in n) {
             if (Character.getType(c) == Character.NON_SPACING_MARK.toInt()) continue

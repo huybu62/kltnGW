@@ -34,6 +34,7 @@ data class ManHinh(
     val sau: HieuQua? = null, // bảng Điểm Hóa / Thác Ấn: hiệu quả sau khi làm
     val daThem: Boolean? = null, // bảng Điểm Hóa / Thác Ấn: đã thêm đá vào ô chưa
     val the: List<The> = emptyList(), // bảng chọn đá
+    val tenDaChonTho: String = "", // chữ đọc được ở dòng tên đá bảng phải (để báo lỗi)
 ) {
     fun ra(x: Float, y: Float) = Pair(gx + x * k, gy + y * k)
 }
@@ -108,7 +109,8 @@ object DocMan {
         val lv = m.groupValues[1].toInt()
         val sau = m.groupValues[2]
         val cs = VanBan.timChiSo(tho)
-        if (sau.length >= 4 && VanBan.khoangCachDoan("DAVANMENH", sau.take(10)) <= 3 && sau.startsWith("DA")) return Da(lv, null, null, cs)
+        // đá chưa ban sức: "LV5Đá Vận Mệnh-HP" (chữ Đ có thể bị đọc sai/mất, nên chỉ cần thấy "VANMENH")
+        if (sau.length >= 5 && VanBan.khoangCachDoan("VANMENH", sau.take(12)) <= 2) return Da(lv, null, null, cs)
         if (sau.isEmpty()) return null
         val p = sau[0]
         if (p !in Pham.THU_TU) return null
@@ -223,7 +225,8 @@ object DocMan {
 
         val tieuDe = VanBan.chuan(noi(o(TIEU_DE_CHINH)))
         if (VanBan.coGanDung("QUYVANMENH", tieuDe, 3)) {
-            val daChon = docTenDa(noi(o(TEN_DA_CHON)))
+            val tenTho = noi(o(TEN_DA_CHON))
+            val daChon = docTenDa(tenTho)
             val hang = ArrayList<Hang>()
             val ten = cs.filter { trong(it, VUNG_DS) && Regex("^LV\\d").containsMatchIn(it.n) }
             val chon = cs.filter { VanBan.coGanDung("DACHON", it.n, 1) && it.cx < VUNG_DS[0] + 60 }
@@ -235,7 +238,7 @@ object DocMan {
                     ?.n?.trimStart('X')?.toIntOrNull() ?: 1
                 hang += Hang(da, gx + (t.cx) * k, gy + (t.cy + 30f) * k, daChon2, sl)
             }
-            return ManHinh(LoaiMan.CHINH, gx, gy, k, daChon = daChon, hang = hang.sortedBy { it.y })
+            return ManHinh(LoaiMan.CHINH, gx, gy, k, daChon = daChon, hang = hang.sortedBy { it.y }, tenDaChonTho = tenTho)
         }
         val the = docThe(cs, a, vung, k)
         if (the.isNotEmpty() || cs.any { it.n.contains("BOTRONG") }) return ManHinh(LoaiMan.CHON_DA, gx, gy, k, the = the)

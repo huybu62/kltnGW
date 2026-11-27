@@ -117,12 +117,22 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     }
 
     /** Chọn (chạm) một viên giống [da] ở danh sách: tìm ở trang đang xem trước, không thấy thì dò từ đầu. */
+    /** Hai viên giống nhau (chỉ số có thể không đọc được ở một bên). */
+    private fun giong(a: Da?, b: Da) = a != null && a.lv == b.lv && a.pham == b.pham && a.he == b.he &&
+        (a.chiSo == null || b.chiSo == null || a.chiSo == b.chiSo)
+
+    private var docDuocLanCuoi = ""
+
     private fun chonDa(da: Da): Boolean {
+        fun daChonDung(m: ManHinh) = m.loai == LoaiMan.CHINH &&
+            (giong(m.daChon, da) || m.hang.any { it.daChon && giong(it.da, da) })
         fun thu(m: ManHinh): Boolean {
-            if (m.daChon == da && m.hang.any { it.daChon && it.da == da }) return true
-            val h = m.hang.firstOrNull { it.da == da } ?: return false
+            if (giong(m.daChon, da)) return true
+            val h = m.hang.firstOrNull { giong(it.da, da) } ?: return false
             tb.cham(h.x, h.y)
-            return cho(3000) { it.loai == LoaiMan.CHINH && it.daChon == da } != null
+            val ok = cho(3000) { daChonDung(it) }
+            if (ok == null) docDuocLanCuoi = nhin().let { "bảng phải đọc được \"${it.tenDaChonTho}\"" }
+            return ok != null
         }
         if (thu(veManChinh())) return true
         var m = lenDau()
@@ -245,7 +255,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                     else -> 3
                 }
             }.firstOrNull() ?: throw DungLai("Không có đá LV5 làm nhà máy")
-            if (!chonDa(f)) throw DungLai("Không chọn được đá LV5 nhà máy $f")
+            if (!chonDa(f)) throw DungLai("Không chọn được đá LV5 nhà máy $f ($docDuocLanCuoi)")
         }
         f!!
         tb.log("🏭 Nhà máy LV5 ($f): làm 1 viên B-SS ${he.ten}")
@@ -271,7 +281,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         val ds2 = ds.toMutableList().also { l -> tranh?.let { l.remove(it) } }
         var hien = ds2.sortedBy { if (it.pham == 'A') 0 else if (it.he == he) 1 else 2 }.firstOrNull()
             ?: throw DungLai("Không có đá LV6 làm nhà máy A-SSS")
-        if (!chonDa(hien)) throw DungLai("Không chọn được đá LV6 nhà máy $hien")
+        if (!chonDa(hien)) throw DungLai("Không chọn được đá LV6 nhà máy $hien ($docDuocLanCuoi)")
         tb.log("🏭 Nhà máy LV6 ($hien): làm 1 viên A-SSS ${he.ten}")
         while (true) {
             if (hien.he == he && hien.pham == 'A') { thacAn(3); return true }
@@ -297,7 +307,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
 
     private fun lamDaLv6(batDau: Da): Boolean {
         var hien = batDau
-        if (!chonDa(hien)) throw DungLai("Không chọn được đá $hien")
+        if (!chonDa(hien)) throw DungLai("Không chọn được đá $hien ($docDuocLanCuoi)")
         tb.log("💎 Làm đá $hien → ${cd.mucTieu}·${he.ten}")
         val bac = if (cd.mucTieu == 'A') 2 else 3
         while (true) {

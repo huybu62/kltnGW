@@ -42,6 +42,9 @@ class DocManTest {
         assertEquals(Da(4, null, null, ChiSo.TOCDO), DocMan.docTenDa("LV4Đá Vận Mệnh-Tốc Đ"))
         assertEquals(Da(6, 'D', He.AETHER, ChiSo.HP), DocMan.docTenDa("LV6D·Aether-HP"))
         assertEquals(Da(6, 'S', He.TINHTHAN, ChiSo.MACONG), DocMan.docTenDa("LV6S·Tinh Thần-Ma Công"))
+        // chữ Đ bị đọc thành ký tự khác / mất / cách rời
+        for (t in listOf("LV5Ðá Vận Mệnh-HP", "LV5á Vận Mệnh-HP", "LV5 Dá Van Menh - HP", "LV5Da VanMenh-HP", "LV5Đá Vận Mệnh-HP Quy"))
+            assertEquals(t, Da(5, null, null, ChiSo.HP), DocMan.docTenDa(t))
     }
 
     @Test
@@ -70,6 +73,12 @@ class DocManTest {
         assertEquals(LoaiMan.CHINH, sau.loai)
         assertEquals(Da(6, 'C', He.LANHCHUA, ChiSo.HP), sau.daChon)
         assertEquals(Da(6, 'C', He.LANHCHUA, ChiSo.HP), sau.hang.first { it.daChon }.da)
+
+        // cuối danh sách (toàn LV4), đá đang chọn là LV5 nằm ngoài trang đang xem; nút nổi của app đè lên mép trên
+        val cuoi = Mau.man("chinh_cuoi_ds")
+        assertEquals(LoaiMan.CHINH, cuoi.loai)
+        assertEquals(Da(5, null, null, ChiSo.HP), cuoi.daChon)
+        assertTrue(cuoi.hang.all { it.da.lv == 4 })
 
         val m4 = Mau.man("chinh_lv4")
         assertEquals(listOf(ChiSo.PHONG, ChiSo.HP, ChiSo.TOCDO, ChiSo.VATCONG), m4.hang.map { it.da.chiSo })
