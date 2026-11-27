@@ -153,6 +153,7 @@ class TroNangService : AccessibilityService() {
         val cd = Kho.docCaiDat(this)
         val tb = object : ThietBi {
             override fun nhin(): ManHinh? = this@TroNangService.nhin()
+            override fun anh(): vn.hoitu.bansuc.core.Anh? = ChupManHinhService.instance?.chup()
             override fun bacCacO(): List<Int?>? = ChupManHinhService.instance?.chup()?.let { DocMan.bacCacO(it) }
             override fun oCoDa(diemHoa: Boolean): Boolean? = ChupManHinhService.instance?.chup()?.let { DocMan.oCoDa(it, DocMan.vungGame(it), diemHoa) }
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y)

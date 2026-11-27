@@ -156,6 +156,23 @@ object DocMan {
         }
     }
 
+    /** Ảnh xám phần viên đá (có biểu tượng hệ) ở giữa thẻ ô [vi], lệch (dx, dy) theo toạ độ chuẩn. */
+    fun hinhThe(a: Anh, vung: IntArray, vi: Int, dx: Float = 0f, dy: Float = 0f): FloatArray {
+        val k = vung[2] / REF_W
+        val c = COT[vi % 4] + dx; val r = HANG_CHAM[vi / 4] + dy
+        val x0 = (vung[0] + (c - 45f) * k).toInt(); val y0 = (vung[1] + (r - 60f) * k).toInt()
+        val x1 = (vung[0] + (c + 45f) * k).toInt(); val y1 = (vung[1] + (r + 30f) * k).toInt()
+        return a.cat(x0, y0, x1, y1).doiCo(48, 48).xam()
+    }
+
+    /** Độ giống (lớn nhất khi xê dịch vài điểm) giữa thẻ ô [vi] trên ảnh [a] và mẫu đã lưu. */
+    fun giongThe(a: Anh, vi: Int, mau: FloatArray): Float {
+        val v = vungGame(a)
+        var tot = -1f
+        for (dy in -4..4 step 2) for (dx in -4..4 step 2) tot = maxOf(tot, Anh.tuongQuan(hinhThe(a, v, vi, dx.toFloat(), dy.toFloat()), mau))
+        return tot
+    }
+
     /** Bậc theo màu của 8 ô thẻ trên bảng chọn đá (xem nhanh bằng ảnh, không đọc chữ). */
     fun bacCacO(a: Anh): List<Int?> {
         val v = vungGame(a)

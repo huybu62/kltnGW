@@ -14,6 +14,8 @@ interface ThietBi {
     fun nhin(): ManHinh?
     /** Bậc theo màu của 8 ô thẻ ở bảng chọn đá đang hiện (chỉ chụp ảnh, không đọc chữ – nhanh). null: không xem được. */
     fun bacCacO(): List<Int?>? = null
+    /** Ảnh màn hình (chỉ chụp, không đọc chữ). */
+    fun anh(): Anh? = null
     /** Ô đá của bảng Điểm Hóa / Thác Ấn đang mở có đá chưa (chỉ xem hình – nhanh). null: không rõ. */
     fun oCoDa(diemHoa: Boolean): Boolean? = null
     fun cham(x: Float, y: Float)
@@ -190,6 +192,8 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     private val chacHet = HashSet<String>() // đã biết chắc là hết (không tìm thấy thẻ, hoặc dùng hết từ số nhỏ đọc được)
     private val viTri = hashMapOf("IN1" to Pair(0, 1), "IN2" to Pair(0, 4), "IN3" to Pair(0, 5)) // Đá In: vị trí cố định, kiểm màu trước khi bấm
 
+    private val hinhMau = HashMap<String, FloatArray>() // hình thẻ đá điểm hóa đã chọn đúng (để lần sau so hình, khỏi đọc chữ)
+
     private fun khoa(bac: Int, daIn: Boolean) = if (daIn) "IN$bac" else "DH$bac${he.name}"
 
     private fun daDung(key: String) {
@@ -197,12 +201,12 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         tonKho[key] = maxOf(0, c - 1)
         if (c - 1 <= 0) {
             if (c <= 9) chacHet += key // số nhỏ đọc được: tin là hết, khỏi mở bảng chọn
-            if (key.startsWith("DH")) viTri.keys.removeAll { it.startsWith("DH") } // thẻ biến mất → vị trí các thẻ khác dịch đi
+            if (key.startsWith("DH")) run { viTri.keys.removeAll { it.startsWith("DH") }; hinhMau.clear() } // thẻ biến mất → vị trí các thẻ khác dịch đi
         }
     }
 
     private fun duocThem(key: String) {
-        if (key in chacHet || tonKho[key] == 0) viTri.keys.removeAll { it.startsWith("DH") } // thẻ mới hiện ra
+        if (key in chacHet || tonKho[key] == 0) run { viTri.keys.removeAll { it.startsWith("DH") }; hinhMau.clear() } // thẻ mới hiện ra
         chacHet -= key
         tonKho[key]?.let { tonKho[key] = it + 1 }
     }
@@ -230,12 +234,22 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                 if (mau.getOrNull(vi) == bac) { dungMau = true; break }
                 ngu(150)
             }
+            // đá điểm hóa: thẻ ở ô đã nhớ phải giống hình mẫu đã lưu (đúng hệ) – so hình, không đọc chữ
+            val mauHinh = hinhMau[key]
+            var dungHinh = false
+            if (dungMau && !daIn && mauHinh != null) {
+                for (lan in 0 until 4) {
+                    val a = tb.anh() ?: break
+                    if (DocMan.giongThe(a, vi, mauHinh) >= 0.97f) { dungHinh = true; break }
+                    ngu(150)
+                }
+            }
             if (dungMau) {
                 val (x, y) = ra(vi); tb.cham(x, y)
-                if (daIn) {
+                if (daIn || dungHinh) {
                     // Đá In: chỉ cần thấy viên đá đã vào ô (xem hình), không cần đọc chữ
                     for (lan in 0 until 15) {
-                        if (tb.oCoDa(false) == true) return true
+                        if (tb.oCoDa(!daIn) == true) return true
                         ngu(150)
                     }
                 }
@@ -257,10 +271,12 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                     val m = cho(3000) { it.loai == LoaiMan.CHON_DA } ?: return false
                     val t = timThe(m)
                     if (t != null) {
+                        val hinh = if (!daIn && t.vi >= 0) tb.anh()?.let { DocMan.hinhThe(it, DocMan.vungGame(it), t.vi) } else null
                         tb.cham(t.x, t.y)
                         val b = cho(4000) { it.loai == loai && it.daThem != false }
                         if (ve(b)) {
                             if (luot == 0 && t.vi >= 0) viTri[key] = Pair(trang, t.vi)
+                            if (luot == 0 && hinh != null) hinhMau[key] = hinh
                             t.soLuong?.let { tonKho[key] = it }
                             chacHet -= key
                             return true

@@ -129,6 +129,16 @@ class DocManTest {
             assertEquals(setOf(He.CONLAC, He.QUANGNIEN, He.KHOINGUYEN, He.VUONGTOA), m2.the.map { it.he }.toSet())
             assertTrue(m2.the.all { it.bac == 1 })
         }
+        // so hình thẻ: cùng thẻ giống ≥ 0,97; thẻ hệ khác (kể cả cùng màu xanh) thấp hơn hẳn
+        val a1 = Mau.anh("chon_diem_hoa_1"); val a2 = Mau.anh("chon_diem_hoa_2")
+        val v1 = DocMan.vungGame(a1)
+        for (vi in listOf(1, 2, 3, 4, 5, 6, 7)) {
+            val mau = DocMan.hinhThe(a1, v1, vi)
+            assertTrue("ô $vi tự so", DocMan.giongThe(a1, vi, mau) >= 0.97f)
+            for (vk in listOf(1, 2, 3, 4, 5, 6, 7)) if (vk != vi) assertTrue("ô $vi vs $vk", DocMan.giongThe(a1, vk, mau) < 0.97f)
+            for (vk in listOf(0, 1, 4, 5)) assertTrue("ô $vi vs trang 2 ô $vk", DocMan.giongThe(a2, vk, mau) < 0.97f)
+        }
+
         val di = Mau.man("chon_da_in")
         assertEquals(LoaiMan.CHON_DA, di.loai)
         assertEquals(setOf(1, 2, 3), di.the.map { it.bac }.toSet())
