@@ -18,6 +18,8 @@ interface ThietBi {
     fun anh(): Anh? = null
     /** Ô đá của bảng Điểm Hóa / Thác Ấn đang mở có đá chưa (chỉ xem hình – nhanh). null: không rõ. */
     fun oCoDa(diemHoa: Boolean): Boolean? = null
+    /** Nút Quay lại của máy (dự phòng khi nút quay lại trong game bị che). */
+    fun quayLai() {}
     fun cham(x: Float, y: Float)
     fun vuot(x0: Float, y0: Float, x1: Float, y1: Float)
     fun ngu(ms: Long)
@@ -68,12 +70,13 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
 
     private fun veManChinh(): ManHinh {
         var khac = 0
+        var chonDaLan = 0
         repeat(12) {
             val m = nhin()
             when (m.loai) {
                 LoaiMan.CHINH -> return m
                 LoaiMan.DIEM_HOA, LoaiMan.THAC_AN -> cham(m, DocMan.DONG_BANG)
-                LoaiMan.CHON_DA -> cham(m, DocMan.QUAY_LAI)
+                LoaiMan.CHON_DA -> if (++chonDaLan % 2 == 1) cham(m, DocMan.QUAY_LAI) else tb.quayLai() // nút quay lại của game, không ăn thì Quay lại của máy
                 LoaiMan.KHAC -> if (++khac >= 6) throw DungLai("Không thấy màn Ban Sức Đá Quý Vận Mệnh – hãy mở màn đó rồi bấm ▶")
             }
             ngu(500)

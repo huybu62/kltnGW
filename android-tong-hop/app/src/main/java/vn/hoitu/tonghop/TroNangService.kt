@@ -56,6 +56,7 @@ class TroNangService : AccessibilityService() {
     private lateinit var chip: TextView
     private lateinit var lpChip: WindowManager.LayoutParams
     private var bang: View? = null // bảng đang mở (menu / cài đặt / nhật ký)
+    private var lpBang: WindowManager.LayoutParams? = null
 
     private enum class Tool(val ten: String, val bieuTuong: String) { CQ("Càn quét bản đồ", "🗺"), VQ("Vòng quay liên server", "🎡"), BS("Ban sức vận mệnh", "💎") }
 
@@ -202,6 +203,7 @@ class TroNangService : AccessibilityService() {
         val lp = thamSo(dp(60), dp(8), minOf(rong, man.widthPixels - dp(70)))
         lp.height = minOf(WindowManager.LayoutParams.WRAP_CONTENT, man.heightPixels - dp(16)).let { if (it <= 0) WindowManager.LayoutParams.WRAP_CONTENT else it }
         wm.addView(khung, lp)
+        lpBang = lp
         // không cho bảng cao quá màn hình
         khung.post {
             if (khung.height > man.heightPixels - dp(16)) { lp.height = man.heightPixels - dp(16); wm.updateViewLayout(khung, lp) }
@@ -471,6 +473,7 @@ class TroNangService : AccessibilityService() {
             override fun bacCacO(): List<Int?>? = ChupManHinhService.instance?.chup()?.let { DocMan.bacCacO(it.bs()) }
             override fun oCoDa(diemHoa: Boolean): Boolean? = ChupManHinhService.instance?.chup()?.bs()?.let { DocMan.oCoDa(it, DocMan.vungGame(it), diemHoa) }
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y, 40)
+            override fun quayLai() { performGlobalAction(GLOBAL_ACTION_BACK) }
             override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 1000)
             override fun ngu(ms: Long) = Thread.sleep(ms)
             override fun log(s: String) = this@TroNangService.log(s)
@@ -523,27 +526,53 @@ class TroNangService : AccessibilityService() {
         return Pair(x / s, y / s)
     }
 
-    private fun lamCu(path: Path, ms: Long) {
+    /** Các cửa sổ của app (bong bóng, dòng trạng thái, bảng) đang che điểm (x, y) màn hình. */
+    private fun cheDiem(diem: List<Pair<Float, Float>>): List<Pair<View, WindowManager.LayoutParams>> {
+        val ds = ArrayList<Pair<View, WindowManager.LayoutParams>>()
+        for ((v, lp) in listOf<Pair<View?, WindowManager.LayoutParams?>>(bongBong to lpBong, chip to lpChip, bang to lpBang)) {
+            if (v == null || lp == null || v.visibility != View.VISIBLE || v.width == 0) continue
+            val p = IntArray(2); v.getLocationOnScreen(p)
+            if (diem.any { (x, y) -> x >= p[0] - 8 && x <= p[0] + v.width + 8 && y >= p[1] - 8 && y <= p[1] + v.height + 8 }) ds += Pair(v, lp)
+        }
+        return ds
+    }
+
+    private fun xuyen(ds: List<Pair<View, WindowManager.LayoutParams>>, bat: Boolean) {
+        for ((v, lp) in ds) {
+            lp.flags = if (bat) lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            runCatching { wm.updateViewLayout(v, lp) }
+        }
+    }
+
+    /**
+     * Thực hiện cử chỉ. Nếu điểm chạm nằm dưới bong bóng / bảng của app thì tạm cho chúng "trong suốt với chạm"
+     * để cú chạm xuống tới game (vd nút quay lại xanh của game nằm dưới bong bóng), xong thì bật lại.
+     */
+    private fun lamCu(path: Path, ms: Long, diem: List<Pair<Float, Float>>) {
         val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, ms)).build()
         val xong = CountDownLatch(1)
         ui.post {
-            val ok = dispatchGesture(g, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) { xong.countDown() }
-                override fun onCancelled(gestureDescription: GestureDescription?) { xong.countDown() }
-            }, null)
-            if (!ok) xong.countDown()
+            val che = cheDiem(diem)
+            fun guiDi() {
+                val ok = dispatchGesture(g, object : GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) { if (che.isNotEmpty()) xuyen(che, false); xong.countDown() }
+                    override fun onCancelled(gestureDescription: GestureDescription?) { if (che.isNotEmpty()) xuyen(che, false); xong.countDown() }
+                }, null)
+                if (!ok) { if (che.isNotEmpty()) xuyen(che, false); xong.countDown() }
+            }
+            if (che.isEmpty()) guiDi() else { xuyen(che, true); ui.postDelayed({ guiDi() }, 60) }
         }
         xong.await(ms + 2000, TimeUnit.MILLISECONDS)
     }
 
     private fun cham(x: Float, y: Float, ms: Long) {
         val (a, b) = cu(x, y)
-        lamCu(Path().apply { moveTo(a, b) }, ms)
+        lamCu(Path().apply { moveTo(a, b) }, ms, listOf(Pair(a, b)))
     }
 
     private fun vuot(x0: Float, y0: Float, x1: Float, y1: Float, ms: Long) {
         val (a, b) = cu(x0, y0); val (c, d) = cu(x1, y1)
-        lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, ms) // vuốt chậm để không trôi theo quán tính
+        lamCu(Path().apply { moveTo(a, b); lineTo(c, d) }, ms, listOf(Pair(a, b), Pair((a + c) / 2, (b + d) / 2), Pair(c, d))) // vuốt chậm để không trôi theo quán tính
         Thread.sleep(300)
     }
 }

@@ -148,15 +148,25 @@ class VongQuay(
             if (dung) return null
             val co = NhanDien.monTrenVong(a, neo, mau).filter { it.loai != null && it.loai in cd.muon }
             if (co.isNotEmpty()) {
-                tb.log("  Vòng quay có ${co.joinToString { it.loai!!.ten }} (sau $lan lần Tạo mới)")
-                return Pair(a, neo)
+                // xác nhận lại trên ảnh mới (tránh nhận nhầm lúc vòng đang đổi món)
+                ngu(300)
+                val lai = choVong(chamTat = false, han = 5000) ?: return null
+                val co2 = NhanDien.monTrenVong(lai.first, lai.second, mau).filter { it.loai != null && it.loai in cd.muon }
+                if (co2.isNotEmpty() && co2.map { it.ten } == co.map { it.ten }) {
+                    tb.log("  Vòng quay có ${co2.joinToString { it.loai!!.ten }} (sau $lan lần Tạo mới)")
+                    return lai
+                }
+                a = lai.first; neo = lai.second
+                continue
             }
             if (lan == cd.taoMoiToiDa) break
             val moi = taoMoi(a, neo) ?: return null
             a = moi.first; neo = moi.second
         }
-        tb.log("  ⚠ Tạo mới ${cd.taoMoiToiDa} lần chưa ra món đã chọn → quay luôn")
-        return Pair(a, neo)
+        // không quay khi chưa thấy món: quay mà không ra hạn định sẽ làm lệch bộ đếm
+        tb.log("⛔ Tạo mới ${cd.taoMoiToiDa} lần chưa thấy món đã chọn → dừng, KHÔNG quay (bộ đếm giữ ${cd.dem}). Kiểm tra mẫu món (nút Mẫu) rồi chạy lại")
+        dung = true
+        return null
     }
 
     fun chay() {

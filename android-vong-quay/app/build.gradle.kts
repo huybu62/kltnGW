@@ -11,8 +11,8 @@ android {
         applicationId = "vn.hoitu.vongquay"
         minSdk = 24 // Android 7 trở lên (cần cho thao tác chạm của Trợ năng)
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     buildTypes {

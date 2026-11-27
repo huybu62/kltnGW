@@ -152,4 +152,15 @@ class NhanDienTest {
         assertTrue(g.dem.isEmpty())
         assertEquals(5, cd.dem)
     }
+
+    @Test
+    fun hetLuotTaoMoiMaChuaRaMonThiKhongQuay() {
+        // mốc 73, đang 72; chỉ muốn TƯỚNG; vòng c không có tướng thật, Tạo mới không đổi được → dừng, không quay
+        val g = GameGia("vq_c", mutableListOf(), mutableListOf())
+        val cd = CaiDat(dem = 72, moc = 73, taoMoiToiDa = 3, muon = mutableSetOf(Loai.TUONG))
+        VongQuay(g, cd, x1, mau).chay()
+        assertEquals(0, g.soX10)
+        assertEquals(72, cd.dem)
+        assertTrue(g.log.any { "KHÔNG quay" in it })
+    }
 }

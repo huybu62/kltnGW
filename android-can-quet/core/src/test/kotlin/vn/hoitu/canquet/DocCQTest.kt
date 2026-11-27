@@ -40,6 +40,20 @@ class DocCQTest {
     }
 
     @Test
+    fun banDoKhiChuDinhNhau() {
+        // ML Kit hay đọc dính "Thể lực" với số, hoặc cả thanh EXP thành một dòng
+        val goc = MauCQ.chu("ban_do").filter { it.text != "The luc" && it.text != "43/120" && it.text != "6253/9840" && it.text != "EXP" }
+        val v = DocCQ.vungGame(1280, 720)
+        for (dong in listOf("Thể lực 43/120", "EXP 6253/9840 Thể lực 43/120", "Thểlực43/120")) {
+            val m = DocCQ.doc(goc + Chu(dong, 267f, 22f, 710f, 46f), v)
+            assertEquals(dong, LoaiCQ.BAN_DO, m.loai)
+            assertEquals(dong, 43, m.theLuc)
+        }
+        // không đọc được chữ Thể lực: vẫn nhận ra bản đồ nhờ Trở lại + nút đáy
+        assertEquals(LoaiCQ.BAN_DO, DocCQ.doc(goc, v).loai)
+    }
+
+    @Test
     fun theLucDocDinhKyHieu() {
         assertEquals(Pair(176, 120), DocCQ.soPhanSo("17611/120", 999))
         assertEquals(Pair(78, 120), DocCQ.soPhanSo("7825/120", 360))

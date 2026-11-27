@@ -121,12 +121,15 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
         throw DungCQ("Không về được bản đồ")
     }
 
-    /** Màn lạ (lên cấp, thông báo...): bấm nút an toàn nếu có, không thì chạm mép trên / Quay lại. */
+    /**
+     * Màn lạ (lên cấp, thông báo...): bấm nút an toàn nếu có, không thì chạm mép trên.
+     * KHÔNG bấm Quay lại của máy (bấm nhầm ở bản đồ / màn chương là thoát ra sảnh game).
+     */
     private fun goManLa(m: ManCQ, lan: Int) {
         if (cham(m, "TIEP")) { tb.log("  Màn lạ → bấm nút an toàn"); return }
-        if (lan % 2 == 0) chamRef(m, DocCQ.MEP_TREN) else tb.quayLai()
-        if (lan == 0) tb.log("  Màn lạ (lên cấp / thông báo?) → chạm mép trên / Quay lại")
-        if (lan >= 12) throw DungCQ("Gặp màn lạ không thoát được")
+        chamRef(m, DocCQ.MEP_TREN)
+        if (lan == 0) tb.log("  Màn lạ (lên cấp / thông báo?) → chạm mép trên")
+        if (lan >= 10) throw DungCQ("Gặp màn lạ không thoát được (đang ở đâu? mở lại bản đồ / màn chương rồi chạy lại)")
     }
 
     /** Đánh trận thám hiểm: bấm Tiến lên, hết trận bấm nút an toàn, về bản đồ / bảng khu thì thôi. */

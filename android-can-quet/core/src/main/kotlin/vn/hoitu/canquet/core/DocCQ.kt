@@ -70,6 +70,7 @@ object DocCQ {
         return Pair(n, mau)
     }
 
+    private val it_day = listOf("TRANGBI", "DONGDOI", "TRANHINH")
     private val CHU_AN_TOAN = listOf("TIEPTUC", "BOQUA", "DONG", "NHANTHUONG", "HOANTHANH", "THOAT")
     private val CHU_NGUY_HIEM = listOf("MUA", "NAP", "KIMCUONG")
     private val GIAO_DIEN_CHUONG = listOf("TROLAI", "DIEMTHUHOI", "CHUONG", "AITHUONG", "AITINHANH", "DUONGANHHUNG", "TUDONGCHIENDAU")
@@ -147,14 +148,21 @@ object DocCQ {
             })
         }
 
-        // 7) bản đồ: "Thể lực N/M" ở thanh trên
-        val theLuc = tim("THELUC", 1) { it.cy < 150f && it.n.length <= 7 }
+        // 7) bản đồ: "Thể lực N/M" ở thanh trên (có thể bị đọc dính thành một dòng với số / với EXP)
+        val theLuc = cs.firstOrNull { it.cy < 160f && (it.n.contains("THELUC") || VanBan.khoangCachDoan("THELUC", it.n) <= 1) }
         if (theLuc != null) {
-            val so = cs.filter { it.cy < 150f && it.x0 >= theLuc.x1 - 10f && it.x0 < theLuc.x1 + 400f }
-                .firstNotNullOfOrNull { soPhanSo(it.c.text, 999) }
+            val tho = theLuc.c.text
+            val i = tho.lowercase().let { t -> listOf("lực", "luc", "lurc", "lưc").map { t.indexOf(it) }.filter { it >= 0 }.minOrNull() }
+            val so = (if (i != null) soPhanSo(tho.substring(i), 999) else null)
+                ?: cs.filter { it !== theLuc && it.cy < 160f && it.x0 >= theLuc.x1 - 10f && it.x0 < theLuc.x1 + 400f }
+                    .firstNotNullOfOrNull { soPhanSo(it.c.text, 999) }
             val tl = so?.let { (n, m) -> if (n > m * 3) null else n }
             return ManCQ(LoaiCQ.BAN_DO, gx, gy, k, theLuc = tl, theLucMax = so?.second)
         }
+        // bản đồ mà không đọc được chữ Thể lực: có Trở lại + Điểm thu hồi + nút đáy (Trang bị / Đồng đội / Trận hình)
+        val coTroLai = cs.any { it.cx < 400f && it.cy < 250f && VanBan.khoangCachDoan("TROLAI", it.n) <= 1 }
+        val coDay = cs.count { c -> it_day.any { VanBan.khoangCachDoan(it, c.n) <= 1 && c.cy > 900f } } >= 2
+        if (coTroLai && coDay) return ManCQ(LoaiCQ.BAN_DO, gx, gy, k)
 
         // 8) màn lạ: tìm nút an toàn (không bấm khi có chữ mua / nạp)
         val nguyHiem = cs.any { c -> CHU_NGUY_HIEM.any { c.n.contains(it) } }
