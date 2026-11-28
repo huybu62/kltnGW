@@ -22,6 +22,8 @@ interface ThietBi {
     fun oCoDa(diemHoa: Boolean): Boolean? = null
     /** Màn đang hiện, nhận nhanh bằng ảnh; null nếu không xem được. */
     fun manNhanh(): ManNhanh? = null
+    /** Chạm giữ lâu hơn một chút (thử lại khi chạm thường không ăn). */
+    fun chamLau(x: Float, y: Float) = cham(x, y)
     /** Vuốt nhanh (lật trang bảng chọn đá). */
     fun vuotNhanh(x0: Float, y0: Float, x1: Float, y1: Float) = vuot(x0, y0, x1, y1)
     /** Trang đang xem của bảng chọn đá (trang, số trang) đọc từ chấm trang; null nếu không biết. */
@@ -371,7 +373,16 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             ngu(200) // bảng chọn vừa hiện / vừa lật trang: chờ đứng yên rồi mới chạm
             tb.cham(x, y)
             // chờ bảng chọn đóng hẳn (trên bảng chọn, chỗ ô đá là nhãn thẻ sáng màu – xem lúc này sẽ tưởng nhầm "đã có đá")
-            for (lan in 0 until 25) { if (tb.manNhanh().let { it == null || it != ManNhanh.CHON }) break; ngu(100) }
+            fun choDong(lan: Int): Boolean {
+                for (i in 0 until lan) { if (tb.manNhanh().let { it == null || it != ManNhanh.CHON }) return true; ngu(100) }
+                return false
+            }
+            if (!choDong(15)) {
+                // chạm không ăn (bảng chọn vẫn đứng yên): chạm lại vào hình viên đá, giữ lâu hơn
+                tb.log("  Chạm thẻ ô ${vi + 1} không ăn → chạm lại (giữ lâu hơn)")
+                tb.chamLau(x, y + 25f * bang.k)
+                choDong(25)
+            }
             if (daIn || daKiemHinh) {
                 for (lan in 0 until 15) {
                     if (oCoDaChac(!daIn) == true) { luuHinhO(key, daIn); return true }

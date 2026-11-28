@@ -80,6 +80,7 @@ class GameGia(
         when (man) { LoaiMan.CHON_DA -> ManNhanh.CHON; LoaiMan.DIEM_HOA, LoaiMan.THAC_AN -> ManNhanh.BANG; LoaiMan.CHINH -> ManNhanh.CHINH; else -> ManNhanh.KHAC }
     }
     var dongCham = 0 // bảng chọn đóng chậm: sau khi chạm thẻ còn hiện thêm N lần nhìn
+    var boQuaCham = 0 // số cú chạm thẻ đầu tiên game không nhận
     private var choDong = 0
     private var sauDong: Pair<Int, He?>? = null
     private fun buocDong() {
@@ -139,6 +140,7 @@ class GameGia(
                 trangThe().forEachIndexed { i, t ->
                     if (t != null && gan(x, y, Pair(DocMan.COT[i % 4], DocMan.HANG_CHAM[i / 4]), 80f)) {
                         // như game: chạm lại đúng viên đang nằm trong ô thì gỡ nó ra
+                        if (boQuaCham > 0) { boQuaCham--; return } // game không nhận cú chạm này
                         if (dongCham > 0) { choDong = dongCham; sauDong = t; return }
                         oDa = if (oDa == t) null else t; man = bangChon!!; return
                     }
@@ -355,5 +357,13 @@ class BanSucTest {
         assertTrue(g.da.contains(lv6(null, null, ChiSo.TOCDO)))
         // mọi lần Thác Ấn SSS đều làm trên viên phẩm A
         assertTrue(g.nhatKy.filter { it.endsWith("In SSS") }.all { it.contains("pham=A") || it.contains("LV6A") })
+    }
+
+    @Test
+    fun chamTheKhongAnThiChamLai() {
+        val g = GameGia(bo(), mutableMapOf(Pair(1, He.AETHER) to 3000, Pair(2, He.HUYDIET) to 4), mutableMapOf(2 to 500), seed = 9, tiLe = 0.3, dongSauLam = true)
+        g.boQuaCham = 3
+        BanSuc(g, CaiDat(he = He.AETHER, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 2))).chay()
+        assertEquals(2, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.AETHER && Pham.datToi(it.pham, 'A') })
     }
 }

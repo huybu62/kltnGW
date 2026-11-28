@@ -146,11 +146,15 @@ class TroNangService : AccessibilityService() {
             width = dp(50); height = dp(50)
         }
         lpBong = thamSo(dp(4), dp(8))
+        // dải nhật ký nhỏ ở mép phải trên: chỉ để xem, chạm xuyên hoàn toàn, không che giữa màn game
         chip = TextView(this).apply {
-            textSize = 11f; setTextColor(Color.WHITE); background = nen(Color.argb(200, 20, 20, 28), 8f)
-            setPadding(dp(8), dp(4), dp(8), dp(4)); maxWidth = dp(240); maxLines = 2; visibility = View.GONE
+            textSize = 10f; setTextColor(Color.WHITE); background = nen(Color.argb(170, 20, 20, 28), 6f)
+            setPadding(dp(6), dp(2), dp(6), dp(2)); maxWidth = dp(280); maxLines = 3; visibility = View.GONE
         }
-        lpChip = thamSo(dp(58), dp(14))
+        lpChip = thamSo(dp(4), dp(2)).apply {
+            gravity = Gravity.TOP or Gravity.END
+            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
         var dx = 0f; var dy = 0f; var x0 = 0f; var y0 = 0f; var keo = false
         bongBong.setOnTouchListener { _, e ->
             when (e.action) {
@@ -159,7 +163,6 @@ class TroNangService : AccessibilityService() {
                     if (abs(e.rawX - x0) + abs(e.rawY - y0) > dp(8)) keo = true
                     if (keo) {
                         lpBong.x = (e.rawX + dx).toInt(); lpBong.y = (e.rawY + dy).toInt(); wm.updateViewLayout(bongBong, lpBong)
-                        lpChip.x = lpBong.x + dp(54); lpChip.y = lpBong.y + dp(6); wm.updateViewLayout(chip, lpChip)
                     }
                 }
                 MotionEvent.ACTION_UP -> if (!keo) bamBongBong()
@@ -171,7 +174,8 @@ class TroNangService : AccessibilityService() {
     }
 
     private fun trangThai(s: String) = ui.post {
-        chip.text = s
+        // 3 dòng nhật ký gần nhất (dòng mới ở dưới)
+        chip.text = NhatKy.tatCa().takeLast(3).joinToString("\n") { it.substringAfter(' ').trim() }.ifEmpty { s }
         chip.visibility = if (dangChay != null) View.VISIBLE else View.GONE
     }
 
@@ -473,6 +477,7 @@ class TroNangService : AccessibilityService() {
             override fun bacCacO(): List<Int?>? = ChupManHinhService.instance?.chup()?.let { DocMan.bacCacO(it.bs()) }
             override fun oCoDa(diemHoa: Boolean): Boolean? = ChupManHinhService.instance?.chup()?.bs()?.let { DocMan.oCoDa(it, DocMan.vungGame(it), diemHoa) }
             override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y, 40)
+            override fun chamLau(x: Float, y: Float) = this@TroNangService.cham(x, y, 130)
             override fun quayLai() { performGlobalAction(GLOBAL_ACTION_BACK) }
             override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 1000)
             override fun vuotNhanh(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 280)
@@ -532,7 +537,7 @@ class TroNangService : AccessibilityService() {
     /** Các cửa sổ của app (bong bóng, dòng trạng thái, bảng) đang che điểm (x, y) màn hình. */
     private fun cheDiem(diem: List<Pair<Float, Float>>): List<Pair<View, WindowManager.LayoutParams>> {
         val ds = ArrayList<Pair<View, WindowManager.LayoutParams>>()
-        for ((v, lp) in listOf<Pair<View?, WindowManager.LayoutParams?>>(bongBong to lpBong, chip to lpChip, bang to lpBang)) {
+        for ((v, lp) in listOf<Pair<View?, WindowManager.LayoutParams?>>(bongBong to lpBong, bang to lpBang)) {
             if (v == null || lp == null || v.visibility != View.VISIBLE || v.width == 0) continue
             val p = IntArray(2); v.getLocationOnScreen(p)
             if (diem.any { (x, y) -> x >= p[0] - 8 && x <= p[0] + v.width + 8 && y >= p[1] - 8 && y <= p[1] + v.height + 8 }) ds += Pair(v, lp)
@@ -551,11 +556,20 @@ class TroNangService : AccessibilityService() {
      * Thực hiện cử chỉ. Nếu điểm chạm nằm dưới bong bóng / bảng của app thì tạm cho chúng "trong suốt với chạm"
      * để cú chạm xuống tới game (vd nút quay lại xanh của game nằm dưới bong bóng), xong thì bật lại.
      */
+    @Volatile private var daBaoTamDung = false
+
     private fun lamCu(path: Path, ms: Long, diem: List<Pair<Float, Float>>) {
+        // đang chạy mà bảng của app đang mở (bấm bong bóng xem / dừng): tạm dừng chạm tới khi đóng bảng
+        while (dangChay != null && bang != null) {
+            if (!daBaoTamDung) { daBaoTamDung = true; NhatKy.ghi("⏸ Bảng của app đang mở → tạm dừng chạm, đóng bảng để chạy tiếp") }
+            Thread.sleep(200)
+        }
+        if (daBaoTamDung) { daBaoTamDung = false; NhatKy.ghi("▶ Chạy tiếp"); Thread.sleep(400) }
         val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, ms)).build()
         val xong = CountDownLatch(1)
         ui.post {
             val che = cheDiem(diem)
+            if (che.isNotEmpty()) NhatKy.ghi("  · điểm chạm nằm dưới giao diện app (bong bóng) → cho chạm xuyên")
             fun guiDi() {
                 val ok = dispatchGesture(g, object : GestureResultCallback() {
                     override fun onCompleted(gestureDescription: GestureDescription?) { if (che.isNotEmpty()) xuyen(che, false); xong.countDown() }
