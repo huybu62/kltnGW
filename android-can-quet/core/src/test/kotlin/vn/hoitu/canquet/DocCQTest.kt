@@ -142,4 +142,32 @@ class DocCQTest {
         assertTrue(DocCQ.trongVungCam(900f / 0.64f, 640f / 0.64f)) // Đồng đội
         assertTrue(!DocCQ.trongVungCam(640f / 0.64f, 300f / 0.64f)) // toà nhà giữa bản đồ
     }
+
+    @Test
+    fun hangNutDocDinhMotDong() {
+        // ML Kit hay đọc cả hàng nút thành một dòng: "Thám hiểm Càn quét x5 x10"
+        val goc = MauCQ.chu("popup_x10").filter { it.y0 < 600f }
+        val v = DocCQ.vungGame(1280, 720)
+        val m = DocCQ.doc(goc + Chu("Thám hiểm   Càn quét   x5   x10", 413f, 607f, 910f, 643f), v)
+        assertEquals(LoaiCQ.POPUP, m.loai)
+        assertTrue("càn quét ${m.nut["CAN_QUET"]}", gan(m.nut["CAN_QUET"], 647f, 625f, 70f))
+        assertTrue("thám hiểm ${m.nut["THAM_HIEM"]}", gan(m.nut["THAM_HIEM"], 483f, 625f, 70f))
+        assertTrue("x5 ${m.nut["X5"]}", gan(m.nut["X5"], 783f, 625f, 70f))
+        assertTrue("x10 ${m.nut["X10"]}", gan(m.nut["X10"], 881f, 625f, 70f))
+    }
+
+    @Test
+    fun manKetQuaCanQuetXong() {
+        // ảnh người chơi: "Càn quét lần nữa" đọc lệch ("Canquetlanmia"), Số lần 1/3, Đóng
+        val m = MauCQ.man("ket_qua_2")
+        assertEquals(LoaiCQ.KET_QUA, m.loai)
+        assertEquals(1, m.conLai)
+        assertTrue("đóng ${m.nut["DONG"]}", gan(m.nut["DONG"], 1125f, 542f, 45f))
+        // không đọc được chữ "Càn quét lần nữa" chút nào: vẫn nhận ra nhờ "Số lần: N/M" / "Đóng"
+        val v = DocCQ.vungGame(1280, 720)
+        val m2 = DocCQ.doc(MauCQ.chu("ket_qua_2").filter { !it.text.startsWith("Canquet") }, v)
+        assertEquals(LoaiCQ.KET_QUA, m2.loai)
+        assertTrue("lần nữa ${m2.nut["LAN_NUA"]}", gan(m2.nut["LAN_NUA"], 1127f, 300f, 50f))
+        assertTrue("đóng ${m2.nut["DONG"]}", gan(m2.nut["DONG"], 1125f, 542f, 45f))
+    }
 }

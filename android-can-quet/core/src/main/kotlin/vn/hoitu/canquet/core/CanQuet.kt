@@ -107,18 +107,29 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
     /** Đóng mọi bảng / màn kết quả / màn lạ để về bản đồ (hoặc màn chương). */
     private fun veBanDo(): ManCQ {
         var la = 0
+        var dongLan = 0
+        var cuoi: ManCQ? = null
         repeat(25) {
             val m = nhin()
+            cuoi = m
             when (m.loai) {
                 LoaiCQ.BAN_DO, LoaiCQ.CHUONG -> return m
-                LoaiCQ.POPUP, LoaiCQ.KET_QUA, LoaiCQ.QUET_LAI -> if (!cham(m, "DONG")) tb.quayLai()
+                LoaiCQ.POPUP -> if (!cham(m, "DONG")) tb.quayLai()
+                LoaiCQ.KET_QUA, LoaiCQ.QUET_LAI -> {
+                    // đóng màn kết quả: dấu X → chữ "Đóng" → Quay lại của máy (chỉ ở màn này)
+                    when (dongLan++ % 4) {
+                        0, 1 -> if (!cham(m, "DONG")) tb.quayLai()
+                        2 -> if (!cham(m, "DONG_CHU")) cham(m, "DONG")
+                        else -> tb.quayLai()
+                    }
+                }
                 LoaiCQ.HOI -> tb.quayLai() // không xác nhận gì tool không bấm
                 LoaiCQ.TRAN -> danhTran()
                 LoaiCQ.KHAC -> goManLa(m, la++)
             }
             ngu(700)
         }
-        throw DungCQ("Không về được bản đồ")
+        throw DungCQ("Không về được bản đồ (màn ${cuoi?.loai}, đọc được: ${cuoi?.chuTho?.take(160)})")
     }
 
     /**
@@ -126,9 +137,13 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
      * KHÔNG bấm Quay lại của máy (bấm nhầm ở bản đồ / màn chương là thoát ra sảnh game).
      */
     private fun goManLa(m: ManCQ, lan: Int) {
-        if (cham(m, "TIEP")) { tb.log("  Màn lạ → bấm nút an toàn"); return }
+        if (cham(m, if (lan % 2 == 1 && m.nut.containsKey("TIEP2")) "TIEP2" else "TIEP")) {
+            if (lan == 0) tb.log("  Màn lạ → bấm nút an toàn (đọc được: ${m.chuTho.take(120)})")
+            if (lan >= 10) throw DungCQ("Gặp màn lạ không thoát được (đọc được: ${m.chuTho.take(160)})")
+            return
+        }
         chamRef(m, DocCQ.MEP_TREN)
-        if (lan == 0) tb.log("  Màn lạ (lên cấp / thông báo?) → chạm mép trên")
+        if (lan == 0) tb.log("  Màn lạ (lên cấp / thông báo?) → chạm mép trên (đọc được: ${m.chuTho.take(120)})")
         if (lan >= 10) throw DungCQ("Gặp màn lạ không thoát được (đang ở đâu? mở lại bản đồ / màn chương rồi chạy lại)")
     }
 
@@ -610,8 +625,8 @@ class CanQuet(private val tb: ThietBiCQ, private val cd: CaiDatCQ) {
             tb.log("══ $nuoc – ải ${ai.so}: ${ai.chu} ══")
             if (!vaoAi(m, ai)) {
                 thatBai[key] = (thatBai[key] ?: 0) + 1
-                tb.log("  Không vào được ải $key (chưa mở?)")
-                if (thatBai[key]!! >= 2) xongAi(key)
+                // KHÔNG ghi là "đã xong" (lần chạy sau vẫn thử lại); chỉ bỏ qua trong lần chạy này
+                tb.log("  Không vào được ải $key (chưa mở?)" + if (thatBai[key]!! >= 2) " → bỏ qua lần chạy này" else " → thử lại sau")
                 continue
             }
             quetBanDo(key)

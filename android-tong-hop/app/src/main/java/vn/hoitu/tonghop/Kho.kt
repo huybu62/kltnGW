@@ -83,6 +83,8 @@ object Kho {
 
     fun docCQ(ctx: Context): vn.hoitu.canquet.core.CaiDatCQ {
         val p = ctx.getSharedPreferences(CQ, Context.MODE_PRIVATE)
+        // bản cũ ghi nhầm ải vào không được là "đã xong" → xoá danh sách ải đã xong một lần
+        if (!p.getBoolean("da_xoa_xong_v2", false)) p.edit().remove("xong").putBoolean("da_xoa_xong_v2", true).commit()
         return vn.hoitu.canquet.core.CaiDatCQ(
             kieu = p.getInt("kieu", 10), quaAi = p.getBoolean("qua_ai", true), nguoc = p.getBoolean("nguoc", false),
             thamHiem = p.getBoolean("tham_hiem", false), dungSau = p.getInt("dung_sau", 0), nhipMs = p.getInt("nhip", 150),

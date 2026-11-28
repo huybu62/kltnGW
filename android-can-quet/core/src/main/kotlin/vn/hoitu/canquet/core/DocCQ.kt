@@ -25,6 +25,7 @@ data class ManCQ(
     val nut: Map<String, Pair<Float, Float>> = emptyMap(),
     val hoiCanQuet: Boolean = false, val hoiSo: Int? = null, // bảng hỏi "Càn quét N lần ... Xác nhận?"
     val nuoc: String? = null, val ai: List<AiChuong> = emptyList(), // màn chương
+    val chuTho: String = "", // vài dòng chữ đọc được (ghi nhật ký khi kẹt)
 ) {
     fun ra(x: Float, y: Float) = Pair(gx + x * k, gy + y * k)
 }
@@ -75,6 +76,26 @@ object DocCQ {
     private val CHU_NGUY_HIEM = listOf("MUA", "NAP", "KIMCUONG")
     private val GIAO_DIEN_CHUONG = listOf("TROLAI", "DIEMTHUHOI", "CHUONG", "AITHUONG", "AITINHANH", "DUONGANHHUNG", "TUDONGCHIENDAU")
 
+    /** Vị trí (chỉ số đầu, cuối) của đoạn trong [n] gần giống [mau] nhất (sai ≤ [sai]), null nếu không có. */
+    fun timDoan(mau: String, n: String, sai: Int): Pair<Int, Int>? {
+        var tot: Triple<Int, Int, Int>? = null
+        for (dai in maxOf(1, mau.length - sai)..(mau.length + sai)) for (i in 0..(n.length - dai)) {
+            val d = VanBan.khoangCachDoan(mau, n.substring(i, i + dai)).let { if (it <= sai) levenshtein(mau, n.substring(i, i + dai)) else 99 }
+            if (d <= sai && (tot == null || d < tot.third)) tot = Triple(i, i + dai, d)
+        }
+        return tot?.let { Pair(it.first, it.second) }
+    }
+
+    private fun levenshtein(a: String, b: String): Int {
+        var truoc = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            val nay = IntArray(b.length + 1); nay[0] = i
+            for (j in 1..b.length) nay[j] = minOf(truoc[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1, truoc[j] + 1, nay[j - 1] + 1)
+            truoc = nay
+        }
+        return truoc[b.length]
+    }
+
     fun doc(chu: List<Chu>, vung: IntArray): ManCQ {
         val k = vung[2] / REF_W
         val gx = vung[0].toFloat(); val gy = vung[1].toFloat()
@@ -83,6 +104,17 @@ object DocCQ {
         fun tim(mau: String, sai: Int = 1, dk: (C) -> Boolean = { true }) =
             cs.firstOrNull { dk(it) && it.n.length >= mau.length - sai && VanBan.khoangCachDoan(mau, it.n) <= sai }
         fun nut(c: C, dy: Float = 0f) = ra(c.cx, c.cy + dy)
+        val tho = cs.sortedWith(compareBy({ (it.cy / 40).toInt() }, { it.cx })).take(12).joinToString(" | ") { it.c.text }
+        /** Nút trong dòng chữ (có thể dính nhiều nút): vị trí x tính theo chỗ chữ khớp trong dòng. */
+        fun nutTrong(ds: List<C>, mau: String, sai: Int, chinhXac: Boolean = false): Pair<Float, Float>? {
+            for (c in ds) {
+                val n = c.n
+                val (i0, i1) = (if (chinhXac) n.indexOf(mau).takeIf { it >= 0 }?.let { Pair(it, it + mau.length) } else timDoan(mau, n, sai)) ?: continue
+                val x = c.x0 + (c.x1 - c.x0) * ((i0 + i1) / 2f) / n.length
+                return ra(x, c.cy)
+            }
+            return null
+        }
 
         // 1) bảng hỏi xác nhận (đè lên bản đồ)
         val xacDinh = tim("XACDINH", 1)
@@ -112,7 +144,18 @@ object DocCQ {
             val nut = mutableMapOf("LAN_NUA" to ra(lanNua.cx, lanNua.cy - 110f)) // biểu tượng đầu lâu phía trên chữ
             val dong = tim("DONG", 0) { it.cx > 1350f && it.cy > lanNua.cy }
             nut["DONG"] = if (dong != null) ra(dong.cx, dong.cy - 115f) else ra(1745f, 840f) // dấu X đỏ trên chữ "Đóng"
-            return ManCQ(LoaiCQ.KET_QUA, gx, gy, k, conLai = soLanKetQua(), nut = nut)
+            dong?.let { nut["DONG_CHU"] = nut(it) }
+            return ManCQ(LoaiCQ.KET_QUA, gx, gy, k, conLai = soLanKetQua(), nut = nut, chuTho = tho)
+        }
+        // màn kết quả mà không đọc ra chữ "Càn quét lần nữa" (chữ cách điệu): nhận nhờ "Số lần: N/M" / "Đóng" bên phải
+        val soLanPhai = cs.firstOrNull { it.cx > 1350f && it.n.startsWith("SOLAN") && !it.n.contains("CONLAI") && soPhanSo(it.c.text) != null }
+        val dongPhai = cs.firstOrNull { it.cx > 1350f && it.cy > 700f && it.n == "DONG" }
+        if (soLanPhai != null || (dongPhai != null && cs.none { VanBan.coGanDung("SOLANCONLAI", it.n, 3) && it.n.length >= 8 })) {
+            val nut = mutableMapOf<String, Pair<Float, Float>>()
+            nut["LAN_NUA"] = if (soLanPhai != null) ra(soLanPhai.cx, soLanPhai.cy - 190f) else ra(1750f, 470f)
+            nut["DONG"] = if (dongPhai != null) ra(dongPhai.cx, dongPhai.cy - 115f) else ra(1745f, 840f)
+            dongPhai?.let { nut["DONG_CHU"] = nut(it) }
+            return ManCQ(LoaiCQ.KET_QUA, gx, gy, k, conLai = soLanKetQua(), nut = nut, chuTho = tho)
         }
 
         // 4) bảng khu: "Số lần còn lại:N"
@@ -122,11 +165,13 @@ object DocCQ {
             val ten = cs.filter { it.cy in 90f..215f && it.cx in 560f..1150f && it.n.length >= 3 && !it.n.contains("SOLAN") }
                 .minByOrNull { it.cy }?.c?.text?.trim()
             val nut = mutableMapOf("DONG" to ra(DONG_POPUP.first, DONG_POPUP.second))
+            // hàng nút: Thám hiểm | Càn quét | x5 | x10 – OCR có thể đọc dính cả hàng thành một dòng
             val hangNut = cs.filter { it.cy > 880f && it.cy < 1080f }
-            hangNut.firstOrNull { VanBan.khoangCachDoan("CANQUET", it.n) <= 1 && it.n.length <= 9 }?.let { nut["CAN_QUET"] = nut(it) }
-            hangNut.firstOrNull { VanBan.khoangCachDoan("THAMHIEM", it.n) <= 2 && it.n.length <= 10 }?.let { nut["THAM_HIEM"] = nut(it) }
-            hangNut.firstOrNull { it.n == "X10" || it.n == "10" }?.let { nut["X10"] = nut(it) }
-            hangNut.firstOrNull { it.n == "X5" || it.n == "5" || it.n == "XS" }?.let { nut["X5"] = nut(it) }
+            nutTrong(hangNut, "CANQUET", 1)?.let { nut["CAN_QUET"] = it }
+            nutTrong(hangNut, "THAMHIEM", 2)?.let { nut["THAM_HIEM"] = it }
+            (hangNut.firstOrNull { it.n == "X10" || it.n == "10" }?.let { nut(it) } ?: nutTrong(hangNut, "X10", 0, true))?.let { nut["X10"] = it }
+            (hangNut.firstOrNull { it.n == "X5" || it.n == "5" || it.n == "XS" }?.let { nut(it) }
+                ?: nutTrong(hangNut.map { c -> c }, "X5", 0, true) ?: nutTrong(hangNut, "XS", 0, true))?.let { nut["X5"] = it }
             return ManCQ(LoaiCQ.POPUP, gx, gy, k, ten = ten, conLai = con, nut = nut)
         }
 
@@ -167,7 +212,12 @@ object DocCQ {
         // 8) màn lạ: tìm nút an toàn (không bấm khi có chữ mua / nạp)
         val nguyHiem = cs.any { c -> CHU_NGUY_HIEM.any { c.n.contains(it) } }
         val an = if (nguyHiem) null else cs.firstOrNull { c -> CHU_AN_TOAN.any { c.n == it } }
-        return ManCQ(LoaiCQ.KHAC, gx, gy, k, nut = an?.let { mapOf("TIEP" to nut(it)) } ?: emptyMap())
+        val nutKhac = mutableMapOf<String, Pair<Float, Float>>()
+        if (an != null) {
+            // chữ "Đóng" thường nằm dưới một nút (dấu X): chạm nút trước, chữ sau
+            if (an.n == "DONG") { nutKhac["TIEP"] = nut(an, -115f); nutKhac["TIEP2"] = nut(an) } else nutKhac["TIEP"] = nut(an)
+        }
+        return ManCQ(LoaiCQ.KHAC, gx, gy, k, nut = nutKhac, chuTho = tho)
     }
 
     /** Nhãn ải "N-M Tên ải" trên màn chương (chữ thô + tâm theo toạ độ chuẩn) → (số ải, chữ, x, y) sắp theo số. */
