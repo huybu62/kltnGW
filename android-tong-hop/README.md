@@ -33,3 +33,11 @@ Một app gộp các tool cho game: **🗺 Càn quét bản đồ**, **🎡 Vòn
 ## Cho người phát triển
 - App dùng chung phần lõi đã có kiểm thử: `../android-vong-quay/core` (`:vq`), `../android-ban-suc/core` (`:bs`), `../android-can-quet/core` (`:cq`). Lõi Càn quét có kiểm thử trên ảnh chụp thật và một game giả (bản đồ lớn có ảnh, nhiều ải / nước). Vì vậy sửa lõi một chỗ là cả app lẻ lẫn app tổng hợp cùng được.
 - Build: `./gradlew :app:assembleRelease`. Kiểm thử lõi: `./gradlew :vq:test :bs:test :cq:test`.
+
+## 🔥 Bàn Cờ Lửa (từ 2.4)
+- Mở bảng sự kiện Bàn Cờ Lửa rồi bấm Chạy.
+- Nhập **Xu muốn tiêu** hoặc **Số lần Take-away** (6000 xu/lần, làm tròn lên).
+- TH1: 5 ô đầu là 5 ô cờ đỏ, có Tướng (将) hoặc Soái (帅) → Tẩy, Mua, Take-away.
+- TH2: chỉ có 4 ô đỏ → Tẩy, Mua, Take-away.
+- TH3: bàn ngay sau TH1/TH2 → Tẩy, Take-away luôn.
+- Bàn xấu → Tạo mới (20 xu); lấy xong → Tạo mới (miễn phí).

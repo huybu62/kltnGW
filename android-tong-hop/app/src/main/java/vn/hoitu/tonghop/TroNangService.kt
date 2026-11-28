@@ -58,13 +58,14 @@ class TroNangService : AccessibilityService() {
     private var bang: View? = null // bảng đang mở (menu / cài đặt / nhật ký)
     private var lpBang: WindowManager.LayoutParams? = null
 
-    private enum class Tool(val ten: String, val bieuTuong: String) { CQ("Càn quét bản đồ", "🗺"), VQ("Vòng quay liên server", "🎡"), BS("Ban sức vận mệnh", "💎") }
+    private enum class Tool(val ten: String, val bieuTuong: String) { CQ("Càn quét bản đồ", "🗺"), VQ("Vòng quay liên server", "🎡"), BS("Ban sức vận mệnh", "💎"), BC("Bàn Cờ Lửa", "🔥") }
 
     private var dangChay: Tool? = null
     private var luong: Thread? = null
     private var vq: VongQuay? = null
     private var bs: BanSuc? = null
     private var cq: vn.hoitu.canquet.core.CanQuet? = null
+    private var bc: vn.hoitu.banco.core.BanCo? = null
     private var docChu: TextRecognizer? = null
     private var capNhatBang: (() -> Unit)? = null
 
@@ -242,6 +243,7 @@ class TroNangService : AccessibilityService() {
             Tool.CQ -> moCQ()
             Tool.VQ -> moVQ()
             Tool.BS -> moBS()
+            Tool.BC -> moBC()
         }
     }
 
@@ -412,6 +414,83 @@ class TroNangService : AccessibilityService() {
         return DocMan.doc(chu, a, DocMan.vungGame(a))
     }
 
+    // ---------- Bàn Cờ Lửa ----------
+    private fun moBC() {
+        val (xu0, cd) = Kho.docBC(this)
+        var xu = xu0
+        fun luu() = Kho.luuBC(this, xu, cd)
+        val c = cot(chu("🔥 Bàn Cờ Lửa", 16f, true))
+        val trangThaiChu = chu(NhatKy.tatCa().lastOrNull() ?: "", 11f, mau = Color.LTGRAY)
+        var coO = false
+        if (dangChay == Tool.BC) {
+            c.addView(chu("Đang chạy – dừng để sửa cài đặt", 12f, mau = Color.rgb(255, 200, 120)))
+        } else {
+            coO = true
+            val tong = chu("", 12f, mau = Color.rgb(255, 220, 150))
+            fun hienTong() { tong.text = "= ${cd.soLan} lần Take-away × ${vn.hoitu.banco.core.CaiDatBC.GIA} = ${cd.soLan * vn.hoitu.banco.core.CaiDatBC.GIA} xu (+20 xu mỗi lần Tạo mới bàn xấu)" }
+            fun oNhap(gt: Int) = android.widget.EditText(this).apply {
+                setText(gt.toString()); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setTextColor(Color.WHITE)
+                textSize = 15f; minWidth = dp(110); setSingleLine(); setSelectAllOnFocus(true)
+            }
+            val oXu = oNhap(xu); val oLan = oNhap(cd.soLan)
+            var dangDoi = false
+            fun so(e: android.widget.EditText) = e.text.toString().toIntOrNull()?.coerceIn(0, 100_000_000) ?: 0
+            oXu.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+                override fun onTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+                override fun afterTextChanged(e: android.text.Editable?) {
+                    if (dangDoi) return
+                    xu = so(oXu); cd.soLan = vn.hoitu.banco.core.CaiDatBC.soLanTuXu(xu)
+                    dangDoi = true; oLan.setText(cd.soLan.toString()); dangDoi = false
+                    hienTong(); luu()
+                }
+            })
+            oLan.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+                override fun onTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+                override fun afterTextChanged(e: android.text.Editable?) {
+                    if (dangDoi) return
+                    cd.soLan = so(oLan); xu = cd.soLan * vn.hoitu.banco.core.CaiDatBC.GIA
+                    dangDoi = true; oXu.setText(xu.toString()); dangDoi = false
+                    hienTong(); luu()
+                }
+            })
+            c.addView(hang(chu("Xu muốn tiêu:").apply { minWidth = dp(120) }, oXu))
+            c.addView(hang(chu("Số lần Take-away:").apply { minWidth = dp(120) }, oLan))
+            hienTong(); c.addView(tong)
+            if (cd.choTH3) c.addView(hang(chu("Bàn kế tiếp sẽ lấy luôn (TH3)", 12f, mau = Color.LTGRAY),
+                nut("Bỏ") { cd.choTH3 = false; luu(); moBC() }))
+            c.addView(chu("Lấy khi 5 ô đầu có Tướng/Soái hoặc chỉ có 4 ô đỏ; bàn ngay sau đó lấy luôn. Bàn xấu → Tạo mới. Mở bảng Bàn Cờ Lửa rồi bấm Chạy.", 11f, mau = Color.LTGRAY))
+        }
+        c.addView(hang(dongChay(Tool.BC) { chayBC() }, nut("📜") { moNhatKy(Tool.BC) }, nut("‹") { moMenu() }, nut("✕") { dongBang() }))
+        c.addView(trangThaiChu)
+        hienBang(c, dp(400))
+        // cho gõ số: bảng nhận bàn phím
+        if (coO) bang?.let { v -> lpBang?.let { lp -> lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv(); runCatching { wm.updateViewLayout(v, lp) } } }
+        capNhatBang = { trangThaiChu.text = NhatKy.tatCa().lastOrNull() ?: "" }
+    }
+
+    private fun chayBC() {
+        if (!coChup()) return
+        val (_, cd) = Kho.docBC(this)
+        if (cd.soLan <= 0) { Toast.makeText(this, "Số lần Take-away đang là 0", Toast.LENGTH_SHORT).show(); return }
+        val tb = object : vn.hoitu.banco.core.ThietBiBC {
+            override fun nhin(): vn.hoitu.banco.core.ManBC? {
+                val (k, chu) = docChuManHinh() ?: return null
+                return vn.hoitu.banco.core.DocBC.doc(chu, vn.hoitu.banco.core.DocBC.vungGame(k.bs()))
+            }
+            override fun hang() = ChupManHinhService.instance?.chup()?.bs()?.let { vn.hoitu.banco.core.DocBC.docHang(it) }
+            override fun cham(x: Float, y: Float) = this@TroNangService.cham(x, y, 40)
+            override fun ngu(ms: Long) = Thread.sleep(ms)
+            override fun log(s: String) = this@TroNangService.log(s)
+            override fun luu(cd: vn.hoitu.banco.core.CaiDatBC) { val (xu, _) = Kho.docBC(this@TroNangService); Kho.luuBC(this@TroNangService, xu, cd) }
+        }
+        val b = vn.hoitu.banco.core.BanCo(tb, cd)
+        bc = b
+        batDau(Tool.BC) { b.chay() }
+        trangThai("🔥 Bàn cờ ${cd.soLan} lần")
+    }
+
     // ---------- Càn quét ----------
     private fun moCQ() {
         val cd = Kho.docCQ(this)
@@ -512,7 +591,7 @@ class TroNangService : AccessibilityService() {
         luong = Thread {
             try { viec() } catch (e: InterruptedException) { } catch (e: Exception) { log("Lỗi: ${e.message}") }
             ui.post {
-                dangChay = null; vq = null; bs = null; cq = null
+                dangChay = null; vq = null; bs = null; cq = null; bc = null
                 capNhatBongBong()
                 NhatKy.ghi("■ Kết thúc ${t.ten}")
                 if (bang != null) moTool(t)
@@ -524,6 +603,7 @@ class TroNangService : AccessibilityService() {
         vq?.dung = true
         bs?.dung = true
         cq?.dung = true
+        bc?.dung = true
         luong?.interrupt()
     }
 

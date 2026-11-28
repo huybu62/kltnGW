@@ -103,6 +103,21 @@ object Kho {
             .apply()
     }
 
+    // ---------- Bàn Cờ Lửa ----------
+    private const val BC = "ban_co"
+
+    /** (xu muốn tiêu, cài đặt) */
+    fun docBC(ctx: Context): Pair<Int, vn.hoitu.banco.core.CaiDatBC> {
+        val p = ctx.getSharedPreferences(BC, Context.MODE_PRIVATE)
+        val xu = p.getInt("xu", 6000)
+        return Pair(xu, vn.hoitu.banco.core.CaiDatBC(soLan = p.getInt("so_lan", vn.hoitu.banco.core.CaiDatBC.soLanTuXu(xu)), choTH3 = p.getBoolean("cho_th3", false)))
+    }
+
+    fun luuBC(ctx: Context, xu: Int, cd: vn.hoitu.banco.core.CaiDatBC) {
+        ctx.getSharedPreferences(BC, Context.MODE_PRIVATE).edit()
+            .putInt("xu", xu).putInt("so_lan", cd.soLan).putBoolean("cho_th3", cd.choTH3).apply()
+    }
+
     fun homNay(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
     // ---------- Ban sức ----------
