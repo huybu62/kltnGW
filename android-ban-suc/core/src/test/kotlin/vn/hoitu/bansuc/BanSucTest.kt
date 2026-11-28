@@ -138,7 +138,7 @@ class GameGia(
                 // như game thật: chạm mũi tên không lật trang (chỉ vuốt ngang mới lật)
                 if (gan(x, y, DocMan.TRANG_SAU) || gan(x, y, DocMan.TRANG_TRUOC)) return
                 trangThe().forEachIndexed { i, t ->
-                    if (t != null && gan(x, y, Pair(DocMan.COT[i % 4], DocMan.HANG_CHAM[i / 4]), 80f)) {
+                    if (t != null && abs(x - DocMan.COT[i % 4]) < 150f && y - DocMan.HANG_CHAM[i / 4] in -150f..280f) { // cả thẻ: hình viên đá + nhãn chữ
                         // như game: chạm lại đúng viên đang nằm trong ô thì gỡ nó ra
                         if (boQuaCham > 0) { boQuaCham--; return } // game không nhận cú chạm này
                         if (dongCham > 0) { choDong = dongCham; sauDong = t; return }

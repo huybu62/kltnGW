@@ -360,6 +360,11 @@ class TroNangService : AccessibilityService() {
             veSo()
             c.addView(khungSo)
             c.addView(oSo("Chờ sau bấm (ms):", { cd.nghiMs }, 50, 150, 5000, { cd.nghiMs = it; luu() }))
+            c.addView(CheckBox(this).apply {
+                val p = getSharedPreferences("chung", MODE_PRIVATE)
+                text = "Hiện điểm app chạm (vòng đỏ)"; setTextColor(Color.WHITE); isChecked = p.getBoolean("hien_cham", false)
+                setOnCheckedChangeListener { _, b -> p.edit().putBoolean("hien_cham", b).apply() }
+            })
             c.addView(chu("Giữ ít nhất 1 đá LV5 làm nhà máy. Đá hệ khác app để yên.", 11f, mau = Color.LTGRAY))
         }
         c.addView(hang(dongChay(Tool.BS) { chayBS() }, nut("📜") { moNhatKy(Tool.BS) }, nut("‹") { moMenu() }, nut("✕") { dongBang() }))
@@ -585,6 +590,25 @@ class TroNangService : AccessibilityService() {
     private fun cham(x: Float, y: Float, ms: Long) {
         val (a, b) = cu(x, y)
         lamCu(Path().apply { moveTo(a, b) }, ms, listOf(Pair(a, b)))
+        danhDau(a, b)
+    }
+
+    /** Tuỳ chọn "Hiện điểm app chạm": vòng đỏ nhỏ ở đúng chỗ vừa chạm (~0,6 s, không chặn chạm). */
+    private fun danhDau(x: Float, y: Float) {
+        if (!getSharedPreferences("chung", MODE_PRIVATE).getBoolean("hien_cham", false)) return
+        ui.post {
+            val r = dp(9)
+            val v = View(this).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.argb(110, 255, 0, 0)); setStroke(dp(2), Color.RED) }
+            }
+            val lp = WindowManager.LayoutParams(
+                r * 2, r * 2, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT,
+            ).apply { gravity = Gravity.TOP or Gravity.START; this.x = x.toInt() - r; this.y = y.toInt() - r }
+            runCatching { wm.addView(v, lp) }.onSuccess { ui.postDelayed({ runCatching { wm.removeView(v) } }, 600) }
+        }
     }
 
     private fun vuot(x0: Float, y0: Float, x1: Float, y1: Float, ms: Long) {

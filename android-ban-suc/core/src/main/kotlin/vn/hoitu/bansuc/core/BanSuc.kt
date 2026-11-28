@@ -378,9 +378,9 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                 return false
             }
             if (!choDong(15)) {
-                // chạm không ăn (bảng chọn vẫn đứng yên): chạm lại vào hình viên đá, giữ lâu hơn
-                tb.log("  Chạm thẻ ô ${vi + 1} không ăn → chạm lại (giữ lâu hơn)")
-                tb.chamLau(x, y + 25f * bang.k)
+                // chạm không ăn (bảng chọn vẫn đứng yên): chạm lại vào nhãn chữ của thẻ (dưới hình viên đá), giữ lâu hơn
+                tb.log("  Chạm thẻ ô ${vi + 1} không ăn → chạm lại vào nhãn thẻ")
+                tb.chamLau(x, y + 200f * bang.k)
                 choDong(25)
             }
             if (daIn || daKiemHinh) {
