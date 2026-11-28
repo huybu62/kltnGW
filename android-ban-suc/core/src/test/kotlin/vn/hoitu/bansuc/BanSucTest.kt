@@ -341,4 +341,19 @@ class BanSucTest {
         BanSuc(g, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1))).chay()
         assertEquals(3, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
     }
+
+    @Test
+    fun mucTieuSThacAnChinhVienDangOA() {
+        // mục tiêu S, nhà máy LV6: viên đang làm lên A thì Thác Ấn SSS ngay trên nó; không đụng viên LV6 khác
+        val ds = mutableListOf(lv6('C', He.LANHCHUA, ChiSo.HP), lv6(null, null, ChiSo.HP), lv6(null, null, ChiSo.HP),
+            lv6(null, null, ChiSo.TOCDO), Da(5, null, null, ChiSo.HP))
+        val g = GameGia(ds, mutableMapOf(Pair(1, He.LANHCHUA) to 100000), mutableMapOf(2 to 5000, 3 to 500), seed = 11, tiLe = 0.35, dongSauLam = true)
+        BanSuc(g, CaiDat(he = He.LANHCHUA, mucTieu = 'S', soLuong = mutableMapOf(ChiSo.HP to 1), nhaMayLv6 = true)).chay()
+        assertEquals(1, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && it.pham == 'S' })
+        // 2 viên LV6 HP trống và viên Tốc độ vẫn nguyên (không bị lấy làm nhà máy)
+        assertEquals(2, g.da.count { it == lv6(null, null, ChiSo.HP) })
+        assertTrue(g.da.contains(lv6(null, null, ChiSo.TOCDO)))
+        // mọi lần Thác Ấn SSS đều làm trên viên phẩm A
+        assertTrue(g.nhatKy.filter { it.endsWith("In SSS") }.all { it.contains("pham=A") || it.contains("LV6A") })
+    }
 }

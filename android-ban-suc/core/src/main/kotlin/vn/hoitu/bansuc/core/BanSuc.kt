@@ -573,30 +573,6 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         }
     }
 
-    /** Làm 1 viên A-SSS bằng 1 viên LV6 (lên A bằng B-SS rồi Thác Ấn bằng Đá In SSS). */
-    private fun lamASSS(tranh: Da?): Boolean {
-        if (!cd.nhaMayLv6) { tb.log("⛔ Hết đá điểm hóa A-SSS ${he.ten} (bật \"Nhà máy LV6\" để app tự làm)"); return false }
-        val ds = quetDanhSach().map { it.da }.filter { it.lv == 6 && it.pham != 'S' && (it.pham == null || it.he == he) }
-        // tránh viên đang làm dở (nếu có viên khác để dùng)
-        val ds2 = ds.toMutableList().also { l -> tranh?.let { l.remove(it) } }
-        var hien = ds2.sortedBy { if (it.pham == 'A') 0 else if (it.he == he) 1 else 2 }.firstOrNull()
-            ?: throw DungLai("Không có đá LV6 làm nhà máy A-SSS")
-        if (!chonDa(hien)) throw DungLai("Không chọn được đá LV6 nhà máy $hien ($docDuocLanCuoi)")
-        tb.log("🏭 Nhà máy LV6 ($hien): làm 1 viên A-SSS ${he.ten}")
-        while (true) {
-            if (hien.he == he && hien.pham == 'A') { thacAn(3); return true }
-            if (hien.he == he && hien.pham == 'B') { thacAn(2); hien = hien.copy(pham = null, he = null); continue }
-            when (val kq = diemHoaToiKhi(2) { it.he == he && (it.pham == 'A' || it.pham == 'B') }) {
-                is KetQua.HetDa -> {
-                    hien = capNhat(hien, kq.hq)
-                    veManChinh()
-                    if (!lamBSS()) return false
-                    if (!chonDa(hien)) throw DungLai("Không tìm lại được đá LV6 nhà máy $hien")
-                }
-                is KetQua.Dat -> { hien = hien.copy(pham = kq.hq.pham, he = kq.hq.he); veManChinh() }
-            }
-        }
-    }
 
     // ---------- đá trong bộ ----------
     private fun daXong(d: Da) = d.lv == 6 && d.he == he && Pham.datToi(d.pham, cd.mucTieu)
@@ -605,20 +581,38 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         can > 0 && ds.filter { it.da.chiSo == cs && daXong(it.da) }.sumOf { it.soLuong } < can
     }?.key
 
+    /**
+     * Làm một viên LV6 tới phẩm mục tiêu.
+     * - Rơi đúng B → Thác Ấn bằng Đá In SS (lấy B-SS) rồi làm tiếp.
+     * - Mục tiêu S, viên đang ở A (bật Nhà máy LV6) → Thác Ấn NGAY viên này bằng Đá In SSS (lấy A-SSS) rồi điểm hóa lại
+     *   chính nó; hết A-SSS thì điểm hóa chính viên này bằng B-SS lên A. Không đụng viên LV6 khác.
+     */
     private fun lamDaLv6(batDau: Da): Boolean {
         var hien = batDau
         if (!chonDa(hien)) throw DungLai("Không chọn được đá $hien ($docDuocLanCuoi)")
         tb.log("💎 Làm đá $hien → ${cd.mucTieu}·${he.ten}")
-        val bac = if (cd.mucTieu == 'A') 2 else 3
+        val mucS = cd.mucTieu == 'S'
         while (true) {
             if (daXong(hien)) { tb.log("✔ Xong 1 viên: $hien"); return true }
             if (hien.he == he && hien.pham == 'B') { thacAn(2); hien = hien.copy(pham = null, he = null); continue }
-            when (val kq = diemHoaToiKhi(bac) { it.he == he && (Pham.datToi(it.pham, cd.mucTieu) || it.pham == 'B') }) {
+            if (mucS && cd.nhaMayLv6 && hien.he == he && hien.pham == 'A') {
+                tb.log("  Viên đang ở A → Thác Ấn bằng Đá In SSS lấy A-SSS, rồi điểm hóa lại chính viên này")
+                thacAn(3); hien = hien.copy(pham = null, he = null); continue
+            }
+            // mục tiêu S: dùng A-SSS; hết A-SSS (và bật nhà máy LV6) thì đưa chính viên này lên A bằng B-SS
+            val bac = if (!mucS) 2 else if (cd.nhaMayLv6 && khoa(3, false) in chacHet) 2 else 3
+            val xong: (HieuQua) -> Boolean = if (bac == 3) { hq -> hq.he == he && (Pham.datToi(hq.pham, 'S') || hq.pham == 'B') }
+                else { hq -> hq.he == he && (Pham.datToi(hq.pham, if (mucS) 'A' else cd.mucTieu) || hq.pham == 'B') }
+            when (val kq = diemHoaToiKhi(bac, xong)) {
                 is KetQua.HetDa -> {
                     hien = capNhat(hien, kq.hq)
                     veManChinh()
-                    val ok = if (bac == 2) lamBSS() else lamASSS(hien)
-                    if (!ok) return false
+                    if (bac == 3) {
+                        if (!cd.nhaMayLv6) { tb.log("⛔ Hết đá điểm hóa A-SSS ${he.ten} (bật \"Nhà máy LV6\" để app tự làm)"); return false }
+                        tb.log("  Hết A-SSS → điểm hóa chính viên này bằng B-SS lên A rồi Thác Ấn SSS")
+                        continue // vòng sau dùng B-SS (A-SSS đã đánh dấu hết)
+                    }
+                    if (!lamBSS()) return false
                     if (!chonDa(hien)) { tb.log("  Không thấy lại đá $hien → đọc lại danh sách"); return true }
                 }
                 is KetQua.Dat -> { hien = hien.copy(pham = kq.hq.pham, he = kq.hq.he); veManChinh() }

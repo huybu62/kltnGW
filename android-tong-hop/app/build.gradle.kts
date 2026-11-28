@@ -11,8 +11,8 @@ android {
         applicationId = "vn.hoitu.tonghop"
         minSdk = 24 // Android 7 trở lên (cần cho thao tác chạm của Trợ năng)
         targetSdk = 34
-        versionCode = 11
-        versionName = "2.0"
+        versionCode = 12
+        versionName = "2.1"
     }
 
     buildTypes {

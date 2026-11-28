@@ -11,8 +11,8 @@ android {
         applicationId = "vn.hoitu.bansuc"
         minSdk = 24 // Android 7 trở lên (cần cho thao tác chạm của Trợ năng)
         targetSdk = 34
-        versionCode = 15
-        versionName = "2.4"
+        versionCode = 16
+        versionName = "2.5"
     }
 
     buildTypes {

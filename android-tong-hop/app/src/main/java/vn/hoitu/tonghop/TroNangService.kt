@@ -337,7 +337,7 @@ class TroNangService : AccessibilityService() {
             c.addView(oChon("Hệ:", He.values().toList(), { it.ten }, { cd.he }) { cd.he = it; luu() })
             c.addView(oChon("Phẩm mục tiêu:", listOf('A', 'S'), { if (it == 'A') "A (dùng B-SS)" else "S (dùng A-SSS)" }, { cd.mucTieu }) { cd.mucTieu = it; luu() })
             c.addView(CheckBox(this).apply {
-                text = "Nhà máy LV6 (hết A-SSS thì tự làm)"; setTextColor(Color.WHITE); isChecked = cd.nhaMayLv6
+                text = "Nhà máy LV6: viên đang ở A thì Thác Ấn SSS rồi điểm hóa lại"; setTextColor(Color.WHITE); isChecked = cd.nhaMayLv6
                 setOnCheckedChangeListener { _, b -> cd.nhaMayLv6 = b; luu() }
             })
             val khungSo = cot()
