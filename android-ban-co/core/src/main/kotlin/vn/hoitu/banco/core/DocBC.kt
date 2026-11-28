@@ -24,6 +24,8 @@ enum class O(val ten: String) { TUONG("Tướng"), SOAI("Soái"), CO("cờ"), UP
 data class HangDau(val o: List<O>) {
     /** điểm giống mẫu Tướng/Soái của các ô cờ (để ghi nhật ký) */
     var diem: List<Float> = emptyList()
+    /** độ sáng/độ lệch 5 ô (để chẩn đoán) */
+    var chiTiet: String = ""
     val soCo get() = o.count { it == O.TUONG || it == O.SOAI || it == O.CO }
     val up get() = o.count { it == O.UP } >= 3
     val coTuongSoai get() = o.any { it == O.TUONG || it == O.SOAI }
@@ -167,8 +169,34 @@ object DocBC {
     )
     const val NGUONG_CHU = 0.55f
 
+    /** Độ sáng trung bình và độ lệch chuẩn trong ô i (ô úp: màu trơn, lệch rất nhỏ). */
+    fun sangO(a: Anh, vung: IntArray, i: Int): Pair<Float, Float> {
+        val k = vung[2] / REF_W
+        val cx = vung[0] + O_X[i] * k; val cy = vung[1] + O_Y * k; val r = 30f * k
+        var n = 0; var s = 0.0; var s2 = 0.0
+        for (y in (cy - r).toInt() until (cy + r).toInt()) for (x in (cx - r).toInt() until (cx + r).toInt()) {
+            if (x !in 0 until a.w || y !in 0 until a.h) continue
+            val p = a.px[y * a.w + x]
+            val l = ((p shr 16) and 0xFF) * 0.299 + ((p shr 8) and 0xFF) * 0.587 + (p and 0xFF) * 0.114
+            n++; s += l; s2 += l * l
+        }
+        if (n == 0) return Pair(0f, 999f)
+        val m = s / n
+        return Pair(m.toFloat(), sqrt(max(0.0, s2 / n - m * m)).toFloat())
+    }
+
+    /** Bàn đã úp: 5 ô đầu đều trơn màu, sáng – tối xen kẽ (ô chẵn sáng hơn ô lẻ). */
+    fun banUp(a: Anh, vung: IntArray = vungGame(a)): Boolean {
+        val o = (0 until 5).map { sangO(a, vung, it) }
+        if (o.any { it.second > 14f }) return false
+        val chan = listOf(0, 2, 4).map { o[it].first }; val le = listOf(1, 3).map { o[it].first }
+        return chan.min() > le.max() * 1.4f
+    }
+
     /** Đọc 5 ô đầu hàng trên cùng (chỉ dùng khi không có bảng/hộp thoại che). */
     fun docHang(a: Anh, vung: IntArray = vungGame(a)): HangDau {
+        val ct = (0 until 5).joinToString(" ") { sangO(a, vung, it).let { (m, d) -> "${m.toInt()}/${d.toInt()}" } } + " vùng ${vung.toList()}"
+        if (banUp(a, vung)) return HangDau(List(5) { O.UP }).also { it.chiTiet = ct }
         val o = ArrayList<O>(); val diem = ArrayList<Float>()
         for (i in 0 until 5) {
             val (red, warm, cool, light) = mauO(a, vung, i).let { listOf(it[0], it[1], it[2], it[3]) }
@@ -189,6 +217,6 @@ object DocBC {
             }
             o += loai
         }
-        return HangDau(o).also { it.diem = diem }
+        return HangDau(o).also { it.diem = diem; it.chiTiet = ct }
     }
 }

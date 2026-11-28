@@ -1,6 +1,7 @@
 package vn.hoitu.banco
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -71,6 +72,10 @@ class DocBCTest {
         println("DIEM mo_bai=${h.diem}")
         val up = DocBC.docHang(MauBC.anh("up_bai.jpg"))
         assertTrue(up.toString(), up.up)
+        assertTrue(DocBC.docHang(MauBC.anh("up_bai_2.jpg")).up) // ảnh lúc chạy thật báo "không úp"
+        assertTrue(DocBC.banUp(MauBC.anh("mua.jpg"))) // úp, bị bảng Mua làm tối
+        assertFalse(DocBC.banUp(a))
+        assertFalse(DocBC.banUp(MauBC.anh("hoi_tao_moi.jpg")))
         val soai = DocBC.docHang(MauBC.anh("hoi_tao_moi.jpg")) // 象 兵 士 帅 兵 (ảnh tối vì hộp thoại)
         println("DIEM soai=${soai.diem}")
         assertEquals(soai.toString() + " " + soai.diem, listOf(O.CO, O.CO, O.CO, O.SOAI, O.CO), soai.o)

@@ -42,7 +42,7 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
 
     private fun cho(ms: Long, dk: (ManBC) -> Boolean): ManBC? {
         var t = 0L
-        while (t <= ms) { val m = nhin(); if (dk(m)) return m; ngu(250); t += 400 }
+        while (t <= ms) { val m = nhin(); if (dk(m)) return m; ngu(120); t += 300 }
         return null
     }
 
@@ -60,16 +60,16 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
                 }
                 val h = docHangChac()
                 when {
-                    h == null -> { tb.log("Bàn đang úp / chưa rõ → Tạo mới"); taoMoi() }
+                    h == null -> { tb.log("Bàn đang úp / chưa rõ → Tạo mới"); taoMoi(m) }
                     h.soCo == 5 && h.coTuongSoai -> {
                         tb.log("✅ TH1: $h (giống mẫu ${h.diem.joinToString("/") { "%.2f".format(it) }}) → lấy")
-                        layHet(nhin()); cd.choTH3 = true; tb.luu(cd); taoMoi()
+                        layHet(m); cd.choTH3 = true; tb.luu(cd); taoMoi()
                     }
                     h.soCo == 4 -> {
                         tb.log("✅ TH2 (4 ô đỏ): $h → lấy")
-                        layHet(nhin()); cd.choTH3 = true; tb.luu(cd); taoMoi()
+                        layHet(m); cd.choTH3 = true; tb.luu(cd); taoMoi()
                     }
-                    else -> { tb.log("Bàn: $h → Tạo mới"); taoMoi() }
+                    else -> { tb.log("Bàn: $h → Tạo mới"); taoMoi(m) }
                 }
             }
             tb.log("🏁 Xong: $daLay lần Take-away (${daLay * CaiDatBC.GIA} xu) + $soTaoMoi lần Tạo mới ($xuTaoMoi xu)")
@@ -101,7 +101,7 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
             val h = tb.hang()
             if (h != null && h == truoc) return if (h.up) null else h
             truoc = h
-            ngu(300)
+            ngu(120)
         }
         tb.log("  (5 ô đầu đọc không ổn định: $truoc)")
         return null
@@ -111,15 +111,15 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
     private fun layHet(m0: ManBC) {
         var m = m0
         if (m.loai != LoaiBC.BANG) m = veBang()
-        // Tẩy: chờ bàn úp
+        // Tẩy: chờ bàn úp (đọc ảnh, nhanh)
         var up = false
         for (lan in 0 until 2) {
             cham(m, DocBC.TAY)
-            for (i in 0 until 12) {
-                ngu(300)
+            for (i in 0 until 25) {
+                ngu(100)
                 val h = tb.hang()
                 if (h != null && h.up) { up = true; break }
-                if (i == 5) {
+                if (i == 12) {
                     val x = nhin()
                     if (x.loai == LoaiBC.HOI_KHAC || x.loai == LoaiBC.HOI_TAO_MOI || x.loai == LoaiBC.HOI_TAKE_AWAY) {
                         cham(x, DocBC.HUY); throw DungBC("Bấm Tẩy hiện hộp thoại: \"${x.chuHoi}\" (đã Hủy)")
@@ -127,15 +127,14 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
                 }
             }
             if (up) break
-            tb.log("  Tẩy chưa thấy bàn úp → bấm lại")
+            tb.log("  Tẩy chưa thấy bàn úp → bấm lại (5 ô: ${tb.hang()?.let { "$it · ${it.chiTiet}" }})")
             m = veBang()
         }
         if (!up) throw DungBC("Bấm Tẩy mà bàn không úp")
-        ngu(300)
         // Mua → bảng Take-away
         var mua: ManBC? = null
         for (lan in 0 until 2) {
-            cham(veBang(), DocBC.MUA)
+            cham(if (lan == 0) m else veBang(), DocBC.MUA)
             mua = cho(3000) { it.loai == LoaiBC.MUA || it.loai == LoaiBC.HOI_KHAC }
             if (mua?.loai == LoaiBC.MUA) break
             if (mua?.loai == LoaiBC.HOI_KHAC) { cham(mua, DocBC.HUY); throw DungBC("Bấm Mua hiện hộp thoại: \"${mua.chuHoi}\" (đã Hủy)") }
@@ -155,9 +154,9 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
     }
 
     /** Tạo mới + OK, chờ bàn mới. */
-    private fun taoMoi() {
+    private fun taoMoi(m0: ManBC? = null) {
         for (lan in 0 until 2) {
-            val m = veBang()
+            val m = if (lan == 0 && m0?.loai == LoaiBC.BANG) m0 else veBang()
             val truoc = tb.hang()
             cham(m, DocBC.TAO_MOI)
             val hoi = cho(3000) { it.loai == LoaiBC.HOI_TAO_MOI || it.loai == LoaiBC.HOI_KHAC || it.loai == LoaiBC.HOI_TAKE_AWAY }
