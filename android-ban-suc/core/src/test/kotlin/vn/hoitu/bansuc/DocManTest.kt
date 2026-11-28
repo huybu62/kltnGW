@@ -175,4 +175,14 @@ class DocManTest {
         assertTrue(m2.the.any { it.bac == 2 && it.he == He.HUYDIET })
         assertTrue(m2.the.any { it.bac == 1 && it.he == He.CONLAC })
     }
+
+    @Test
+    fun nhanManBangAnh() {
+        for (t in listOf("chon_da_in", "chon_dh_tim_1", "chon_dh_tim_2", "chon_diem_hoa_1", "chon_diem_hoa_2"))
+            assertEquals(t, vn.hoitu.bansuc.core.ManNhanh.CHON, DocMan.manNhanh(Mau.anh(t)))
+        for (t in listOf("diem_hoa_co_da", "diem_hoa_trong", "thac_an", "thac_an_co_da"))
+            assertEquals(t, vn.hoitu.bansuc.core.ManNhanh.BANG, DocMan.manNhanh(Mau.anh(t)))
+        for (t in listOf("chinh_lv5", "chinh_lv4", "chinh_vat_cong", "chinh_sau_diem_hoa", "chinh_cuoi_ds"))
+            assertEquals(t, vn.hoitu.bansuc.core.ManNhanh.CHINH, DocMan.manNhanh(Mau.anh(t)))
+    }
 }

@@ -477,6 +477,7 @@ class TroNangService : AccessibilityService() {
             override fun vuot(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 1000)
             override fun vuotNhanh(x0: Float, y0: Float, x1: Float, y1: Float) = this@TroNangService.vuot(x0, y0, x1, y1, 280)
             override fun trang(): Pair<Int, Int>? = ChupManHinhService.instance?.chup()?.let { DocMan.trangChon(it.bs()) }
+            override fun manNhanh(): vn.hoitu.bansuc.core.ManNhanh? = ChupManHinhService.instance?.chup()?.let { DocMan.manNhanh(it.bs()) }
             override fun ngu(ms: Long) = Thread.sleep(ms)
             override fun log(s: String) = this@TroNangService.log(s)
         }

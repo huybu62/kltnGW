@@ -13,6 +13,7 @@ import vn.hoitu.bansuc.core.He
 import vn.hoitu.bansuc.core.HieuQua
 import vn.hoitu.bansuc.core.LoaiMan
 import vn.hoitu.bansuc.core.ManHinh
+import vn.hoitu.bansuc.core.ManNhanh
 import vn.hoitu.bansuc.core.Pham
 import vn.hoitu.bansuc.core.The
 import vn.hoitu.bansuc.core.ThietBi
@@ -70,8 +71,20 @@ class GameGia(
         trangThe().let { t -> List(8) { i -> t.getOrNull(i)?.first?.let { b -> if (mauLuonXanh) 1 else b } } }
 
     var docKhiChonDaIn = 0
-    override fun nhin(): ManHinh = also { soLanDoc++; if (man == LoaiMan.CHON_DA && bangChon == LoaiMan.THAC_AN) docKhiChonDaIn++ }.let { nhinThat() }
-    override fun oCoDa(diemHoa: Boolean): Boolean? = if (man == LoaiMan.DIEM_HOA || man == LoaiMan.THAC_AN) oDa != null else null
+    override fun nhin(): ManHinh = also { buocDong() }.also { soLanDoc++; if (man == LoaiMan.CHON_DA && bangChon == LoaiMan.THAC_AN) docKhiChonDaIn++ }.let { nhinThat() }
+    // như ảnh thật: đang ở bảng chọn đá thì chỗ ô đá là nhãn thẻ sáng màu → xem nhầm là "có đá"
+    override fun oCoDa(diemHoa: Boolean): Boolean? = buocDong().let {
+        if (man == LoaiMan.DIEM_HOA || man == LoaiMan.THAC_AN) oDa != null else if (man == LoaiMan.CHON_DA) true else null
+    }
+    override fun manNhanh(): ManNhanh = buocDong().let {
+        when (man) { LoaiMan.CHON_DA -> ManNhanh.CHON; LoaiMan.DIEM_HOA, LoaiMan.THAC_AN -> ManNhanh.BANG; LoaiMan.CHINH -> ManNhanh.CHINH; else -> ManNhanh.KHAC }
+    }
+    var dongCham = 0 // bảng chọn đóng chậm: sau khi chạm thẻ còn hiện thêm N lần nhìn
+    private var choDong = 0
+    private var sauDong: Pair<Int, He?>? = null
+    private fun buocDong() {
+        if (choDong > 0 && --choDong == 0) { oDa = if (oDa == sauDong) null else sauDong; man = bangChon!! }
+    }
 
     private fun nhinThat(): ManHinh = when (man) {
         LoaiMan.CHINH -> {
@@ -126,6 +139,7 @@ class GameGia(
                 trangThe().forEachIndexed { i, t ->
                     if (t != null && gan(x, y, Pair(DocMan.COT[i % 4], DocMan.HANG_CHAM[i / 4]), 80f)) {
                         // như game: chạm lại đúng viên đang nằm trong ô thì gỡ nó ra
+                        if (dongCham > 0) { choDong = dongCham; sauDong = t; return }
                         oDa = if (oDa == t) null else t; man = bangChon!!; return
                     }
                 }
@@ -315,6 +329,16 @@ class BanSucTest {
         g.mauLuonXanh = true
         val b = BanSuc(g, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1)))
         b.chay()
+        assertEquals(3, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
+    }
+
+    @Test
+    fun bangChonDongChamKhongBamNham() {
+        // bảng chọn đá đóng chậm sau khi chạm thẻ; lúc đó xem ô đá bằng ảnh sẽ tưởng nhầm "có đá"
+        val g = GameGia(bo(), mutableMapOf(Pair(1, He.LANHCHUA) to 3000, Pair(1, He.TINHTHAN) to 50, Pair(2, He.HUYDIET) to 4),
+            mutableMapOf(1 to 100, 2 to 500, 3 to 5), seed = 8, tiLe = 0.3, dongSauLam = true)
+        g.dongCham = 3
+        BanSuc(g, CaiDat(he = He.LANHCHUA, mucTieu = 'A', soLuong = mutableMapOf(ChiSo.HP to 3, ChiSo.PHONG to 1))).chay()
         assertEquals(3, g.da.count { it.lv == 6 && it.chiSo == ChiSo.HP && it.he == He.LANHCHUA && Pham.datToi(it.pham, 'A') })
     }
 }

@@ -20,6 +20,8 @@ interface ThietBi {
     fun anh(): Anh? = null
     /** Ô đá của bảng Điểm Hóa / Thác Ấn đang mở có đá chưa (chỉ xem hình – nhanh). null: không rõ. */
     fun oCoDa(diemHoa: Boolean): Boolean? = null
+    /** Màn đang hiện, nhận nhanh bằng ảnh; null nếu không xem được. */
+    fun manNhanh(): ManNhanh? = null
     /** Vuốt nhanh (lật trang bảng chọn đá). */
     fun vuotNhanh(x0: Float, y0: Float, x1: Float, y1: Float) = vuot(x0, y0, x1, y1)
     /** Trang đang xem của bảng chọn đá (trang, số trang) đọc từ chấm trang; null nếu không biết. */
@@ -242,11 +244,11 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
      * rồi chạm chấm trang. false nếu trang không đổi (đã hết trang theo hướng đó).
      */
     private fun latTrang(m: ManHinh, sau: Boolean): Boolean {
-        val tr = tb.trang()
+        val tr = trangChac()
         if (tr != null && ((sau && tr.first >= tr.second - 1) || (!sau && tr.first == 0))) return false // đã ở trang cuối / đầu
         val truoc = vanTrang()
         fun doi(): Boolean {
-            if (tr != null) tb.trang()?.let { return it.first != tr.first }
+            if (tr != null) trangChac()?.let { return it.first != tr.first }
             return khacTrang(truoc, vanTrang())
         }
         val cach = listOf<() -> Unit>(
@@ -275,7 +277,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     /** Lật tới trang [dich] (đọc chấm trang); không đọc được chấm thì thôi (coi như đang đúng trang). */
     private fun toiTrang(m: ManHinh, dich: Int): Boolean {
         repeat(6) {
-            val tr = tb.trang() ?: return dich == 0
+            val tr = trangChac() ?: return dich == 0
             if (tr.first == dich) return true
             if (!latTrang(m, sau = tr.first < dich)) return false
         }
@@ -314,8 +316,23 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
     // chọn lại đúng thẻ đang nằm trong ô có thể gỡ nó ra)
     private val hinhOMau = HashMap<String, FloatArray>()
 
+    // ---------- phép xem nhanh bằng ảnh: chỉ tin khi đúng màn ----------
+    private fun dungMan(m: ManNhanh) = tb.manNhanh().let { it == null || it == m }
+    private fun oCoDaChac(diemHoa: Boolean): Boolean? = if (dungMan(ManNhanh.BANG)) tb.oCoDa(diemHoa) else null
+    private fun bacCacOChac(): List<Int?>? = if (dungMan(ManNhanh.CHON)) tb.bacCacO() else null
+    private fun trangChac(): Pair<Int, Int>? = if (dungMan(ManNhanh.CHON)) tb.trang() else null
+
+    /** Còn bảng chọn đá đang mở (chọn hỏng / chưa đóng) thì đóng nó, trước khi bấm nút của bảng Điểm Hóa / Thác Ấn. */
+    private fun dongBangChonNeuCo(m: ManHinh) {
+        repeat(3) { lan ->
+            if (tb.manNhanh() != ManNhanh.CHON) return
+            if (lan < 2) cham(m, DocMan.QUAY_LAI) else tb.quayLai()
+            for (i in 0 until 15) { ngu(120); if (tb.manNhanh() != ManNhanh.CHON) return }
+        }
+    }
+
     private fun oDungDa(key: String, daIn: Boolean): Boolean {
-        if (tb.oCoDa(!daIn) != true) return false
+        if (oCoDaChac(!daIn) != true) return false
         val mau = hinhOMau[key] ?: return false
         val a = tb.anh() ?: return false
         return Anh.tuongQuan(DocMan.hinhO(a, DocMan.vungGame(a), !daIn), mau) >= 0.97f
@@ -323,7 +340,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
 
     private fun luuHinhO(key: String, daIn: Boolean) {
         ngu(150)
-        if (tb.oCoDa(!daIn) != true) return
+        if (oCoDaChac(!daIn) != true) return
         val a = tb.anh() ?: return
         hinhOMau[key] = DocMan.hinhO(a, DocMan.vungGame(a), !daIn)
     }
@@ -340,7 +357,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
             cham(bang, DocMan.NUT_O)
             for (lan in 0 until 8) {
                 ngu(200)
-                val mau = tb.bacCacO() ?: break
+                val mau = bacCacOChac() ?: break
                 if (mau.count { it != null } >= 2) return true
             }
             return cho(2500) { it.loai == LoaiMan.CHON_DA } != null
@@ -353,9 +370,11 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         fun chonO(vi: Int, x: Float, y: Float, daKiemHinh: Boolean): Boolean {
             ngu(200) // bảng chọn vừa hiện / vừa lật trang: chờ đứng yên rồi mới chạm
             tb.cham(x, y)
+            // chờ bảng chọn đóng hẳn (trên bảng chọn, chỗ ô đá là nhãn thẻ sáng màu – xem lúc này sẽ tưởng nhầm "đã có đá")
+            for (lan in 0 until 25) { if (tb.manNhanh().let { it == null || it != ManNhanh.CHON }) break; ngu(100) }
             if (daIn || daKiemHinh) {
                 for (lan in 0 until 15) {
-                    if (tb.oCoDa(!daIn) == true) { luuHinhO(key, daIn); return true }
+                    if (oCoDaChac(!daIn) == true) { luuHinhO(key, daIn); return true }
                     ngu(150)
                 }
             }
@@ -369,10 +388,10 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         if (!moChon()) return Them.LOI
         // 1) vị trí đã nhớ: kiểm màu (và hình với đá điểm hóa) rồi bấm thẳng
         viTri[key]?.let { (trang, vi) ->
-            val dungTrang = if (tb.trang() != null) toiTrang(bang, trang) else (0 until trang).all { latTrang(bang, sau = true) }
+            val dungTrang = if (trangChac() != null) toiTrang(bang, trang) else (0 until trang).all { latTrang(bang, sau = true) }
             var dungMau = false
             if (dungTrang) for (lan in 0 until 6) {
-                if (tb.bacCacO()?.getOrNull(vi) == bac) { dungMau = true; break }
+                if (bacCacOChac()?.getOrNull(vi) == bac) { dungMau = true; break }
                 ngu(150)
             }
             val mauHinh = hinhMau[key]
@@ -394,12 +413,12 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         //    Không thấy thì lượt chắc: về trang 1, đọc chữ mọi trang. Chỉ cả 2 lượt không thấy mới là hết.
         var thayThe = false
         fun mauYen(): List<Int?>? {
-            var cu = tb.bacCacO() ?: return null
-            repeat(4) { ngu(150); val moi = tb.bacCacO() ?: return null; if (moi == cu) return moi; cu = moi }
+            var cu = bacCacOChac() ?: return null
+            repeat(4) { ngu(150); val moi = bacCacOChac() ?: return null; if (moi == cu) return moi; cu = moi }
             return null // trang chưa đứng yên: đừng tin màu
         }
         fun veTrangDau() {
-            if (tb.trang() != null) { toiTrang(bang, 0); return }
+            if (trangChac() != null) { toiTrang(bang, 0); return }
             repeat(5) { if (!latTrang(bang, sau = false)) return }
         }
         for (luot in 0..1) {
@@ -414,7 +433,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
                     if (t != null) {
                         val hinh = if (!daIn && t.vi >= 0) tb.anh()?.let { DocMan.hinhThe(it, DocMan.vungGame(it), t.vi) } else null
                         if (chonO(t.vi, t.x, t.y, false)) {
-                            val trangThat = tb.trang()?.first ?: trang
+                            val trangThat = trangChac()?.first ?: trang
                             if (t.vi >= 0) viTri[key] = Pair(trangThat, t.vi)
                             if (hinh != null) hinhMau[key] = hinh
                             t.soLuong?.let { tonKho[key] = it }
@@ -451,17 +470,30 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         val sau = m.sau
         if (sau?.he != null && sau.he != he) throw DungLai("Đá điểm hóa đã thêm không phải hệ ${he.ten} (thấy ${sau.he.ten}) → dừng cho an toàn")
         var lan = 0
+        var lac = 0
         while (true) {
             if (khoa(bac, false) in chacHet && m.daThem != true) return KetQua.HetDa(m.hien)
             if (m.daThem == false && !themDa(LoaiMan.DIEM_HOA, bac, false)) return KetQua.HetDa(m.hien)
             val truoc = m.hien
+            dongBangChonNeuCo(m)
             cham(m, DocMan.NUT_LAM)
             lan++; soLanDiemHoa++
             daDung(khoa(bac, false))
             ngu(cd.nghiMs.toLong())
             // game có thể giữ bảng Điểm Hóa, hoặc tự đóng bảng và về màn chính sau mỗi lần bấm
             val kq = cho(5000) { (it.loai == LoaiMan.DIEM_HOA && it.hien != null) || (it.loai == LoaiMan.CHINH && it.daChon != null) }
-                ?: throw DungLai("Không thấy kết quả sau khi bấm Điểm Hóa")
+                ?: run {
+                    // lạc màn (vd còn bảng chọn đá đang mở): đóng bảng thừa, mở lại bảng Điểm Hóa rồi làm tiếp
+                    lac++
+                    val dang = tb.manNhanh() ?: nhin().loai
+                    if (lac >= 3) throw DungLai("Bấm Điểm Hóa 3 lần không thấy kết quả (đang ở màn: $dang) → dừng")
+                    tb.log("  Bấm Điểm Hóa không thấy kết quả (đang ở: $dang) → đóng bảng thừa, mở lại bảng Điểm Hóa")
+                    dongBangChonNeuCo(m)
+                    m = moBang(LoaiMan.DIEM_HOA)
+                    lan--; soLanDiemHoa--
+                    khoa(bac, false).let { k -> tonKho[k]?.let { tonKho[k] = it + 1 }; chacHet -= k } // lần bấm không ăn: trả lại tồn kho
+                    null
+                } ?: continue
             val hq = if (kq.loai == LoaiMan.CHINH) HieuQua(kq.daChon!!.pham, kq.daChon.he) else kq.hien!!
             if (kq.loai == LoaiMan.DIEM_HOA) m = kq
             if (hq != truoc) tb.log("  Điểm hóa ${tenDa(bac, false)} lần $lan: ${chu(truoc)} → ${chu(hq)}")
@@ -492,6 +524,7 @@ class BanSuc(private val tb: ThietBi, private val cd: CaiDat) {
         if (truoc?.pham == null) { veManChinh(); return }
         if (!themDa(LoaiMan.THAC_AN, bacIn, true)) throw DungLai("Hết ${tenDa(bacIn, true)} → dừng")
         val b = cho(3000) { it.loai == LoaiMan.THAC_AN } ?: throw DungLai("Mất bảng Thác Ấn")
+        dongBangChonNeuCo(b)
         cham(b, DocMan.NUT_LAM)
         soLanThacAn++
         daDung(khoa(bacIn, true))

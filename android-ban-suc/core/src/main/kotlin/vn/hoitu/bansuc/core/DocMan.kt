@@ -24,6 +24,9 @@ data class The(val bac: Int, val daIn: Boolean, val he: He?, val soLuong: Int?, 
 
 enum class LoaiMan { CHINH, DIEM_HOA, THAC_AN, CHON_DA, KHAC }
 
+/** Màn nhận nhanh bằng ảnh (không đọc chữ): bảng chọn đá, bảng Điểm Hóa / Thác Ấn, màn chính, khác. */
+enum class ManNhanh { CHON, BANG, CHINH, KHAC }
+
 /** Những gì đọc được trên một màn hình. Toạ độ chạm đã đổi ra màn hình thật. */
 data class ManHinh(
     val loai: LoaiMan,
@@ -205,6 +208,43 @@ object DocMan {
         val i = do_.indices.maxBy { do_[it] }
         val nhi = do_.filterIndexed { j, _ -> j != i }.max()
         return if (do_[i] > nhi * 1.25f) Pair(i, cham.size) else null
+    }
+
+    /** Tỉ lệ điểm ảnh thỏa [dk] (h 0..360, s, v 0..255) trong vùng chuẩn. */
+    private fun tiLe(a: Anh, v: IntArray, x0: Float, y0: Float, x1: Float, y1: Float, dk: (Int, Int, Int) -> Boolean): Float {
+        val k = v[2] / REF_W
+        var n = 0; var c = 0
+        var y = y0
+        while (y < y1) {
+            var x = x0
+            while (x < x1) {
+                val px = (v[0] + x * k).toInt(); val py = (v[1] + y * k).toInt()
+                if (px in 0 until a.w && py in 0 until a.h) {
+                    val p = a.px[py * a.w + px]
+                    val hsv = Anh.hsv((p shr 16) and 0xFF, (p shr 8) and 0xFF, p and 0xFF)
+                    n++; if (dk(hsv[0] * 2, hsv[1], hsv[2])) c++
+                }
+                x += 4f
+            }
+            y += 4f
+        }
+        return if (n == 0) 0f else c.toFloat() / n
+    }
+
+    /**
+     * Nhận màn bằng ảnh, gần như tức thì: bảng chọn đá có nút quay lại xanh lá góc trái trên; bảng Điểm Hóa /
+     * Thác Ấn có nút X đỏ ở giữa trên; màn chính chỉ có nút X đỏ góc phải.
+     */
+    fun manNhanh(a: Anh): ManNhanh {
+        val v = vungGame(a)
+        val xanh = tiLe(a, v, 90f, 15f, 250f, 95f) { h, s, b -> h in 86..159 && s > 115 && b > 100 }
+        if (xanh > 0.25f) return ManNhanh.CHON
+        val doDo = { h: Int, s: Int, b: Int -> (h < 15 || h > 345) && s > 150 && b > 140 }
+        val xBang = tiLe(a, v, 1460f, 165f, 1570f, 255f, doDo)
+        if (xBang > 0.35f) return ManNhanh.BANG
+        val xChinh = tiLe(a, v, 1680f, 170f, 1800f, 265f, doDo)
+        if (xChinh > 0.35f) return ManNhanh.CHINH
+        return ManNhanh.KHAC
     }
 
     /** Ảnh xám viên đá đang nằm trong ô của bảng Điểm Hóa / Thác Ấn (để biết ô đã có đúng viên đá cần chưa). */
