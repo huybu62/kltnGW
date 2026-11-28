@@ -4,7 +4,8 @@ package vn.hoitu.banco.core
  * Cài đặt Bàn Cờ Lửa.
  * [soLan]: số lần Take-away muốn làm (mỗi lần [GIA] xu). [choTH3]: vừa lấy bàn đẹp → bàn kế tiếp lấy luôn.
  */
-data class CaiDatBC(var soLan: Int = 1, var choTH3: Boolean = false) {
+/** [canTaoMoi]: bàn hiện tại đã Take-away xong (đang lật ngửa hết) mà chưa Tạo mới. */
+data class CaiDatBC(var soLan: Int = 1, var choTH3: Boolean = false, var canTaoMoi: Boolean = false) {
     companion object {
         const val GIA = 6000
         /** Số lần Take-away cho số xu muốn tiêu: làm tròn lên (xu có thể dư, không thiếu). */
@@ -21,7 +22,8 @@ interface ThietBiBC {
     fun luu(cd: CaiDatBC) {}
 }
 
-private class DungBC(msg: String) : Exception(msg)
+private open class DungBC(msg: String) : Exception(msg)
+private class KhongUp : DungBC("Bấm Tẩy mà bàn không úp")
 
 /**
  * TH1: 5 ô đầu là 5 ô cờ đỏ, có Tướng hoặc Soái → Tẩy, Mua, Take-away.
@@ -34,7 +36,8 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
     var daLay = 0; private set
     var xuTaoMoi = 0; private set
     var soTaoMoi = 0; private set
-    private var vuaLay = false // Tạo mới ngay sau Take-away thì miễn phí
+    private var vuaLay = false
+    private var daThuTh3 = false // Tạo mới ngay sau Take-away thì miễn phí
 
     private fun ngu(ms: Long) { if (dung) throw DungBC("Đã dừng"); tb.ngu(ms) }
     private fun nhin(): ManBC { for (i in 0 until 5) { tb.nhin()?.let { return it }; ngu(300) }; throw DungBC("Không chụp/đọc được màn hình") }
@@ -49,11 +52,17 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
     fun chay() {
         tb.log("🔥 Bàn Cờ Lửa: ${cd.soLan} lần Take-away (~${cd.soLan * CaiDatBC.GIA} xu)" + if (cd.choTH3) " – đang chờ TH3" else "")
         try {
+            if (cd.canTaoMoi) { tb.log("Bàn vừa Take-away xong lần trước → Tạo mới trước"); vuaLay = true; taoMoi() }
             while (!dung && daLay < cd.soLan) {
                 val m = veBang()
                 if (cd.choTH3) {
                     tb.log("TH3: bàn sau bàn đẹp → Tẩy + Take-away luôn")
-                    layHet(m)
+                    try { layHet(m) } catch (e: KhongUp) {
+                        if (daThuTh3) throw e
+                        // bàn đang mở có thể là bàn đã lấy (lật ngửa hết) mà chưa Tạo mới
+                        daThuTh3 = true; tb.log("  Tẩy không úp → có thể bàn này đã lấy rồi → Tạo mới, làm TH3 ở bàn mới")
+                        vuaLay = true; taoMoi(); continue
+                    }
                     cd.choTH3 = false; tb.luu(cd)
                     taoMoi()
                     continue
@@ -130,7 +139,7 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
             tb.log("  Tẩy chưa thấy bàn úp → bấm lại (5 ô: ${tb.hang()?.let { "$it · ${it.chiTiet}" }})")
             m = veBang()
         }
-        if (!up) throw DungBC("Bấm Tẩy mà bàn không úp")
+        if (!up) throw KhongUp()
         // Mua → bảng Take-away
         var mua: ManBC? = null
         for (lan in 0 until 2) {
@@ -149,6 +158,7 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
         val sau = cho(5000) { it.loai != LoaiBC.HOI_TAKE_AWAY }
         if (sau?.loai == LoaiBC.HOI_KHAC) throw DungBC("Sau Take-away hiện: \"${sau.chuHoi}\" (có thể thiếu xu)")
         daLay++
+        cd.canTaoMoi = true; tb.luu(cd)
         vuaLay = true
         tb.log("🎁 Take-away lần $daLay/${cd.soLan} (${daLay * CaiDatBC.GIA} xu)")
     }
@@ -177,6 +187,7 @@ class BanCo(private val tb: ThietBiBC, private val cd: CaiDatBC) {
     }
 
     private fun demTaoMoi(gia: Int?) {
+        if (cd.canTaoMoi) { cd.canTaoMoi = false; tb.luu(cd) }
         val g = gia ?: if (vuaLay) 0 else 20
         soTaoMoi++; xuTaoMoi += g; vuaLay = false
     }

@@ -64,6 +64,18 @@ class DocBCTest {
     }
 
     @Test
+    fun hoiTaoMoiMienPhi() {
+        // sau Take-away: hộp thoại "Miễn phí", OCR lẫn nhãn số lượng của ô bên dưới
+        val v = intArrayOf(0, 0, 2000, 1125)
+        val chu = listOf(Chu("500)", 840f, 470f, 900f, 500f), Chu("Miễn phí", 780f, 500f, 940f, 540f), Chu("888)", 960f, 500f, 1020f, 530f),
+            Chu("Hủy", 790f, 700f, 880f, 740f), Chu("OK", 1150f, 700f, 1230f, 740f))
+        val m = DocBC.doc(chu, v)
+        assertEquals(LoaiBC.HOI_TAO_MOI, m.loai)
+        assertEquals(0, m.giaHoi)
+        assertEquals("Miễn phí", m.chuHoi)
+    }
+
+    @Test
     fun docNamODau() {
         val a = MauBC.anh("mo_bai.jpg") // 炮 炮 士 车 车
         val h = DocBC.docHang(a)

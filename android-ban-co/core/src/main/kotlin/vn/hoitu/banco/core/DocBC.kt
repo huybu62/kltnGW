@@ -58,12 +58,14 @@ object DocBC {
         val ok = ds.any { it.n == "OK" && it.x in 1030f..1350f && it.y in 640f..800f }
         val huy = ds.any { (it.n == "HUY" || it.n == "HUYS") && it.x in 680f..990f && it.y in 640f..800f }
         if (ok || huy) {
-            val hoi = ds.filter { it.x in 560f..1200f && it.y in 440f..640f && it.n != "OK" && it.n != "HUY" }
+            // bỏ nhãn số lượng của ô bên dưới lớp tối (vd "x500", "888)")
+            val hoi = ds.filter { it.x in 560f..1200f && it.y in 440f..640f && it.n != "OK" && it.n != "HUY" && it.n.count { c -> c.isLetter() } >= 3 && !Regex("X?\\d+").matches(it.n) }
             val n = hoi.joinToString("") { it.n }
             val t = hoi.joinToString(" ") { it.t }
-            val gia = Regex("TON(\\d+)").find(n)?.groupValues?.get(1)?.toIntOrNull()
+            val mienPhi = n.contains("MIENPHI") || VanBan.khoangCachDoan("MIENPHI", n) <= 1
+            val gia = Regex("TON(\\d+)").find(n)?.groupValues?.get(1)?.toIntOrNull() ?: if (mienPhi) 0 else null
             val loai = when {
-                n.contains("TAOMOI") || VanBan.khoangCachDoan("TAOMOI", n) <= 1 -> LoaiBC.HOI_TAO_MOI
+                mienPhi || n.contains("TAOMOI") || VanBan.khoangCachDoan("TAOMOI", n) <= 1 -> LoaiBC.HOI_TAO_MOI
                 n.contains("TAKEAWAY") || n.contains("XACNHAN") || VanBan.khoangCachDoan("TAKEAWAY", n) <= 2 -> LoaiBC.HOI_TAKE_AWAY
                 else -> LoaiBC.HOI_KHAC
             }

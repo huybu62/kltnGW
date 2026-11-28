@@ -118,6 +118,17 @@ class BanCoTest {
     }
 
     @Test
+    fun lanTruocLayXongChuaTaoMoi() {
+        // lần trước Take-away xong rồi dừng: bàn 0 đã lấy → Tạo mới trước, rồi TH3 lấy bàn 1
+        val g = GameBC(listOf(tuong, xau, xau))
+        g.up = true; g.daLay = true
+        val cd = CaiDatBC(soLan = 1, choTH3 = true, canTaoMoi = true)
+        BanCo(g, cd).chay()
+        assertEquals(listOf("lay 1"), g.nhatKy.filter { it.startsWith("lay") })
+        assertFalse(cd.choTH3)
+    }
+
+    @Test
     fun tayKhongAnThiBamLai() {
         val g = GameBC(listOf(tuong, xau))
         g.tayBiLo = 1
